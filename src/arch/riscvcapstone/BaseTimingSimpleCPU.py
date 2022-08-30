@@ -1,4 +1,5 @@
-# Copyright 2021 Google, Inc.
+# Copyright (c) 2007 The Regents of The University of Michigan
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -23,38 +24,19 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects.BaseAtomicSimpleCPU import BaseAtomicSimpleCPU
-from m5.objects.BaseNonCachingSimpleCPU import BaseNonCachingSimpleCPU
-from m5.objects.BaseTimingSimpleCPU import BaseTimingSimpleCPU
-from .BaseTimingSimpleNCacheCPU import BaseTimingSimpleNCacheCPU
-from m5.objects.BaseO3CPU import BaseO3CPU
-from m5.objects.BaseMinorCPU import BaseMinorCPU
-from m5.objects.RiscvDecoder import RiscvDecoder
-from m5.objects.RiscvMMU import RiscvMMU
-from m5.objects.RiscvInterrupts import RiscvInterrupts
-from m5.objects.RiscvcapstoneISA import RiscvcapstoneISA
+from m5.params import *
 
-class RiscvCPU:
-    ArchDecoder = RiscvDecoder
-    ArchMMU = RiscvMMU
-    ArchInterrupts = RiscvInterrupts
-    ArchISA = RiscvcapstoneISA
+from m5.objects.BaseSimpleCPU import BaseSimpleCPU
 
-class RiscvAtomicSimpleCPU(BaseAtomicSimpleCPU, RiscvCPU):
-    mmu = RiscvMMU()
+class BaseTimingSimpleCPU(BaseSimpleCPU):
+    type = 'BaseTimingSimpleCPU'
+    cxx_header = "cpu/simple/timing.hh"
+    cxx_class = 'gem5::TimingSimpleCPU'
 
-class RiscvNonCachingSimpleCPU(BaseNonCachingSimpleCPU, RiscvCPU):
-    mmu = RiscvMMU()
+    @classmethod
+    def memory_mode(cls):
+        return 'timing'
 
-class RiscvTimingSimpleCPU(BaseTimingSimpleCPU, RiscvCPU):
-    mmu = RiscvMMU()
-
-class RiscvO3CPU(BaseO3CPU, RiscvCPU):
-    mmu = RiscvMMU()
-
-class RiscvMinorCPU(BaseMinorCPU, RiscvCPU):
-    mmu = RiscvMMU()
-
-class RiscvTimingSimpleNCacheCPU(BaseTimingSimpleNCacheCPU, RiscvCPU):
-    mmu = RiscvMMU()
-
+    @classmethod
+    def support_take_over(cls):
+        return True
