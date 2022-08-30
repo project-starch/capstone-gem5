@@ -41,25 +41,28 @@
 #ifndef __CPU_SIMPLE_TIMING_HH__
 #define __CPU_SIMPLE_TIMING_HH__
 
+#include <queue>
 #include "arch/generic/mmu.hh"
 #include "cpu/simple/base.hh"
 #include "cpu/simple/exec_context.hh"
 #include "cpu/translation.hh"
-#include "params/BaseTimingSimpleCPU.hh"
+#include "params/BaseTimingSimpleNCacheCPU.hh"
 
 namespace gem5
 {
 
-class TimingSimpleCPU : public BaseSimpleCPU
+class TimingSimpleNCacheCPU : public BaseSimpleCPU
 {
   public:
 
-    TimingSimpleCPU(const BaseTimingSimpleCPUParams &params);
-    virtual ~TimingSimpleCPU();
+    TimingSimpleNCacheCPU(const BaseTimingSimpleNCacheCPUParams &params);
+    virtual ~TimingSimpleNCacheCPU();
 
     void init() override;
 
   private:
+    std::queue<PacketPtr> dataResps;
+    std::queue<PacketPtr> nodeResps;
 
     /*
      * If an access needs to be broken into fragments, currently at most two,
@@ -111,10 +114,10 @@ class TimingSimpleCPU : public BaseSimpleCPU
     class FetchTranslation : public BaseMMU::Translation
     {
       protected:
-        TimingSimpleCPU *cpu;
+        TimingSimpleNCacheCPU *cpu;
 
       public:
-        FetchTranslation(TimingSimpleCPU *_cpu)
+        FetchTranslation(TimingSimpleNCacheCPU *_cpu)
             : cpu(_cpu)
         {}
 
@@ -163,21 +166,21 @@ class TimingSimpleCPU : public BaseSimpleCPU
     {
       public:
 
-        TimingCPUPort(const std::string& _name, TimingSimpleCPU* _cpu)
+        TimingCPUPort(const std::string& _name, TimingSimpleNCacheCPU* _cpu)
             : RequestPort(_name, _cpu), cpu(_cpu),
               retryRespEvent([this]{ sendRetryResp(); }, name())
         { }
 
       protected:
 
-        TimingSimpleCPU* cpu;
+        TimingSimpleNCacheCPU* cpu;
 
         struct TickEvent : public Event
         {
             PacketPtr pkt;
-            TimingSimpleCPU *cpu;
+            TimingSimpleNCacheCPU *cpu;
 
-            TickEvent(TimingSimpleCPU *_cpu) : pkt(NULL), cpu(_cpu) {}
+            TickEvent(TimingSimpleNCacheCPU *_cpu) : pkt(NULL), cpu(_cpu) {}
             const char *description() const { return "Timing CPU tick"; }
             void schedule(PacketPtr _pkt, Tick t);
         };
@@ -189,7 +192,7 @@ class TimingSimpleCPU : public BaseSimpleCPU
     {
       public:
 
-        IcachePort(TimingSimpleCPU *_cpu)
+        IcachePort(TimingSimpleNCacheCPU *_cpu)
             : TimingCPUPort(_cpu->name() + ".icache_port", _cpu),
               tickEvent(_cpu)
         { }
@@ -203,7 +206,7 @@ class TimingSimpleCPU : public BaseSimpleCPU
         struct ITickEvent : public TickEvent
         {
 
-            ITickEvent(TimingSimpleCPU *_cpu)
+            ITickEvent(TimingSimpleNCacheCPU *_cpu)
                 : TickEvent(_cpu) {}
             void process();
             const char *description() const { return "Timing CPU icache tick"; }
@@ -217,7 +220,7 @@ class TimingSimpleCPU : public BaseSimpleCPU
     {
       public:
 
-        DcachePort(TimingSimpleCPU *_cpu)
+        DcachePort(TimingSimpleNCacheCPU *_cpu)
             : TimingCPUPort(_cpu->name() + ".dcache_port", _cpu),
               tickEvent(_cpu)
         {
@@ -243,7 +246,7 @@ class TimingSimpleCPU : public BaseSimpleCPU
 
         struct DTickEvent : public TickEvent
         {
-            DTickEvent(TimingSimpleCPU *_cpu)
+            DTickEvent(TimingSimpleNCacheCPU *_cpu)
                 : TickEvent(_cpu) {}
             void process();
             const char *description() const { return "Timing CPU dcache tick"; }
@@ -252,6 +255,34 @@ class TimingSimpleCPU : public BaseSimpleCPU
         DTickEvent tickEvent;
 
     };
+
+    class NCachePort: public RequestPort {
+        private:
+            struct NCacheRespTickEvent : public Event {
+                NCacheRespTickEvent(TimingSimpleNCacheCPU* cpu) :
+                    cpu(cpu) {}
+                void schedule(PacketPtr pkt, Cycles cycles = Cycles(0));
+                void process() override;
+            };
+
+            TimingSimpleNCacheCPU* cpu;
+            NCacheRespTickEvent tickEvent;
+            EventFunctionWrapper retryEvent;
+
+            PacketPtr pkt;
+        public:
+            NCachePort(TimingSimpleNCacheCPU* cpu):
+                RequestPort(cpu->name() + ".ncache_port", cpu),
+                cpu(cpu),
+                tickEvent(cpu),
+                retryEvent([this] { sendRetryResp(); }) {}
+        protected:
+            bool recvTimingResp(PacketPtr pkt) override;
+            bool recvReqRetry() override;
+    };
+
+    NCachePort ncache_port;
+
 
     void updateCycleCounts();
 
@@ -337,8 +368,8 @@ class TimingSimpleCPU : public BaseSimpleCPU
     struct IprEvent : Event
     {
         Packet *pkt;
-        TimingSimpleCPU *cpu;
-        IprEvent(Packet *_pkt, TimingSimpleCPU *_cpu, Tick t);
+        TimingSimpleNCacheCPU *cpu;
+        IprEvent(Packet *_pkt, TimingSimpleNCacheCPU *_cpu, Tick t);
         virtual void process();
         virtual const char *description() const;
     };
