@@ -173,8 +173,6 @@ namespace RiscvcapstoneISA
         // The TLB we're supposed to load.
         TLB * tlb;
         System * sys;
-        PMAChecker * pma;
-        PMP * pmp;
         RequestorID requestorId;
 
         // The number of outstanding walks that can be squashed per cycle.
@@ -205,8 +203,6 @@ namespace RiscvcapstoneISA
         Walker(const Params &params) :
             ClockedObject(params), port(name() + ".port", this),
             funcState(this, NULL, NULL, true), tlb(NULL), sys(params.system),
-            pma(params.pma_checker),
-            pmp(params.pmp),
             requestorId(sys->getRequestorId(this)),
             numSquashable(params.num_squash_per_cycle),
             startWalkWrapperEvent([this]{ startWalkWrapper(); }, name())

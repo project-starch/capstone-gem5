@@ -72,8 +72,7 @@ buildKey(Addr vpn, uint16_t asid)
 
 TLB::TLB(const Params &p) :
     BaseTLB(p), size(p.size), tlb(size),
-    lruSeq(0), stats(this), pma(p.pma_checker),
-    pmp(p.pmp)
+    lruSeq(0), stats(this)
 {
     for (size_t x = 0; x < size; x++) {
         tlb[x].trieHandle = NULL;
@@ -369,16 +368,6 @@ TLB::translate(const RequestPtr &req, ThreadContext *tc,
                 code = ExceptionCode::INST_ACCESS;
             fault = std::make_shared<AddressFault>(req->getVaddr(), code);
         }
-
-        if (!delayed && fault == NoFault) {
-            pma->check(req);
-
-            // do pmp check if any checking condition is met.
-            // timingFault will be NoFault if pmp checks are
-            // passed, otherwise an address fault will be returned.
-            fault = pmp->pmpCheck(req, mode, pmode, tc);
-        }
-
         return fault;
     } else {
         // In the O3 CPU model, sometimes a memory access will be speculatively
@@ -431,22 +420,7 @@ TLB::translateFunctional(const RequestPtr &req, ThreadContext *tc,
     Addr paddr = vaddr;
 
     if (FullSystem) {
-        MMU *mmu = static_cast<MMU *>(tc->getMMUPtr());
-
-        PrivilegeMode pmode = mmu->getMemPriv(tc, mode);
-        SATP satp = tc->readMiscReg(MISCREG_SATP);
-        if (pmode != PrivilegeMode::PRV_M &&
-            satp.mode != AddrXlateMode::BARE) {
-            Walker *walker = mmu->getDataWalker();
-            unsigned logBytes;
-            Fault fault = walker->startFunctional(
-                    tc, paddr, logBytes, mode);
-            if (fault != NoFault)
-                return fault;
-
-            Addr masked_addr = vaddr & mask(logBytes);
-            paddr |= masked_addr;
-        }
+        panic("full system unsupported.");
     }
     else {
         Process *process = tc->getProcessPtr();

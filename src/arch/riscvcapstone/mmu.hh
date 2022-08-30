@@ -46,6 +46,9 @@
 
 #include "params/RiscvMMU.hh"
 
+#include "base/trace.hh"
+#include "debug/CapstoneMem.hh"
+
 namespace gem5
 {
 
@@ -54,10 +57,8 @@ namespace RiscvcapstoneISA {
 class MMU : public BaseMMU
 {
   public:
-    PMAChecker *pma;
-
     MMU(const RiscvMMUParams &p)
-      : BaseMMU(p), pma(p.pma_checker)
+      : BaseMMU(p)
     {}
 
     TranslationGenPtr
@@ -71,29 +72,36 @@ class MMU : public BaseMMU
     PrivilegeMode
     getMemPriv(ThreadContext *tc, BaseMMU::Mode mode)
     {
-        return static_cast<TLB*>(dtb)->getMemPriv(tc, mode);
+        return PrivilegeMode::PRV_U;
     }
 
-    Walker *
-    getDataWalker()
-    {
-        return static_cast<TLB*>(dtb)->getWalker();
+
+    Fault translateAtomic(const RequestPtr& req, ThreadContext* tc, Mode mode) override {
+        panic("atomic translation not supported.");
+    }
+
+    void translateTiming(const RequestPtr& req, ThreadContext* tc,
+            Translation* translation, Mode mode) override {
+        DPRINTF(CapstoneMem, "translate %llx\n", req->getVaddr());
+        req->setPaddr(req->getVaddr()); // simply pass through
+        translation->finish(NoFault, req, tc, mode);
+    }
+
+    Fault translateFunctional(const RequestPtr& req, ThreadContext* tc, Mode mode) override {
+        req->setPaddr(req->getVaddr()); // simply pass through
+
+        return NoFault;
+    }
+
+    void flushAll() override {} 
+
+    Fault finalizePhysical(const RequestPtr &req, ThreadContext *tc, Mode mode) const override {
+        return NoFault;
     }
 
     void
-    takeOverFrom(BaseMMU *old_mmu) override
-    {
-      MMU *ommu = dynamic_cast<MMU*>(old_mmu);
-      BaseMMU::takeOverFrom(ommu);
-      pma->takeOverFrom(ommu->pma);
+    takeOverFrom(BaseMMU *old_mmu) override {}
 
-    }
-
-    PMP *
-    getPMP()
-    {
-        return static_cast<TLB*>(dtb)->pmp;
-    }
 };
 
 } // namespace RiscvcapstoneISA
