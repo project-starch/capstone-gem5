@@ -1,8 +1,11 @@
 #ifndef NODE_CONTROLLER_H
 #define NODE_CONTROLLER_H
 
-#include "clocked_object.hh"
+#include "sim/clocked_object.hh"
+#include "mem/packet.hh"
+#include "mem/port.hh"
 #include "params/NodeController.hh"
+#include "base/trace.hh"
 
 namespace gem5::RiscvcapstoneISA {
 
@@ -19,6 +22,8 @@ class NodeController : public ClockedObject {
                 }
                 bool recvTimingReq(PacketPtr pkt) override;
                 void recvRespRetry() override;
+                void recvFunctional(PacketPtr pkt) override;
+                AddrRangeList getAddrRanges() const override;
                 void trySendResp(PacketPtr pkt);
         };
         

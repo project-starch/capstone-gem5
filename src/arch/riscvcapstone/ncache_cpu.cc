@@ -51,9 +51,11 @@
 #include "debug/HtmCpu.hh"
 #include "debug/Mwait.hh"
 #include "debug/SimpleCPU.hh"
+#include "debug/CapstoneNCache.hh"
 #include "mem/packet.hh"
 #include "mem/packet_access.hh"
 #include "params/BaseTimingSimpleNCacheCPU.hh"
+#include "base/trace.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
 #include "sim/system.hh"
@@ -286,13 +288,32 @@ TimingSimpleNCacheCPU::handleReadPacket(PacketPtr pkt)
         new IprEvent(pkt, this, clockEdge(delay));
         _status = DcacheWaitResponse;
         dcache_pkt = NULL;
-    } else if (!dcachePort.sendTimingReq(pkt)) {
-        _status = DcacheRetry;
-        dcache_pkt = pkt;
-    } else {
-        _status = DcacheWaitResponse;
-        // memory system takes ownership of packet
-        dcache_pkt = NULL;
+    } else{
+        assert(_status != DcacheRetry);
+        if (!dcachePort.sendTimingReq(pkt)) {
+            _status = DcacheRetry;
+            dcache_pkt = pkt;
+        } else {
+            _status = DcacheWaitResponse;
+            // memory system takes ownership of packet
+            dcache_pkt = NULL;
+        }
+
+        // if it's not a local access, we would need to check the corresponding revocation node as well
+        // FIXME: send a dummy request for now
+        assert(ncache_status != NCACHE_RETRY);
+        RequestPtr ncache_req = std::make_shared<Request>(); // dummy
+        PacketPtr ncache_pkt = Packet::createRead(ncache_req);
+        if(ncache_port.sendTimingReq(ncache_pkt)) {
+            DPRINTF(CapstoneNCache, "NCache packet sent\n");
+            ncache_status = NCACHE_WAITING;
+            this->ncache_pkt = NULL;
+        } else {
+            DPRINTF(CapstoneNCache, "NCache packet to retry\n");
+            ncache_status = NCACHE_RETRY;
+            this->ncache_pkt = ncache_pkt;
+        }
+
     }
     return dcache_pkt == NULL;
 }
@@ -304,7 +325,7 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
     SimpleExecContext &t_info = *threadInfo[curThread];
     SimpleThread* thread = t_info.thread;
 
-    PacketPtr pkt = buildPacket(req, read);
+    PacketPtr pkt = buildPacket(req, read); // simply createRead or createWrite
     pkt->dataDynamic<uint8_t>(data);
 
     // hardware transactional memory
@@ -350,6 +371,7 @@ void
 TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &req2,
                                const RequestPtr &req, uint8_t *data, bool read)
 {
+    DPRINTF(CapstoneNCache, "NCache split data invoked\n");
     SimpleExecContext &t_info = *threadInfo[curThread];
     PacketPtr pkt1, pkt2;
     buildSplitPacket(pkt1, pkt2, req1, req2, req, data, read);
@@ -373,6 +395,7 @@ TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &r
         SplitFragmentSenderState * send_state =
             dynamic_cast<SplitFragmentSenderState *>(pkt1->senderState);
         if (handleReadPacket(pkt1)) {
+            assert(dcache_pkt == NULL);
             send_state->clearFromParent();
             send_state = dynamic_cast<SplitFragmentSenderState *>(
                     pkt2->senderState);
@@ -384,7 +407,7 @@ TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &r
         dcache_pkt = pkt1;
         SplitFragmentSenderState * send_state =
             dynamic_cast<SplitFragmentSenderState *>(pkt1->senderState);
-        if (handleWritePacket()) {
+        if (handleWritePacket()) { // assert
             send_state->clearFromParent();
             dcache_pkt = pkt2;
             send_state = dynamic_cast<SplitFragmentSenderState *>(
@@ -515,12 +538,31 @@ TimingSimpleNCacheCPU::handleWritePacket()
         new IprEvent(dcache_pkt, this, clockEdge(delay));
         _status = DcacheWaitResponse;
         dcache_pkt = NULL;
-    } else if (!dcachePort.sendTimingReq(dcache_pkt)) {
-        _status = DcacheRetry;
     } else {
-        _status = DcacheWaitResponse;
-        // memory system takes ownership of packet
-        dcache_pkt = NULL;
+        assert(_status != DcacheRetry);
+        if (!dcachePort.sendTimingReq(dcache_pkt)) {
+            _status = DcacheRetry;
+        } else {
+            _status = DcacheWaitResponse;
+            // memory system takes ownership of packet
+            dcache_pkt = NULL;
+        }
+
+
+        // if it's not a local access, we would need to check the corresponding revocation node as well
+        // FIXME: send a dummy request for now
+        assert(ncache_status == NCACHE_IDLE);
+        RequestPtr ncache_req = std::make_shared<Request>(); // dummy
+        PacketPtr ncache_pkt = Packet::createRead(ncache_req);
+        if(ncache_port.sendTimingReq(ncache_pkt)) {
+            DPRINTF(CapstoneNCache, "NCache packet sent (write)\n");
+            ncache_status = NCACHE_WAITING;
+            this->ncache_pkt = NULL;
+        } else {
+            DPRINTF(CapstoneNCache, "NCache packet to retry (write)\n");
+            ncache_status = NCACHE_RETRY;
+            this->ncache_pkt = ncache_pkt;
+        }
     }
     return dcache_pkt == NULL;
 }
@@ -1002,7 +1044,7 @@ TimingSimpleNCacheCPU::completeDataAccess(PacketPtr pkt)
         main_send_state->outstanding--;
 
         if (main_send_state->outstanding) {
-            return;
+            return; // if there is still split req to send, do nothing for now
         } else {
             delete main_send_state;
             big_pkt->senderState = NULL;
@@ -1337,6 +1379,7 @@ Port& TimingSimpleNCacheCPU::getPort(const std::string& name, PortID idx) {
 void TimingSimpleNCacheCPU::NCachePort::NCacheRespTickEvent::schedule(
         PacketPtr pkt,
         Cycles cycles) {
+    DPRINTF(CapstoneNCache, "NCache response tick event scheduled\n");
     this->pkt = pkt;
     cpu->schedule(this, cpu->clockEdge(cycles));
 }
@@ -1346,7 +1389,9 @@ void TimingSimpleNCacheCPU::NCachePort::NCacheRespTickEvent::process() {
 }
 
 bool TimingSimpleNCacheCPU::NCachePort::recvTimingResp(PacketPtr pkt) {
+    DPRINTF(CapstoneNCache, "NCache response received\n");
     if(tickEvent.scheduled()){
+        DPRINTF(CapstoneNCache, "NCache resp tick event already scheduled\n");
         if(!retryEvent.scheduled())
             cpu->schedule(&retryEvent, cpu->clockEdge(Cycles(1)));
         return false;
@@ -1355,7 +1400,8 @@ bool TimingSimpleNCacheCPU::NCachePort::recvTimingResp(PacketPtr pkt) {
     return true;
 }
 
-void TimingSimpleNCacheCPU::completeNCacheLoad(PacketPtr pkt) {
+void TimingSimpleNCacheCPU::completeDCacheLoad(PacketPtr pkt) {
+    DPRINTF(CapstoneNCache, "DCache load complete\n");
     assert(nodeResps.empty() || dataResps.empty());
     if(!dataResps.empty()){
         PacketPtr data_pkt = dataResps.front();
@@ -1366,7 +1412,8 @@ void TimingSimpleNCacheCPU::completeNCacheLoad(PacketPtr pkt) {
     }
 }
 
-void TimingSimpleNCacheCPU::completeDCacheLoad(PacketPtr pkt) {
+void TimingSimpleNCacheCPU::completeNCacheLoad(PacketPtr pkt) {
+    DPRINTF(CapstoneNCache, "NCache completeNCacheLoad\n");
     assert(ncache_status == NCACHE_WAITING);
     assert(nodeResps.empty() || dataResps.empty());
 
@@ -1385,7 +1432,9 @@ void TimingSimpleNCacheCPU::completeDCacheLoad(PacketPtr pkt) {
 void TimingSimpleNCacheCPU::completeDataAccess(
         PacketPtr data_pkt,
         PacketPtr node_pkt) {
-    TimingSimpleNCacheCPU::completeDataAccess(data_pkt);
+    DPRINTF(CapstoneNCache, "NCache completeDataAccess\n");
+    delete node_pkt;
+    completeDataAccess(data_pkt);
 }
 
 void TimingSimpleNCacheCPU::NCachePort::recvReqRetry() {

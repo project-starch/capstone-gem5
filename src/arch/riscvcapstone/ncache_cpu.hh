@@ -47,6 +47,7 @@
 #include "cpu/simple/exec_context.hh"
 #include "cpu/translation.hh"
 #include "params/BaseTimingSimpleNCacheCPU.hh"
+#include "debug/CapstoneNCache.hh"
 
 namespace gem5::RiscvcapstoneISA
 {
@@ -283,7 +284,7 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
                 RequestPort(cpu->name() + ".ncache_port", cpu),
                 cpu(cpu),
                 tickEvent(cpu),
-                retryEvent([this] { sendRetryResp(); }, name()) {}
+                retryEvent([this] { DPRINTF(CapstoneNCache, "NCache send retry resp\n"); sendRetryResp(); }, name()) {}
         protected:
             bool recvTimingResp(PacketPtr pkt) override;
             void recvReqRetry() override;
