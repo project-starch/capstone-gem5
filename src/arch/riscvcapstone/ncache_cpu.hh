@@ -418,6 +418,8 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
      * @returns true if the CPU is drained, false otherwise.
      */
     bool tryCompleteDrain();
+
+    void endCompleteDataAccess(PacketPtr pkt, Fault fault);
 };
 
 } // namespace gem5
