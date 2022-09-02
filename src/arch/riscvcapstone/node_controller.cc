@@ -28,10 +28,11 @@ bool NodeController::CPUSidePort::recvTimingReq(PacketPtr pkt) {
     pkt->setSize(sizeof(uint64_t));
     pkt->allocate();
     
-    uint64_t resp_data = 1;
+    std::optional<NodeID> node_id = owner->lookupAddr(pkt->getAddr());
+    assert(!node_id);
+    uint64_t resp_data = 1; 
     pkt->setData((uint8_t*)&resp_data);
     pkt->makeResponse();
-
     
     // no latency
     trySendResp(pkt);
@@ -65,6 +66,22 @@ AddrRangeList NodeController::CPUSidePort::getAddrRanges() const {
     return std::list<AddrRange> { AddrRange(0, 0xffffffffLL) };
 }
 
+std::optional<NodeController::NodeID>
+NodeController::lookupAddr(Addr addr) {
+    NodeID n = 0;
+    for(auto& obj : object_ranges) {
+        if(obj.contains(addr)){
+            return std::optional<NodeController::NodeID>(n);
+        }
+        ++ n;
+    }
+    return std::optional<NodeController::NodeID>();
+}
+
+void
+NodeController::addObject(const AddrRange& obj) {
+    object_ranges.push_front(obj);
+}
 
 } // end of namespace gem5::RiscvcapstoneISA
 

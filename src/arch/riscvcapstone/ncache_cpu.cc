@@ -40,6 +40,7 @@
  */
 
 #include "arch/riscvcapstone/ncache_cpu.hh"
+#include "arch/riscvcapstone/faults.hh"
 
 #include "arch/generic/decoder.hh"
 #include "base/compiler.hh"
@@ -332,20 +333,7 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
         DPRINTF(CapstoneNCache, "Senddata read %llx\n", req->getVaddr());
         handleReadPacket(pkt);
 
-        // if it's not a local access, we would need to check the corresponding revocation node as well
-        // FIXME: send a dummy request for now
-        assert(ncache_status != NCACHE_RETRY);
-        RequestPtr ncache_req = std::make_shared<Request>(); // dummy
-        PacketPtr ncache_pkt = Packet::createRead(ncache_req);
-        if(ncache_port.sendTimingReq(ncache_pkt)) {
-            DPRINTF(CapstoneNCache, "NCache packet sent\n");
-            ncache_status = NCACHE_WAITING;
-            this->ncache_pkt = NULL;
-        } else {
-            DPRINTF(CapstoneNCache, "NCache packet to retry\n");
-            ncache_status = NCACHE_RETRY;
-            this->ncache_pkt = ncache_pkt;
-        }
+        sendNCacheReq(pkt->getAddr());
     } else {
         bool do_access = true;  // flag to suppress cache access
 
@@ -366,19 +354,27 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
             _status = DcacheWaitResponse;
             handleDCacheResp(pkt);
         }
+        sendNCacheReq(pkt->getAddr());
+    }
+}
 
-        assert(ncache_status != NCACHE_RETRY);
-        RequestPtr ncache_req = std::make_shared<Request>(); // dummy
-        PacketPtr ncache_pkt = Packet::createRead(ncache_req);
-        if(ncache_port.sendTimingReq(ncache_pkt)) {
-            DPRINTF(CapstoneNCache, "NCache packet sent\n");
-            ncache_status = NCACHE_WAITING;
-            this->ncache_pkt = NULL;
-        } else {
-            DPRINTF(CapstoneNCache, "NCache packet to retry\n");
-            ncache_status = NCACHE_RETRY;
-            this->ncache_pkt = ncache_pkt;
-        }
+void
+TimingSimpleNCacheCPU::sendNCacheReq(Addr addr) {
+    assert(ncache_status != NCACHE_RETRY);
+    RequestPtr ncache_req = std::make_shared<Request>();
+    // pass the address
+    ncache_req->setPaddr(addr);
+
+    assert(ncache_req->hasPaddr() && !ncache_req->hasSize());
+    PacketPtr ncache_pkt = Packet::createRead(ncache_req);
+    if(ncache_port.sendTimingReq(ncache_pkt)) {
+        DPRINTF(CapstoneNCache, "NCache packet sent\n");
+        ncache_status = NCACHE_WAITING;
+        this->ncache_pkt = NULL;
+    } else {
+        DPRINTF(CapstoneNCache, "NCache packet to retry\n");
+        ncache_status = NCACHE_RETRY;
+        this->ncache_pkt = ncache_pkt;
     }
 }
 
@@ -419,6 +415,8 @@ TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &r
                 send_state->clearFromParent();
             }
         }
+
+        sendNCacheReq(req->getVaddr());
     } else {
         dcache_pkt = pkt1;
         SplitFragmentSenderState * send_state =
@@ -432,6 +430,8 @@ TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &r
                 send_state->clearFromParent();
             }
         }
+
+        sendNCacheReq(req->getVaddr());
     }
 }
 
@@ -1423,21 +1423,13 @@ void TimingSimpleNCacheCPU::completeNCacheLoad(PacketPtr pkt) {
 
 
 void TimingSimpleNCacheCPU::completeDCacheLoad(PacketPtr pkt) {
-    if(pkt->isRead()){
-        DPRINTF(CapstoneNCache, "NCache completeDCacheLoad read %llx\n", pkt->getAddr());
-        if(!nodeResps.empty()){
-            PacketPtr node_pkt = nodeResps.front();
-            nodeResps.pop();
-            completeDataAccess(pkt, node_pkt);
-        } else{
-            dataResps.push(pkt);
-        }
-    } else {
-        DPRINTF(CapstoneNCache, "NCache completeDCacheLoad non-read\n");
-        SimpleExecContext* t_info = threadInfo[curThread];
-        Fault fault = curStaticInst->completeAcc(pkt, t_info,
-                traceData);
-        endHandlingDCacheResp(pkt, fault);
+    DPRINTF(CapstoneNCache, "NCache completeDCacheLoad read %llx\n", pkt->getAddr());
+    if(!nodeResps.empty()){
+        PacketPtr node_pkt = nodeResps.front();
+        nodeResps.pop();
+        completeDataAccess(pkt, node_pkt);
+    } else{
+        dataResps.push(pkt);
     }
 }
 
@@ -1445,12 +1437,25 @@ void TimingSimpleNCacheCPU::completeDataAccess(
         PacketPtr data_pkt,
         PacketPtr node_pkt) {
     DPRINTF(CapstoneNCache, "NCache completeDataAccess\n");
+
+    // perform checks on the revocation node
+    uint64_t node_mdata = *node_pkt->getPtr<uint64_t>();
     delete node_pkt;
 
+    DPRINTF(CapstoneNCache, "Nache node value: %llu\n", node_mdata);
+
     SimpleExecContext* t_info = threadInfo[curThread];
-    Fault fault = curStaticInst->completeAcc(data_pkt, t_info,
-            traceData);
-    endHandlingDCacheResp(data_pkt, fault);
+    if(node_mdata) {
+        Fault fault = curStaticInst->completeAcc(data_pkt, t_info,
+                traceData);
+        endHandlingDCacheResp(data_pkt, fault);
+    } else{
+        endHandlingDCacheResp(data_pkt, 
+                std::make_shared<AddressFault>(data_pkt->getAddr(),
+                    data_pkt->isRead() ?
+                        ExceptionCode::LOAD_ACCESS :
+                        ExceptionCode::STORE_ACCESS));
+    }
 }
 
 void TimingSimpleNCacheCPU::NCachePort::recvReqRetry() {

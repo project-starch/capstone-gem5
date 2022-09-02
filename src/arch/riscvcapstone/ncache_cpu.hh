@@ -420,6 +420,7 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
     bool tryCompleteDrain();
 
     void endHandlingDCacheResp(PacketPtr pkt, Fault fault);
+    void sendNCacheReq(Addr addr);
 };
 
 } // namespace gem5
