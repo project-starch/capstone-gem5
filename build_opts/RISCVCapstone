@@ -1,0 +1,2 @@
+TARGET_ISA = 'riscvcapstone'
+PROTOCOL = 'MI_example'
