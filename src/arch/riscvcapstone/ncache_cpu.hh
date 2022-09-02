@@ -341,7 +341,7 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
     void sendFetch(const Fault &fault,
                    const RequestPtr &req, ThreadContext *tc);
     void completeIfetch(PacketPtr );
-    void completeDataAccess(PacketPtr pkt);
+    void handleDCacheResp(PacketPtr pkt);
     void completeDataAccess(PacketPtr data_pkt, PacketPtr node_pkt);
     void completeDCacheLoad(PacketPtr pkt);
     void completeNCacheLoad(PacketPtr pkt);
@@ -419,7 +419,7 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
      */
     bool tryCompleteDrain();
 
-    void endCompleteDataAccess(PacketPtr pkt, Fault fault);
+    void endHandlingDCacheResp(PacketPtr pkt, Fault fault);
 };
 
 } // namespace gem5

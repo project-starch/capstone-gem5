@@ -327,9 +327,9 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
     if (req->getFlags().isSet(Request::NO_ACCESS)) {
         assert(!dcache_pkt);
         pkt->makeResponse();
-        completeDataAccess(pkt);
+        handleDCacheResp(pkt);
     } else if (read) {
-        DPRINTF(CapstoneNCache, "Senddata read\n");
+        DPRINTF(CapstoneNCache, "Senddata read %llx\n", req->getVaddr());
         handleReadPacket(pkt);
 
         // if it's not a local access, we would need to check the corresponding revocation node as well
@@ -364,7 +364,20 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
             threadSnoop(pkt, curThread);
         } else {
             _status = DcacheWaitResponse;
-            completeDataAccess(pkt);
+            handleDCacheResp(pkt);
+        }
+
+        assert(ncache_status != NCACHE_RETRY);
+        RequestPtr ncache_req = std::make_shared<Request>(); // dummy
+        PacketPtr ncache_pkt = Packet::createRead(ncache_req);
+        if(ncache_port.sendTimingReq(ncache_pkt)) {
+            DPRINTF(CapstoneNCache, "NCache packet sent\n");
+            ncache_status = NCACHE_WAITING;
+            this->ncache_pkt = NULL;
+        } else {
+            DPRINTF(CapstoneNCache, "NCache packet to retry\n");
+            ncache_status = NCACHE_RETRY;
+            this->ncache_pkt = ncache_pkt;
         }
     }
 }
@@ -392,7 +405,7 @@ TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &r
     if (req->getFlags().isSet(Request::NO_ACCESS)) {
         assert(!dcache_pkt);
         pkt1->makeResponse();
-        completeDataAccess(pkt1);
+        handleDCacheResp(pkt1);
     } else if (read) {
         DPRINTF(CapstoneNCache, "SendSplitData read\n");
         SplitFragmentSenderState * send_state =
@@ -973,7 +986,7 @@ TimingSimpleNCacheCPU::IcachePort::recvReqRetry()
 }
 
 void
-TimingSimpleNCacheCPU::completeDataAccess(PacketPtr pkt)
+TimingSimpleNCacheCPU::handleDCacheResp(PacketPtr pkt)
 {
     // hardware transactional memory
 
@@ -1081,14 +1094,14 @@ TimingSimpleNCacheCPU::completeDataAccess(PacketPtr pkt)
         } else {
             panic("HTM - unhandled rc %s", htmFailureToStr(htm_rc));
         }
-        endCompleteDataAccess(pkt, fault);
+        endHandlingDCacheResp(pkt, fault);
     } else {
         completeDCacheLoad(pkt);
     }
 }
 
 void
-TimingSimpleNCacheCPU::endCompleteDataAccess(PacketPtr pkt,
+TimingSimpleNCacheCPU::endHandlingDCacheResp(PacketPtr pkt,
         Fault fault) {
     SimpleExecContext* t_info = threadInfo[curThread];
     // hardware transactional memory
@@ -1196,7 +1209,7 @@ TimingSimpleNCacheCPU::DcachePort::recvTimingResp(PacketPtr pkt)
 void
 TimingSimpleNCacheCPU::DcachePort::DTickEvent::process()
 {
-    cpu->completeDataAccess(pkt);
+    cpu->handleDCacheResp(pkt);
 }
 
 void
@@ -1253,7 +1266,7 @@ TimingSimpleNCacheCPU::IprEvent::IprEvent(Packet *_pkt, TimingSimpleNCacheCPU *_
 void
 TimingSimpleNCacheCPU::IprEvent::process()
 {
-    cpu->completeDataAccess(pkt);
+    cpu->handleDCacheResp(pkt);
 }
 
 const char *
@@ -1411,7 +1424,7 @@ void TimingSimpleNCacheCPU::completeNCacheLoad(PacketPtr pkt) {
 
 void TimingSimpleNCacheCPU::completeDCacheLoad(PacketPtr pkt) {
     if(pkt->isRead()){
-        DPRINTF(CapstoneNCache, "NCache completeDCacheLoad read\n");
+        DPRINTF(CapstoneNCache, "NCache completeDCacheLoad read %llx\n", pkt->getAddr());
         if(!nodeResps.empty()){
             PacketPtr node_pkt = nodeResps.front();
             nodeResps.pop();
@@ -1424,7 +1437,7 @@ void TimingSimpleNCacheCPU::completeDCacheLoad(PacketPtr pkt) {
         SimpleExecContext* t_info = threadInfo[curThread];
         Fault fault = curStaticInst->completeAcc(pkt, t_info,
                 traceData);
-        endCompleteDataAccess(pkt, fault);
+        endHandlingDCacheResp(pkt, fault);
     }
 }
 
@@ -1437,7 +1450,7 @@ void TimingSimpleNCacheCPU::completeDataAccess(
     SimpleExecContext* t_info = threadInfo[curThread];
     Fault fault = curStaticInst->completeAcc(data_pkt, t_info,
             traceData);
-    endCompleteDataAccess(data_pkt, fault);
+    endHandlingDCacheResp(data_pkt, fault);
 }
 
 void TimingSimpleNCacheCPU::NCachePort::recvReqRetry() {
