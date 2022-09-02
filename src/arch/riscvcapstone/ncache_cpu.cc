@@ -329,6 +329,7 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
         pkt->makeResponse();
         completeDataAccess(pkt);
     } else if (read) {
+        DPRINTF(CapstoneNCache, "Senddata read\n");
         handleReadPacket(pkt);
 
         // if it's not a local access, we would need to check the corresponding revocation node as well
@@ -393,6 +394,7 @@ TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &r
         pkt1->makeResponse();
         completeDataAccess(pkt1);
     } else if (read) {
+        DPRINTF(CapstoneNCache, "SendSplitData read\n");
         SplitFragmentSenderState * send_state =
             dynamic_cast<SplitFragmentSenderState *>(pkt1->senderState);
         if (handleReadPacket(pkt1)) {
@@ -1408,8 +1410,8 @@ void TimingSimpleNCacheCPU::completeNCacheLoad(PacketPtr pkt) {
 
 
 void TimingSimpleNCacheCPU::completeDCacheLoad(PacketPtr pkt) {
-    DPRINTF(CapstoneNCache, "NCache completeDCacheLoad\n");
     if(pkt->isRead()){
+        DPRINTF(CapstoneNCache, "NCache completeDCacheLoad read\n");
         if(!nodeResps.empty()){
             PacketPtr node_pkt = nodeResps.front();
             nodeResps.pop();
@@ -1418,6 +1420,7 @@ void TimingSimpleNCacheCPU::completeDCacheLoad(PacketPtr pkt) {
             dataResps.push(pkt);
         }
     } else {
+        DPRINTF(CapstoneNCache, "NCache completeDCacheLoad non-read\n");
         SimpleExecContext* t_info = threadInfo[curThread];
         Fault fault = curStaticInst->completeAcc(pkt, t_info,
                 traceData);
