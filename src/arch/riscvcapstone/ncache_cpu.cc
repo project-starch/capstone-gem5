@@ -1445,17 +1445,17 @@ void TimingSimpleNCacheCPU::completeDataAccess(
     DPRINTF(CapstoneNCache, "Nache node value: %llu\n", node_mdata);
 
     SimpleExecContext* t_info = threadInfo[curThread];
-    if(node_mdata) {
+    //if(node_mdata) {
         Fault fault = curStaticInst->completeAcc(data_pkt, t_info,
                 traceData);
         endHandlingDCacheResp(data_pkt, fault);
-    } else{
-        endHandlingDCacheResp(data_pkt, 
-                std::make_shared<AddressFault>(data_pkt->getAddr(),
-                    data_pkt->isRead() ?
-                        ExceptionCode::LOAD_ACCESS :
-                        ExceptionCode::STORE_ACCESS));
-    }
+    //} else{
+        //endHandlingDCacheResp(data_pkt, 
+                //std::make_shared<AddressFault>(data_pkt->getAddr(),
+                    //data_pkt->isRead() ?
+                        //ExceptionCode::LOAD_ACCESS :
+                        //ExceptionCode::STORE_ACCESS));
+    //}
 }
 
 void TimingSimpleNCacheCPU::NCachePort::recvReqRetry() {

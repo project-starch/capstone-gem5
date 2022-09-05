@@ -1,15 +1,18 @@
 #ifndef NODE_CONTROLLER_H
 #define NODE_CONTROLLER_H
 
-#include<optional>
 #include<bitset>
+#include<utility>
+#include<optional>
+#include<vector>
 #include "sim/clocked_object.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 #include "params/NodeController.hh"
 #include "base/trace.hh"
 
-#define NODE_CONTROLLER_TAB_N 1024
+#define NODE_CACHE_BLOCK_WIDTH 9
+#define NODE_CACHE_LINES 4
 
 namespace gem5::RiscvcapstoneISA {
 
@@ -32,11 +35,21 @@ class NodeController : public ClockedObject {
                 AddrRangeList getAddrRanges() const override;
                 void trySendResp(PacketPtr pkt);
         };
+
+        Stats::Scalar hits;
+        Stats::Scalar misses;
+        Stats::Formula hitRatio;
+
         
         CPUSidePort cpu_side;
 
         AddrRangeList objectRanges;
-        std::bitset<NODE_CONTROLLER_TAB_N> objectValid;
+        std::vector<bool> objectValid;
+        std::pair<NodeID, std::bitset<(1 << NODE_CACHE_BLOCK_WIDTH)> > nodeCacheLines[1 << NODE_CACHE_LINES];
+
+        void setNodeValid(NodeID node_id, bool valid);
+        bool queryNodeValid(NodeID node_id);
+        void fetchCacheBlock(NodeID block); 
 
     public:
         NodeController(const NodeControllerParams& p);
@@ -46,6 +59,8 @@ class NodeController : public ClockedObject {
         void freeObject(Addr addr);
         void removeObject(Addr addr);
         std::optional<NodeID> lookupAddr(Addr addr);
+
+        void regStats() override;
 
 };
 
