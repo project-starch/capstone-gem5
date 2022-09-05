@@ -13,6 +13,7 @@ system.mem_mode = 'timing'
 system.mem_ranges = [AddrRange('512MB')]
 system.cpu = TimingSimpleCPU()
 system.node_controller = NodeController()
+system.cpu.node_controller = system.node_controller
 
 system.membus = SystemXBar()
 
@@ -37,7 +38,7 @@ system.mem_ctrl.dram = DDR3_1600_8x8()
 system.mem_ctrl.dram.range = system.mem_ranges[0]
 system.mem_ctrl.port = system.membus.mem_side_ports
 
-binary = 'tests/test-progs/hello/bin/riscv/linux/hello'
+binary = 'tests/capstone/hello'
 system.workload = SEWorkload.init_compatible(binary)
 
 process = Process()

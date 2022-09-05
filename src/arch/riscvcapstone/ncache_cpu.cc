@@ -78,7 +78,7 @@ TimingSimpleNCacheCPU::TimingCPUPort::TickEvent::schedule(PacketPtr _pkt, Tick t
 }
 
 TimingSimpleNCacheCPU::TimingSimpleNCacheCPU(const BaseTimingSimpleNCacheCPUParams &p)
-    : BaseSimpleCPU(p), 
+    : BaseSimpleCPU(p), node_controller(p.node_controller),
       ncache_status(NCACHE_IDLE),
       fetchTranslation(this), icachePort(this),
       dcachePort(this), ncache_port(this), 

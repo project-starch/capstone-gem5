@@ -28,12 +28,15 @@ from m5.params import *
 
 from m5.objects.BaseSimpleCPU import BaseSimpleCPU
 
+from .NodeController import NodeController
+
 class BaseTimingSimpleNCacheCPU(BaseSimpleCPU):
     type = 'BaseTimingSimpleNCacheCPU'
     cxx_header = 'arch/riscvcapstone/ncache_cpu.hh'
     cxx_class = 'gem5::RiscvcapstoneISA::TimingSimpleNCacheCPU'
 
     ncache_port = RequestPort('node cache port')
+    node_controller = Param.NodeController('node controller for revocation nodes')
 
     @classmethod
     def memory_mode(cls):

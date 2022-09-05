@@ -2,11 +2,14 @@
 #define NODE_CONTROLLER_H
 
 #include<optional>
+#include<bitset>
 #include "sim/clocked_object.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 #include "params/NodeController.hh"
 #include "base/trace.hh"
+
+#define NODE_CONTROLLER_TAB_N 1024
 
 namespace gem5::RiscvcapstoneISA {
 
@@ -17,6 +20,7 @@ class NodeController : public ClockedObject {
             private:
                 NodeController* owner;
                 PacketPtr retryPkt;
+
             public:
                 CPUSidePort(NodeController* owner);
                 Tick recvAtomic(PacketPtr pkt) override {
@@ -30,14 +34,19 @@ class NodeController : public ClockedObject {
         };
         
         CPUSidePort cpu_side;
-        AddrRangeList object_ranges; // address ranges of allocated objects on heap
 
-        std::optional<NodeID> lookupAddr(Addr addr);
+        AddrRangeList objectRanges;
+        std::bitset<NODE_CONTROLLER_TAB_N> objectValid;
+
     public:
         NodeController(const NodeControllerParams& p);
         Port& getPort(const std::string& name, PortID idx) override;
-        
-        void addObject(const AddrRange& obj);
+
+        void allocObject(const AddrRange& obj);
+        void freeObject(Addr addr);
+        void removeObject(Addr addr);
+        std::optional<NodeID> lookupAddr(Addr addr);
+
 };
 
 } // end of namespace gem5::RiscvcapstoneISA

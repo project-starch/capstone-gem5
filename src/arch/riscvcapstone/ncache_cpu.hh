@@ -41,8 +41,10 @@
 #ifndef __CPU_SIMPLE_TIMING_HH__
 #define __CPU_SIMPLE_TIMING_HH__
 
+#include <optional>
 #include <queue>
 #include "arch/generic/mmu.hh"
+#include "arch/riscvcapstone/node_controller.hh"
 #include "cpu/simple/base.hh"
 #include "cpu/simple/exec_context.hh"
 #include "cpu/translation.hh"
@@ -69,9 +71,12 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
 
     NCacheState ncache_status;
 
+    NodeController* node_controller;
+
   private:
     std::queue<PacketPtr> dataResps;
     std::queue<PacketPtr> nodeResps;
+
 
     /*
      * If an access needs to be broken into fragments, currently at most two,

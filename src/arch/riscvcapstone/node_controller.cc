@@ -29,8 +29,7 @@ bool NodeController::CPUSidePort::recvTimingReq(PacketPtr pkt) {
     pkt->allocate();
     
     std::optional<NodeID> node_id = owner->lookupAddr(pkt->getAddr());
-    assert(!node_id);
-    uint64_t resp_data = 1; 
+    uint64_t resp_data = 1;
     pkt->setData((uint8_t*)&resp_data);
     pkt->makeResponse();
     
@@ -66,10 +65,29 @@ AddrRangeList NodeController::CPUSidePort::getAddrRanges() const {
     return std::list<AddrRange> { AddrRange(0, 0xffffffffLL) };
 }
 
+void
+NodeController::allocObject(const AddrRange& obj) {
+    objectValid[objectRanges.size()] = true;
+    objectRanges.push_back(obj);
+}
+
+void
+NodeController::freeObject(Addr addr) {
+    std::optional<NodeController::NodeID> node_id = lookupAddr(addr);
+    if(node_id) {
+        objectValid[node_id.value()] = false;
+    }
+}
+
+void
+NodeController::removeObject(Addr addr) {
+    objectRanges.remove_if([addr](auto obj) { return obj.contains(addr); });
+}
+
 std::optional<NodeController::NodeID>
 NodeController::lookupAddr(Addr addr) {
     NodeID n = 0;
-    for(auto& obj : object_ranges) {
+    for(auto& obj : objectRanges) {
         if(obj.contains(addr)){
             return std::optional<NodeController::NodeID>(n);
         }
@@ -78,10 +96,6 @@ NodeController::lookupAddr(Addr addr) {
     return std::optional<NodeController::NodeID>();
 }
 
-void
-NodeController::addObject(const AddrRange& obj) {
-    object_ranges.push_front(obj);
-}
 
 } // end of namespace gem5::RiscvcapstoneISA
 
