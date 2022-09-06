@@ -46,10 +46,10 @@ else:
     binary = 'tests/capstone/' + sys.argv[1]
     args = sys.argv[2:]
 
-system.workload = SEWorkload.init_compatible(binary, *args)
+system.workload = SEWorkload.init_compatible(binary)
 
 process = Process()
-process.cmd = [binary]
+process.cmd = [binary] + args
 system.cpu.workload = process
 system.cpu.createThreads()
 
