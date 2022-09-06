@@ -7,13 +7,16 @@ namespace gem5::RiscvcapstoneISA {
 NodeController::NodeController(const NodeControllerParams& p) :
     ClockedObject(p),
     cpu_side(this) {
+    // mark all cache lines as invalid
+    for(auto& line : nodeCacheLines) {
+        line.first = (NodeController::NodeID)(-1ULL);
+    }
 }
 
 NodeController::CPUSidePort::CPUSidePort(NodeController* owner) :
     ResponsePort(owner->name() + ".cpu_side", owner),
     owner(owner),
     retryPkt(NULL) {
-
 }
 
 Port& NodeController::getPort(const std::string& name, PortID idx) {

@@ -1,6 +1,7 @@
 # NOTE: this only works with the RISC-V Capstone arch
 
 
+import sys
 import m5
 from m5.objects import *
 system = System()
@@ -38,8 +39,14 @@ system.mem_ctrl.dram = DDR3_1600_8x8()
 system.mem_ctrl.dram.range = system.mem_ranges[0]
 system.mem_ctrl.port = system.membus.mem_side_ports
 
-binary = 'tests/capstone/hello'
-system.workload = SEWorkload.init_compatible(binary)
+if len(sys.argv) < 2:
+    binary = 'tests/capstone/hello'
+    args = []
+else:
+    binary = 'tests/capstone/' + sys.argv[1]
+    args = sys.argv[2:]
+
+system.workload = SEWorkload.init_compatible(binary, *args)
 
 process = Process()
 process.cmd = [binary]
