@@ -6,13 +6,14 @@
 #include<optional>
 #include<vector>
 #include "sim/clocked_object.hh"
+#include "sim/system.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 #include "params/NodeController.hh"
 #include "base/trace.hh"
 
-#define NODE_CACHE_BLOCK_WIDTH 9
-#define NODE_CACHE_LINES 4
+// size of each revocation nodes (in bits)
+#define CAPSTONE_NODE_SIZE 128
 
 namespace gem5::RiscvcapstoneISA {
 
@@ -23,6 +24,7 @@ class NodeController : public ClockedObject {
             private:
                 NodeController* owner;
                 PacketPtr retryPkt;
+                bool toRetryReq;
 
             public:
                 CPUSidePort(NodeController* owner);
@@ -36,20 +38,33 @@ class NodeController : public ClockedObject {
                 void trySendResp(PacketPtr pkt);
         };
 
-        Stats::Scalar hits;
-        Stats::Scalar misses;
-        Stats::Formula hitRatio;
+        class MemSidePort : public RequestPort {
+            private:
+                NodeController* owner;
+                PacketPtr retryPkt; // request packet to retry
 
+            protected:
+                bool recvTimingResp(PacketPtr pkt) override;
+                void recvReqRetry() override;
+
+            public:
+                MemSidePort(NodeController* owner);
+
+                void trySendReq(PacketPtr pkt);
+            
+        };
+
+        PacketPtr currentPkt; // packet currently handling
         
         CPUSidePort cpu_side;
+        MemSidePort mem_side;
 
         AddrRangeList objectRanges;
-        std::vector<bool> objectValid;
-        std::pair<NodeID, std::bitset<(1 << NODE_CACHE_BLOCK_WIDTH)> > nodeCacheLines[1 << NODE_CACHE_LINES];
+    
+        System* system; // the system the node controller belongs to
+        RequestorID requestorId;
 
-        void setNodeValid(NodeID node_id, bool valid);
-        bool queryNodeValid(NodeID node_id);
-        void fetchCacheBlock(NodeID block); 
+        void functionalSetNodeValid(NodeID node_id, bool valid);
 
     public:
         NodeController(const NodeControllerParams& p);
@@ -59,8 +74,14 @@ class NodeController : public ClockedObject {
         void freeObject(Addr addr);
         void removeObject(Addr addr);
         std::optional<NodeID> lookupAddr(Addr addr);
+        Addr nodeID2Addr(NodeID node_id);
 
         void regStats() override;
+
+        bool handleReq(PacketPtr pkt);
+        void handleResp(PacketPtr pkt);
+
+        void init() override;
 
 };
 

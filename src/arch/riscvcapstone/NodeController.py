@@ -9,6 +9,9 @@ class NodeController(ClockedObject):
     cxx_header = 'arch/riscvcapstone/node_controller.hh'
     cxx_class = 'gem5::RiscvcapstoneISA::NodeController'
 
+    # TODO: switching to vector port to allow multicores
     cpu_side = ResponsePort('port typically connected to the CPU dcache port')
-    # mem_side = RequestPort('memory-side port')
+    mem_side = RequestPort('memory-side port')
+
+    system = Param.System(Parent.any, 'the system this node controller belongs to')
 

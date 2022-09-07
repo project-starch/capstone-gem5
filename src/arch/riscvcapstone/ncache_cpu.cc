@@ -1439,10 +1439,10 @@ void TimingSimpleNCacheCPU::completeDataAccess(
     DPRINTF(CapstoneNCache, "NCache completeDataAccess\n");
 
     // perform checks on the revocation node
-    uint64_t node_mdata = *node_pkt->getPtr<uint64_t>();
+    char node_mdata = *node_pkt->getPtr<char>();
     delete node_pkt;
 
-    DPRINTF(CapstoneNCache, "Nache node value: %llu\n", node_mdata);
+    DPRINTF(CapstoneNCache, "Nache node value: %u\n", node_mdata);
 
     SimpleExecContext* t_info = threadInfo[curThread];
     //if(node_mdata) {
