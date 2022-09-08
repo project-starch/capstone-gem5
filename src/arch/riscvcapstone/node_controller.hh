@@ -17,8 +17,42 @@
 
 namespace gem5::RiscvcapstoneISA {
 
+typedef uint64_t NodeID;
+
+enum NodeControllerCommandType {
+    NODE_ALLOCATE,
+    NODE_REVOKE,
+    NODE_RC_UPDATE,
+    NODE_QUERY
+};
+
+struct NodeControllerAllocate { };
+
+struct NodeControllerQuery {
+    NodeID nodeId;
+};
+
+struct NodeControllerRevoke {
+    NodeID nodeId;
+};
+
+struct NodeControllerRcUpdate {
+    NodeID nodeId;
+    int delta;
+};
+
+struct NodeControllerCommand {
+    NodeControllerCommandType type;
+    union {
+        NodeControllerAllocate allocate;
+        NodeControllerRevoke revoke;
+        NodeControllerRcUpdate rcUpdate;
+        NodeControllerQuery query;
+    } content;
+};
+
+
 class NodeController : public ClockedObject {
-    typedef uint64_t NodeID;
     private:
         class CPUSidePort : public ResponsePort {
             private:
@@ -65,6 +99,11 @@ class NodeController : public ClockedObject {
         RequestorID requestorId;
 
         void functionalSetNodeValid(NodeID node_id, bool valid);
+
+        void setupQuery(const NodeControllerQuery& query);
+        void setupRevoke(const NodeControllerRevoke& revoke);
+        void setupRcUpdate(const NodeControllerRcUpdate& rc_update);
+        void setupAllocate(const NodeControllerAllocate& allocate);
 
     public:
         NodeController(const NodeControllerParams& p);

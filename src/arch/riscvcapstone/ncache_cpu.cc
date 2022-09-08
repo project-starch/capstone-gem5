@@ -361,12 +361,23 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
 void
 TimingSimpleNCacheCPU::sendNCacheReq(Addr addr) {
     assert(ncache_status != NCACHE_RETRY);
+
+    std::optional<NodeID> node_id = node_controller->lookupAddr(addr);
+    if(!node_id) {
+        nodeResps.push(NULL);
+        return;
+    }
+
     RequestPtr ncache_req = std::make_shared<Request>();
     // pass the address
-    ncache_req->setPaddr(addr);
-
-    assert(ncache_req->hasPaddr() && !ncache_req->hasSize());
+    //ncache_req->setPaddr(addr);
+    //assert(ncache_req->hasPaddr() && !ncache_req->hasSize());
     PacketPtr ncache_pkt = Packet::createRead(ncache_req);
+    NodeControllerCommand* cmd = new NodeControllerCommand();
+    cmd->type = NodeControllerCommandType::NODE_QUERY;
+    cmd->content.query.nodeId = node_id.value();
+    ncache_pkt->dataDynamic<NodeControllerCommand>(cmd);
+
     if(ncache_port.sendTimingReq(ncache_pkt)) {
         DPRINTF(CapstoneNCache, "NCache packet sent\n");
         ncache_status = NCACHE_WAITING;
@@ -1439,10 +1450,14 @@ void TimingSimpleNCacheCPU::completeDataAccess(
     DPRINTF(CapstoneNCache, "NCache completeDataAccess\n");
 
     // perform checks on the revocation node
-    char node_mdata = *node_pkt->getPtr<char>();
-    delete node_pkt;
+    if(node_pkt == NULL) {
+        DPRINTF(CapstoneNCache, "NCache node query skipped\n");
+    } else{
+        char node_mdata = *node_pkt->getPtr<char>();
+        delete node_pkt;
 
-    DPRINTF(CapstoneNCache, "Nache node value: %u\n", node_mdata);
+        DPRINTF(CapstoneNCache, "NCache node value: %u\n", node_mdata);
+    }
 
     SimpleExecContext* t_info = threadInfo[curThread];
     //if(node_mdata) {

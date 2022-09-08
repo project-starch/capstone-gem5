@@ -56,6 +56,9 @@ NodeController::handleResp(PacketPtr pkt) {
     assert(currentPkt != NULL);
 
     currentPkt->makeResponse();
+    assert(currentPkt->getPtr<NodeControllerCommand>() != NULL);
+    currentPkt->deleteData();
+    currentPkt->setSize(CAPSTONE_NODE_SIZE >> 3);
     currentPkt->allocate(); // TODO: let the cpu allocate
     memcpy(currentPkt->getPtr<void>(), pkt->getPtr<void>(), CAPSTONE_NODE_SIZE >> 3);
 
@@ -84,7 +87,7 @@ NodeController::MemSidePort::MemSidePort(NodeController* owner) :
 }
 
 Addr
-NodeController::nodeID2Addr(NodeController::NodeID node_id) {
+NodeController::nodeID2Addr(NodeID node_id) {
     return (Addr)(CAPSTONE_NODE_BASE_ADDR | (node_id * (CAPSTONE_NODE_SIZE >> 3)));
 }
 
@@ -103,37 +106,61 @@ NodeController::init() {
     requestorId = system->getRequestorId(this);
 }
 
+void
+NodeController::setupQuery(const NodeControllerQuery& query) {
+    DPRINTF(CapstoneNCache, "Read from node cache\n");
+
+    Addr naddr = nodeID2Addr(query.nodeId);
+    RequestPtr node_req = std::make_shared<Request>();
+    node_req->requestorId(requestorId);
+    node_req->setPaddr(naddr);
+    PacketPtr node_pkt = Packet::createRead(node_req);
+    node_pkt->setSize(CAPSTONE_NODE_SIZE >> 3); // FIXME: do we need to specify the size here?
+    node_pkt->allocate();
+
+    mem_side.trySendReq(node_pkt);
+}
+
+
+void
+NodeController::setupAllocate(const NodeControllerAllocate& allocate) {
+}
+
+void
+NodeController::setupRcUpdate(const NodeControllerRcUpdate& rc_update) {
+}
+
+void
+NodeController::setupRevoke(const NodeControllerRevoke& revoke) {
+}
+
+
 bool
 NodeController::handleReq(PacketPtr pkt) {
     if(currentPkt != NULL) {
         return false;
     }
     
-    Addr paddr = pkt->getAddr();
-    std::optional<NodeController::NodeID> node_id = lookupAddr(paddr);
-
-    pkt->setSize(CAPSTONE_NODE_SIZE >> 3);
-    if(node_id) {
-        DPRINTF(CapstoneNCache, "Read from node cache\n");
-        currentPkt = pkt;
-
-        Addr naddr = nodeID2Addr(node_id.value());
-        RequestPtr node_req = std::make_shared<Request>();
-        node_req->requestorId(requestorId);
-        node_req->setPaddr(naddr);
-        PacketPtr node_pkt = Packet::createRead(node_req);
-        node_pkt->setSize(CAPSTONE_NODE_SIZE >> 3); // FIXME: do we need to specify the size here?
-        node_pkt->allocate();
-        
-        mem_side.trySendReq(node_pkt);
-    } else{
-        pkt->makeResponse();
-        pkt->allocate();
-        memset(pkt->getPtr<void>(), 0, CAPSTONE_NODE_SIZE >> 3);
-
-        // FIXME: might need to delay
-        cpu_side.trySendResp(pkt);
+    NodeControllerCommand* cmd = pkt->getPtr<NodeControllerCommand>();
+    assert(cmd != NULL);
+    switch(cmd->type) {
+        case NodeControllerCommandType::NODE_ALLOCATE:
+            setupAllocate(cmd->content.allocate);
+            break;
+        case NodeControllerCommandType::NODE_REVOKE:
+            setupRevoke(cmd->content.revoke);
+            break;
+        case NodeControllerCommandType::NODE_RC_UPDATE:
+            setupRcUpdate(cmd->content.rcUpdate);
+            break;
+        case NodeControllerCommandType::NODE_QUERY:
+            setupQuery(cmd->content.query);
+            break;
+        default:
+            ;
     }
+
+    currentPkt = pkt;
 
     return true;
 }
@@ -179,7 +206,7 @@ AddrRangeList NodeController::CPUSidePort::getAddrRanges() const {
 }
 
 void
-NodeController::functionalSetNodeValid(NodeController::NodeID node_id, bool valid) {
+NodeController::functionalSetNodeValid(NodeID node_id, bool valid) {
     Addr naddr = nodeID2Addr(node_id);
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestorId);
@@ -197,13 +224,13 @@ NodeController::functionalSetNodeValid(NodeController::NodeID node_id, bool vali
     
 void
 NodeController::allocObject(const AddrRange& obj) {
-    functionalSetNodeValid((NodeController::NodeID)objectRanges.size(), true);
+    functionalSetNodeValid((NodeID)objectRanges.size(), true);
     objectRanges.push_back(obj);
 }
 
 void
 NodeController::freeObject(Addr addr) {
-    std::optional<NodeController::NodeID> node_id = lookupAddr(addr);
+    std::optional<NodeID> node_id = lookupAddr(addr);
     assert(node_id);
     functionalSetNodeValid(node_id.value(), false);
 }
@@ -214,16 +241,16 @@ NodeController::removeObject(Addr addr) {
     // FIXME update the valid list
 }
 
-std::optional<NodeController::NodeID>
+std::optional<NodeID>
 NodeController::lookupAddr(Addr addr) {
     NodeID n = 0;
     for(auto& obj : objectRanges) {
         if(obj.contains(addr)){
-            return std::optional<NodeController::NodeID>(n);
+            return std::optional<NodeID>(n);
         }
         ++ n;
     }
-    return std::optional<NodeController::NodeID>();
+    return std::optional<NodeID>();
 }
 
 void
