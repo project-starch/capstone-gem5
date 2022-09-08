@@ -24,6 +24,9 @@ class NodeController;
 
 const NodeID NODE_ID_INVALID = (NodeID)-1ULL;
 
+/**
+ * base class for all commands to node controller
+ * */
 struct NodeControllerCommand {
     virtual void setup(NodeController& controller, PacketPtr pkt) = 0;
     virtual bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) = 0;
@@ -40,6 +43,18 @@ struct NodeControllerRevoke : NodeControllerCommand {
     NodeID nodeId;
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
+    private:
+        enum {
+            NCRevoke_LOAD_ROOT,
+            NCRevoke_LOAD,
+            NCRevoke_STORE,
+            NCRevoke_STORE_RIGHT,
+            NCRevoke_LOAD_LEFT,
+            NCRevoke_STORE_LEFT,
+        } state;
+        NodeID curNodeId;
+        unsigned int rootDepth;
+        NodeID prevNodeId;
 };
 
 struct NodeControllerRcUpdate : NodeControllerCommand {
@@ -47,6 +62,17 @@ struct NodeControllerRcUpdate : NodeControllerCommand {
     int delta;
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
+    private:
+        enum {
+            NCRcUpdate_LOAD,
+            NCRcUpdate_STORE,
+            NCRcUpdate_STORE_FREED,
+            NCRcUpdate_LOAD_LEFT,
+            NCRcUpdate_STORE_LEFT,
+            NCRcUpdate_LOAD_RIGHT,
+            NCRcUpdate_STORE_RIGHT,
+        } state;
+        NodeID prevNodeId, nextNodeId;
 };
 
 struct NodeControllerAllocate : NodeControllerCommand {

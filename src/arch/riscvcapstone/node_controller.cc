@@ -125,12 +125,148 @@ NodeControllerAllocate::transit(NodeController& controller, PacketPtr current_pk
 
 bool
 NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) {
-    return true;
+    Node node;
+    switch(state) {
+        case NCRevoke_LOAD_ROOT:
+            node = pkt->getRaw<Node>();
+            rootDepth = node.depth;
+            curNodeId = node.next;
+            prevNodeId = node.prev;
+            node.state = 0; // invalidate
+            controller.sendStore(nodeId, node);
+
+            state = NCRevoke_STORE;
+
+            return false;
+        case NCRevoke_LOAD:
+            node = pkt->getRaw<Node>();
+            if(node.depth > rootDepth) {
+                // still in the subtree
+                node.state = 0;
+                controller.sendStore(curNodeId, node);
+                curNodeId = node.next;
+
+                state = NCRevoke_STORE;
+            } else{
+                // outside subtree
+                // current node is the right node
+                // need to update its prevNodeId
+                node.prev = prevNodeId;
+                controller.sendStore(curNodeId, node);
+                state = NCRevoke_STORE_RIGHT;
+            }
+            return false;
+        case NCRevoke_STORE_RIGHT:
+            if(prevNodeId == NODE_ID_INVALID) {
+                controller.tree_root = curNodeId;
+                current_pkt->makeResponse();
+                current_pkt->deleteData();
+                return true;
+            }
+            controller.sendLoad(prevNodeId);
+            state = NCRevoke_LOAD_LEFT;
+            return false;
+        case NCRevoke_LOAD_LEFT:
+            node = pkt->getRaw<Node>();
+            node.next = curNodeId;
+            controller.sendStore(prevNodeId, node);
+            state = NCRevoke_STORE_LEFT;
+            return false;
+        case NCRevoke_STORE_LEFT:
+            current_pkt->makeResponse();
+            current_pkt->deleteData();
+            return true;
+        case NCRevoke_STORE:
+            if(curNodeId == NODE_ID_INVALID) {
+                if(prevNodeId == NODE_ID_INVALID) {
+                    // the tree is empty
+                    controller.tree_root = NODE_ID_INVALID;
+                    current_pkt->makeResponse();
+                    current_pkt->deleteData();
+                    return true;
+                }
+                // need to change prev->next
+                controller.sendLoad(prevNodeId);
+                state = NCRevoke_LOAD_LEFT;
+            } else{
+                controller.sendLoad(curNodeId);
+                state = NCRevoke_LOAD;
+            }
+            return false;
+        default:
+            panic("incorrect state for node revocation operation!");
+    }
 }
 
 bool
 NodeControllerRcUpdate::transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) {
-    return true;
+    Node node;
+    switch(state) {
+        case NCRcUpdate_LOAD:
+            node = pkt->getRaw<Node>();
+            node.counter += delta;
+            if(node.counter == 0) {
+                node.state = 0;
+                prevNodeId = node.prev;
+                nextNodeId = node.next;
+                node.next = controller.free_head;
+                controller.free_head = nodeId;
+                controller.sendStore(nodeId, node);
+
+                state = NCRcUpdate_STORE_FREED;
+            } else{
+                controller.sendStore(nodeId, node);
+
+                state = NCRcUpdate_STORE;
+            }
+
+            return false;
+        case NCRcUpdate_STORE:
+        case NCRcUpdate_STORE_RIGHT:
+            current_pkt->makeResponse();
+            current_pkt->deleteData();
+            // TODO: consider returning status code
+            return true;
+        case NCRcUpdate_STORE_FREED:
+            if(prevNodeId == NODE_ID_INVALID) {
+                if(nextNodeId == NODE_ID_INVALID) {
+                    current_pkt->makeResponse();
+                    current_pkt->deleteData();
+                    return true;
+                }
+                controller.sendLoad(nextNodeId);
+                state = NCRcUpdate_LOAD_RIGHT;
+                return false;
+            }
+            controller.sendLoad(prevNodeId);
+            state = NCRcUpdate_LOAD_LEFT;
+            return false;
+        case NCRcUpdate_LOAD_LEFT:
+            node = pkt->getRaw<Node>();
+            node.next = nextNodeId;
+            controller.sendStore(prevNodeId, node);
+
+            state = NCRcUpdate_STORE_LEFT;
+            return false;
+        case NCRcUpdate_LOAD_RIGHT:
+            node = pkt->getRaw<Node>();
+            node.prev = prevNodeId;
+            controller.sendStore(nextNodeId, node);
+
+            state = NCRcUpdate_STORE_RIGHT;
+            return false;
+        case NCRcUpdate_STORE_LEFT:
+            if(nextNodeId == NODE_ID_INVALID) {
+                current_pkt->makeResponse();
+                current_pkt->deleteData();
+                return true;
+            }
+            controller.sendLoad(nextNodeId);
+            state = NCRcUpdate_LOAD_RIGHT;
+            return false;
+        default:
+            panic("incorrect state for ref count update operation!");
+    }
 }
 
 void
@@ -208,10 +344,17 @@ NodeControllerAllocate::setup(NodeController& controller, PacketPtr pkt) {
 
 void
 NodeControllerRcUpdate::setup(NodeController& controller, PacketPtr pkt) {
+    assert(nodeId != NODE_ID_INVALID);
+    assert(delta != 0);
+    state = NCRcUpdate_LOAD;
+    controller.sendLoad(nodeId);
 }
 
 void
 NodeControllerRevoke::setup(NodeController& controller, PacketPtr pkt) {
+    assert(nodeId != NODE_ID_INVALID);
+    state = NCRevoke_LOAD_ROOT;
+    controller.sendLoad(nodeId);
 }
 
 
