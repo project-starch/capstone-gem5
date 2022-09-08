@@ -98,21 +98,57 @@ bool
 NodeControllerAllocate::transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) {
     Node node;
     switch(state) {
+        case NCAllocate_LOAD_PARENT:
+            node = pkt->getRaw<Node>();
+            parentDepth = node.depth;
+            nextNodeId = node.next;
+            node.next = controller.free_head;
+
+            state = NCAllocate_STORE_PARENT;
+            controller.sendStore(parentId, node);
+            return false;
+        case NCAllocate_STORE_PARENT:
+            if(nextNodeId == NODE_ID_INVALID) {
+                assert(controller.free_head != NODE_ID_INVALID);
+                // fetch the free node
+                state = NCAllocate_LOAD;
+                controller.sendLoad(controller.free_head);
+            } else{
+                state = NCAllocate_LOAD_RIGHT;
+                controller.sendLoad(nextNodeId);
+            }
+            return false;
+        case NCAllocate_LOAD_RIGHT:
+            node = pkt->getRaw<Node>();
+            node.prev = controller.free_head;
+            state = NCAllocate_STORE_RIGHT;
+            controller.sendStore(nextNodeId, node);
+            return false;
+        case NCAllocate_STORE_RIGHT:
+            assert(controller.free_head != NODE_ID_INVALID);
+            // fetch the free node
+            state = NCAllocate_LOAD;
+            controller.sendLoad(controller.free_head);
+            return false;
         case NCAllocate_LOAD:
             node = pkt->getRaw<Node>(); // free node
-            nextNodeId = node.next;
+            nextFreeNodeId = node.next;
             // TODO: we need to mount the node at a location in the tree
-            node.prev = node.next = NODE_ID_INVALID;
+            node.prev = parentId;
+            node.next = nextNodeId;
+            if(parentId == NODE_ID_INVALID) {
+                controller.tree_root = controller.free_head;
+            }
             node.state = 1;
             node.counter = 1;
-            node.depth = 0;
+            node.depth = parentDepth + 1;
             controller.sendStore(controller.free_head, node);
 
             state = NCAllocate_STORE;
             
             return false;
         case NCAllocate_STORE:
-            controller.free_head = nextNodeId;
+            controller.free_head = nextFreeNodeId;
             current_pkt->makeResponse();
             current_pkt->deleteData();
             // TODO: consider returning status code
@@ -335,11 +371,24 @@ NodeControllerQuery::setup(NodeController& controller, PacketPtr pkt) {
 void
 NodeControllerAllocate::setup(NodeController& controller, PacketPtr pkt) {
     // TODO: need to handle the case when there are no free nodes
-    assert(controller.free_head != NODE_ID_INVALID);
-
-    // fetch the free node
-    state = NCAllocate_LOAD;
-    controller.sendLoad(controller.free_head);
+    if(parentId == NODE_ID_INVALID) {
+        // skip setting parent
+        // same as in NCAllocate_STORE_PARENT
+        nextNodeId = controller.tree_root;
+        parentDepth = 0;
+        if(nextNodeId == NODE_ID_INVALID) {
+            assert(controller.free_head != NODE_ID_INVALID);
+            state = NCAllocate_LOAD;
+            controller.sendLoad(controller.free_head);
+        } else {
+            state = NCAllocate_LOAD_RIGHT;
+            controller.sendLoad(nextNodeId);
+        }
+    } else{
+        // load parent first so we know the depth and the next node
+        state = NCAllocate_LOAD_PARENT;
+        controller.sendLoad(parentId);
+    }
 }
 
 void

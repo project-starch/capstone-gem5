@@ -76,14 +76,20 @@ struct NodeControllerRcUpdate : NodeControllerCommand {
 };
 
 struct NodeControllerAllocate : NodeControllerCommand {
+    NodeID parentId;
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
     private:
         enum { 
             NCAllocate_LOAD,
-            NCAllocate_STORE
+            NCAllocate_STORE,
+            NCAllocate_LOAD_PARENT,
+            NCAllocate_STORE_PARENT,
+            NCAllocate_LOAD_RIGHT,
+            NCAllocate_STORE_RIGHT,
         } state;
-        NodeID nextNodeId;
+        NodeID nextNodeId, nextFreeNodeId;
+        unsigned int parentDepth;
 };
 
 
