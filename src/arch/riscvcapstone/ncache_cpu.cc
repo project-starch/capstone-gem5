@@ -373,9 +373,8 @@ TimingSimpleNCacheCPU::sendNCacheReq(Addr addr) {
     //ncache_req->setPaddr(addr);
     //assert(ncache_req->hasPaddr() && !ncache_req->hasSize());
     PacketPtr ncache_pkt = Packet::createRead(ncache_req);
-    NodeControllerCommand* cmd = new NodeControllerCommand();
-    cmd->type = NodeControllerCommandType::NODE_QUERY;
-    cmd->content.query.nodeId = node_id.value();
+    NodeControllerQuery* cmd = new NodeControllerQuery();
+    cmd->nodeId = node_id.value();
     ncache_pkt->dataDynamic<NodeControllerCommand>(cmd);
 
     if(ncache_port.sendTimingReq(ncache_pkt)) {

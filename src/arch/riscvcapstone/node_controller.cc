@@ -1,4 +1,5 @@
 #include<cstring>
+#include "mem/packet_access.hh"
 #include "arch/riscvcapstone/node_controller.hh"
 #include "base/trace.hh"
 #include "debug/CapstoneNCache.hh"
@@ -23,7 +24,10 @@ NodeController::NodeController(const NodeControllerParams& p) :
     currentPkt(NULL),
     mem_side(this),
     cpu_side(this),
-    system(p.system) {
+    system(p.system),
+    free_head(NODE_ID_INVALID),
+    tree_root(NODE_ID_INVALID) {
+    DPRINTF(CapstoneNCache, "Size of node = %u\n", sizeof(Node));
 }
 
 NodeController::CPUSidePort::CPUSidePort(NodeController* owner) :
@@ -52,22 +56,100 @@ NodeController::MemSidePort::recvReqRetry() {
 }
 
 void
+NodeController::sendLoad(NodeID node_id) {
+    Addr addr = nodeID2Addr(node_id);
+    RequestPtr req = std::make_shared<Request>();
+    req->requestorId(requestorId);
+    req->setPaddr(addr);
+    PacketPtr pkt = Packet::createRead(req);
+    pkt->setSize(sizeof(Node)); // FIXME: do we need to specify the size here?
+    pkt->allocate();
+
+    mem_side.trySendReq(pkt);
+}
+
+void
+NodeController::sendStore(NodeID node_id, const Node& node) {
+    Addr addr = nodeID2Addr(node_id);
+    RequestPtr req = std::make_shared<Request>();
+    req->requestorId(requestorId);
+    req->setPaddr(addr);
+    PacketPtr pkt = Packet::createWrite(req);
+    pkt->setSize(sizeof(Node));
+    pkt->allocate();
+    memcpy(pkt->getPtr<void>(), &node, sizeof(Node));
+
+    mem_side.trySendReq(pkt);
+}
+
+bool
+NodeControllerQuery::transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) {
+    current_pkt->makeResponse();
+    assert(current_pkt->getPtr<NodeControllerCommand>() != NULL);
+    current_pkt->deleteData();
+    current_pkt->setSize(sizeof(Node));
+    current_pkt->allocate(); // TODO: let the cpu allocate
+    memcpy(current_pkt->getPtr<void>(), pkt->getPtr<void>(), sizeof(Node));
+
+    return true;
+}
+
+bool
+NodeControllerAllocate::transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) {
+    Node node;
+    switch(state) {
+        case NCAllocate_LOAD:
+            node = pkt->getRaw<Node>(); // free node
+            nextNodeId = node.next;
+            // TODO: we need to mount the node at a location in the tree
+            node.prev = node.next = NODE_ID_INVALID;
+            node.state = 1;
+            node.counter = 1;
+            node.depth = 0;
+            controller.sendStore(controller.free_head, node);
+
+            state = NCAllocate_STORE;
+            
+            return false;
+        case NCAllocate_STORE:
+            controller.free_head = nextNodeId;
+            current_pkt->makeResponse();
+            current_pkt->deleteData();
+            // TODO: consider returning status code
+            return true;
+        default:
+            panic("incorrect state for node allocation operation!");
+    }
+    
+}
+
+bool
+NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) {
+    return true;
+}
+
+bool
+NodeControllerRcUpdate::transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) {
+    return true;
+}
+
+void
 NodeController::handleResp(PacketPtr pkt) {
     assert(currentPkt != NULL);
 
-    currentPkt->makeResponse();
-    assert(currentPkt->getPtr<NodeControllerCommand>() != NULL);
-    currentPkt->deleteData();
-    currentPkt->setSize(CAPSTONE_NODE_SIZE >> 3);
-    currentPkt->allocate(); // TODO: let the cpu allocate
-    memcpy(currentPkt->getPtr<void>(), pkt->getPtr<void>(), CAPSTONE_NODE_SIZE >> 3);
+    NodeControllerCommand* cmd = currentPkt->getPtr<NodeControllerCommand>();
+    assert(cmd != NULL);
+
+    bool finish = cmd->transit(*this, currentPkt, pkt);
 
     delete pkt;
 
-    pkt = currentPkt;
-    currentPkt = NULL;
-    
-    cpu_side.trySendResp(pkt);
+    if(finish) {
+        pkt = currentPkt;
+        currentPkt = NULL;
+
+        cpu_side.trySendResp(pkt);
+    }
 }
 
 Port& NodeController::getPort(const std::string& name, PortID idx) {
@@ -88,7 +170,7 @@ NodeController::MemSidePort::MemSidePort(NodeController* owner) :
 
 Addr
 NodeController::nodeID2Addr(NodeID node_id) {
-    return (Addr)(CAPSTONE_NODE_BASE_ADDR | (node_id * (CAPSTONE_NODE_SIZE >> 3)));
+    return (Addr)(CAPSTONE_NODE_BASE_ADDR | (node_id * (sizeof(Node))));
 }
 
 void
@@ -107,31 +189,29 @@ NodeController::init() {
 }
 
 void
-NodeController::setupQuery(const NodeControllerQuery& query) {
+NodeControllerQuery::setup(NodeController& controller, PacketPtr pkt) {
     DPRINTF(CapstoneNCache, "Read from node cache\n");
 
-    Addr naddr = nodeID2Addr(query.nodeId);
-    RequestPtr node_req = std::make_shared<Request>();
-    node_req->requestorId(requestorId);
-    node_req->setPaddr(naddr);
-    PacketPtr node_pkt = Packet::createRead(node_req);
-    node_pkt->setSize(CAPSTONE_NODE_SIZE >> 3); // FIXME: do we need to specify the size here?
-    node_pkt->allocate();
-
-    mem_side.trySendReq(node_pkt);
+    controller.sendLoad(nodeId);
 }
 
 
 void
-NodeController::setupAllocate(const NodeControllerAllocate& allocate) {
+NodeControllerAllocate::setup(NodeController& controller, PacketPtr pkt) {
+    // TODO: need to handle the case when there are no free nodes
+    assert(controller.free_head != NODE_ID_INVALID);
+
+    // fetch the free node
+    state = NCAllocate_LOAD;
+    controller.sendLoad(controller.free_head);
 }
 
 void
-NodeController::setupRcUpdate(const NodeControllerRcUpdate& rc_update) {
+NodeControllerRcUpdate::setup(NodeController& controller, PacketPtr pkt) {
 }
 
 void
-NodeController::setupRevoke(const NodeControllerRevoke& revoke) {
+NodeControllerRevoke::setup(NodeController& controller, PacketPtr pkt) {
 }
 
 
@@ -143,22 +223,7 @@ NodeController::handleReq(PacketPtr pkt) {
     
     NodeControllerCommand* cmd = pkt->getPtr<NodeControllerCommand>();
     assert(cmd != NULL);
-    switch(cmd->type) {
-        case NodeControllerCommandType::NODE_ALLOCATE:
-            setupAllocate(cmd->content.allocate);
-            break;
-        case NodeControllerCommandType::NODE_REVOKE:
-            setupRevoke(cmd->content.revoke);
-            break;
-        case NodeControllerCommandType::NODE_RC_UPDATE:
-            setupRcUpdate(cmd->content.rcUpdate);
-            break;
-        case NodeControllerCommandType::NODE_QUERY:
-            setupQuery(cmd->content.query);
-            break;
-        default:
-            ;
-    }
+    cmd->setup(*this, pkt);
 
     currentPkt = pkt;
 
@@ -212,9 +277,9 @@ NodeController::functionalSetNodeValid(NodeID node_id, bool valid) {
     req->requestorId(requestorId);
     req->setPaddr(naddr);
     PacketPtr pkt = Packet::createWrite(req);
-    pkt->setSize(CAPSTONE_NODE_SIZE >> 3);
+    pkt->setSize(sizeof(Node));
     pkt->allocate();
-    memset(pkt->getPtr<void>(), 0, CAPSTONE_NODE_SIZE >> 3);
+    memset(pkt->getPtr<void>(), 0, sizeof(Node));
     *(pkt->getPtr<char>()) = (char)valid;
     mem_side.sendFunctional(pkt);
     assert(pkt->isResponse());

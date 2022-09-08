@@ -13,43 +13,71 @@
 #include "base/trace.hh"
 
 // size of each revocation nodes (in bits)
-#define CAPSTONE_NODE_SIZE 128
 
 namespace gem5::RiscvcapstoneISA {
 
+const size_t CAPSTONE_NODE_SIZE = 128;
+
 typedef uint64_t NodeID;
 
-enum NodeControllerCommandType {
-    NODE_ALLOCATE,
-    NODE_REVOKE,
-    NODE_RC_UPDATE,
-    NODE_QUERY
-};
+class NodeController;
 
-struct NodeControllerAllocate { };
-
-struct NodeControllerQuery {
-    NodeID nodeId;
-};
-
-struct NodeControllerRevoke {
-    NodeID nodeId;
-};
-
-struct NodeControllerRcUpdate {
-    NodeID nodeId;
-    int delta;
-};
+const NodeID NODE_ID_INVALID = (NodeID)-1ULL;
 
 struct NodeControllerCommand {
-    NodeControllerCommandType type;
-    union {
-        NodeControllerAllocate allocate;
-        NodeControllerRevoke revoke;
-        NodeControllerRcUpdate rcUpdate;
-        NodeControllerQuery query;
-    } content;
+    virtual void setup(NodeController& controller, PacketPtr pkt) = 0;
+    virtual bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) = 0;
 };
+
+struct NodeControllerQuery : NodeControllerCommand {
+    NodeID nodeId;
+    void setup(NodeController& controller, PacketPtr pkt) override;
+    bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
+};
+
+
+struct NodeControllerRevoke : NodeControllerCommand {
+    NodeID nodeId;
+    void setup(NodeController& controller, PacketPtr pkt) override;
+    bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
+};
+
+struct NodeControllerRcUpdate : NodeControllerCommand {
+    NodeID nodeId;
+    int delta;
+    void setup(NodeController& controller, PacketPtr pkt) override;
+    bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
+};
+
+struct NodeControllerAllocate : NodeControllerCommand {
+    void setup(NodeController& controller, PacketPtr pkt) override;
+    bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
+    private:
+        enum { 
+            NCAllocate_LOAD,
+            NCAllocate_STORE
+        } state;
+        NodeID nextNodeId;
+};
+
+
+/*
+    revocation node structure
+    State (2 bits)
+    Counter (33 bit)
+    Previous node (31 bits)
+    Next node (31 bits)
+    Depth (31 bits)
+*/
+struct Node {
+    NodeID prev: 31;
+    NodeID next: 31;
+    unsigned char state: 2;
+    unsigned long long counter: 33;
+    unsigned int depth: 31;
+};
+
+static_assert(sizeof(Node) == (CAPSTONE_NODE_SIZE >> 3));
 
 
 class NodeController : public ClockedObject {
@@ -100,11 +128,6 @@ class NodeController : public ClockedObject {
 
         void functionalSetNodeValid(NodeID node_id, bool valid);
 
-        void setupQuery(const NodeControllerQuery& query);
-        void setupRevoke(const NodeControllerRevoke& revoke);
-        void setupRcUpdate(const NodeControllerRcUpdate& rc_update);
-        void setupAllocate(const NodeControllerAllocate& allocate);
-
     public:
         NodeController(const NodeControllerParams& p);
         Port& getPort(const std::string& name, PortID idx) override;
@@ -121,6 +144,14 @@ class NodeController : public ClockedObject {
         void handleResp(PacketPtr pkt);
 
         void init() override;
+
+        void sendLoad(NodeID node_id);
+        void sendStore(NodeID node_id, const Node& node);
+
+        // free list
+        NodeID free_head;
+        // tree
+        NodeID tree_root;
 
 };
 
