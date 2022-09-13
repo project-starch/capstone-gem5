@@ -1,8 +1,10 @@
+#include<stdexcept>
 #include<cstring>
 #include "mem/packet_access.hh"
 #include "arch/riscvcapstone/node_controller.hh"
 #include "base/trace.hh"
 #include "debug/CapstoneNCache.hh"
+#include "debug/CapstoneCapTrack.hh"
 
 
 /*
@@ -498,6 +500,28 @@ NodeController::lookupAddr(Addr addr) {
 void
 NodeController::regStats() {
     ClockedObject::regStats();
+}
+
+void
+NodeController::addCapTrack(const CapLoc& loc, NodeID node_id) {
+    DPRINTF(CapstoneCapTrack, "cap track added with node %u\n", node_id);
+    capTrackMap[loc] = node_id;
+}
+
+NodeID
+NodeController::queryCapTrack(const CapLoc& loc) {
+    DPRINTF(CapstoneCapTrack, "cap track queried\n");
+    try{
+        return capTrackMap.at(loc);
+    } catch(const std::out_of_range& e) {
+        return NODE_ID_INVALID;
+    }
+}
+
+void
+NodeController::removeCapTrack(const CapLoc& loc) {
+    DPRINTF(CapstoneCapTrack, "cap track removed\n");
+    capTrackMap.erase(loc);
 }
 
 

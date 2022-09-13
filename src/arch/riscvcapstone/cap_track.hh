@@ -6,7 +6,7 @@
 namespace gem5::RiscvcapstoneISA {
 
 struct CapLocMem {
-    uint64_t addr;
+    Addr addr;
 };
 
 inline bool operator < (const CapLocMem& a, const CapLocMem& b) {
@@ -15,7 +15,7 @@ inline bool operator < (const CapLocMem& a, const CapLocMem& b) {
 
 struct CapLocReg {
     int threadId;
-    RegId regId;
+    RegIndex regId;
 };
 
 inline bool operator < (const CapLocReg& a, const CapLocReg& b) {
@@ -34,6 +34,23 @@ struct CapLoc {
         CapLocMem mem;
         CapLocReg reg;
     } pos;
+
+    CapLoc() {}
+
+    static CapLoc makeMem(Addr addr) {
+        CapLoc res;
+        res.type = CAP_TRACK_MEM;
+        res.pos.mem.addr = addr;
+        return res;
+    }
+
+    static CapLoc makeReg(int thread_id, RegIndex reg_id) {
+        CapLoc res;
+        res.type = CAP_TRACK_REG;
+        res.pos.reg.threadId = thread_id;
+        res.pos.reg.regId = reg_id;
+        return res;
+    }
 };
 
 inline bool operator < (const CapLoc& a, const CapLoc& b) {

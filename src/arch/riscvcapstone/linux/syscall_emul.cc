@@ -3,33 +3,35 @@
 #include "arch/riscvcapstone/ncache_cpu.hh"
 
 namespace gem5::RiscvcapstoneISA {
-    SyscallReturn
-        notifymallocFunc(SyscallDesc* desc, ThreadContext* tc,
-                uint64_t addr, uint64_t size) {
-            DPRINTF(CapstoneAlloc, "malloc: %llx, %llx\n", addr, size);
 
-            TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(tc->getCpuPtr());
-            if(cpu) {
-                cpu->allocObject(tc, AddrRange((Addr)addr, (Addr)(addr + size)));
-            } else {
-                DPRINTF(CapstoneAlloc, "malloc: warning! cpu is not TimingSimpleNCacheCPU!\n");
-            }
-            return addr;
-        }
 
-    SyscallReturn
-        notifyfreeFunc(SyscallDesc* desc, ThreadContext* tc,
-                uint64_t addr) {
-            DPRINTF(CapstoneAlloc, "free: %llx\n", addr);
+SyscallReturn
+notifymallocFunc(SyscallDesc* desc, ThreadContext* tc,
+        uint64_t addr, uint64_t size) {
+    DPRINTF(CapstoneAlloc, "malloc: %llx, %llx\n", addr, size);
 
-            TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(tc->getCpuPtr());
-            if(cpu) {
-                cpu->freeObject(tc, (Addr)addr);
-            } else{
-                DPRINTF(CapstoneAlloc, "free: warning! cpu is not TimingSimpleNCacheCPU!\n");
-            }
-            return 0;
-        }
+    TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(tc->getCpuPtr());
+    if(cpu) {
+        cpu->allocObject(tc, AddrRange((Addr)addr, (Addr)(addr + size)));
+    } else {
+        DPRINTF(CapstoneAlloc, "malloc: warning! cpu is not TimingSimpleNCacheCPU!\n");
+    }
+    return addr;
+}
+
+SyscallReturn
+notifyfreeFunc(SyscallDesc* desc, ThreadContext* tc,
+        uint64_t addr) {
+    DPRINTF(CapstoneAlloc, "free: %llx\n", addr);
+
+    TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(tc->getCpuPtr());
+    if(cpu) {
+        cpu->freeObject(tc, (Addr)addr);
+    } else{
+        DPRINTF(CapstoneAlloc, "free: warning! cpu is not TimingSimpleNCacheCPU!\n");
+    }
+    return 0;
+}
 
 }
 

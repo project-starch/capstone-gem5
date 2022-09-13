@@ -118,13 +118,13 @@ EcallOp::getStateMachine(ExecContext* xc) const {
 // 3. Record that the register contains a capability with the specific node ID
 void
 MallocStateMachine::setup(ExecContext* xc) {
-    SimpleExecContext* sxc = dynamic_cast<SimpleExecContext*>(xc);
-    panic_if(sxc == NULL, "non-SimpleExecContext unsupported.");
+    //SimpleExecContext* sxc = dynamic_cast<SimpleExecContext*>(xc);
+    //panic_if(sxc == NULL, "non-SimpleExecContext unVksupported.");
     
     NodeControllerAllocate* cmd = new NodeControllerAllocate();
     cmd->parentId = NODE_ID_INVALID; 
 
-    TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(sxc->cpu);
+    TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(xc->tcBase()->getCpuPtr());
     panic_if(cpu == NULL, "non ncache-cpu unsupported.");
     cpu->sendNCacheCommand(cmd);
 
@@ -138,7 +138,15 @@ MallocStateMachine::finished(ExecContext* xc) const {
 
 Fault
 MallocStateMachine::transit(ExecContext* xc, PacketPtr pkt) {
-    DPRINTF(CapstoneNodeOps, "Allocated node %u\n", pkt->getRaw<NodeID>());
+    NodeID node_id = pkt->getRaw<NodeID>();
+    DPRINTF(CapstoneNodeOps, "Allocated node %u\n", node_id);
+
+    TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(xc->tcBase()->getCpuPtr());
+    panic_if(cpu == NULL, "non ncache-cpu unsupported.");
+
+    cpu->node_controller->addCapTrack(CapLoc::makeReg(xc->tcBase()->threadId(), SyscallNumReg), 
+            node_id);
+    
     state = MALLOC_DONE;
     return NoFault;
 }

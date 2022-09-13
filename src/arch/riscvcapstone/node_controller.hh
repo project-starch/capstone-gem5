@@ -157,7 +157,7 @@ class NodeController : public ClockedObject {
         System* system; // the system the node controller belongs to
         RequestorID requestorId;
 
-        CapTrackMap capTrack;
+        CapTrackMap capTrackMap;
 
     public:
         NodeController(const NodeControllerParams& p);
@@ -180,6 +180,10 @@ class NodeController : public ClockedObject {
 
         void sendLoad(NodeID node_id);
         void sendStore(NodeID node_id, const Node& node);
+
+        void addCapTrack(const CapLoc& loc, NodeID node_id);
+        NodeID queryCapTrack(const CapLoc& loc);
+        void removeCapTrack(const CapLoc& loc);
 
         // free list
         NodeID free_head;
