@@ -87,5 +87,39 @@ SystemOp::generateDisassembly(Addr pc, const loader::SymbolTable *symtab) const
     return mnemonic;
 }
 
+std::string
+EcallOp::generateDisassembly(Addr pc, const loader::SymbolTable *symtab) const
+{
+    return mnemonic;
+}
+
+InstStateMachinePtr
+EcallOp::getStateMachine(ExecContext* xc) const {
+    return std::make_shared<MallocStateMachine>();
+}
+
+bool
+MallocStateMachine::finished(ExecContext* xc) const {
+    return true;
+}
+
+Fault
+MallocStateMachine::transit(ExecContext* xc, PacketPtr pkt) {
+    return NoFault;
+}
+
+
+bool
+FreeStateMachine::finished(ExecContext* xc) const {
+    return true;
+}
+
+Fault
+FreeStateMachine::transit(ExecContext* xc, PacketPtr pkt) {
+    return NoFault;
+}
+
+
+
 } // namespace RiscvcapstoneISA
 } // namespace gem5

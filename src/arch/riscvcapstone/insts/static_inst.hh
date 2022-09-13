@@ -45,6 +45,26 @@ namespace gem5
 namespace RiscvcapstoneISA
 {
 
+struct InstStateMachine {
+    virtual bool finished(ExecContext* xc) const = 0;
+    virtual Fault transit(ExecContext* xc, PacketPtr pkt) = 0;
+};
+
+
+struct DummyInstStateMachine : InstStateMachine {
+    bool finished(ExecContext* xc) const override {
+        return true;
+    }
+    
+    Fault transit(ExecContext* xc, PacketPtr pkt) override {
+        return NoFault;
+    }
+};
+
+typedef std::shared_ptr<InstStateMachine> InstStateMachinePtr;
+
+
+
 /**
  * Base class for all RISC-V static instructions.
  */
@@ -87,6 +107,19 @@ class RiscvStaticInst : public StaticInst
     asBytes(void *buf, size_t size) override
     {
         return simpleAsBytes(buf, size, machInst);
+    }
+
+    virtual InstStateMachinePtr getStateMachine(ExecContext* xc) const {
+        return std::make_shared<DummyInstStateMachine>();
+    }
+
+    // FIXME: here "mem" actually only includes the node cache
+    bool pendingMem(InstStateMachinePtr sm, ExecContext* xc) const {
+        return !sm->finished(xc);
+    }// returns whether the operation has a pending memory access
+
+    virtual Fault handleMemResp(InstStateMachinePtr sm, ExecContext* xc, PacketPtr pkt) {
+        return sm->transit(xc, pkt);
     }
 };
 

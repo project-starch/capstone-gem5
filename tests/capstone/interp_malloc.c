@@ -12,7 +12,7 @@ void __real_free(void* ptr);
 void* __wrap_malloc(size_t size) {
     void* obj = __real_malloc(size);
     if(obj) {
-        syscall(SYSCALL_NOTIFYMALLOC, obj, size);
+        return (void*)syscall(SYSCALL_NOTIFYMALLOC, obj, size);
     }
     return obj;
 }

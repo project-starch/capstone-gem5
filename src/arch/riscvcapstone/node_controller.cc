@@ -461,41 +461,15 @@ void NodeController::CPUSidePort::recvFunctional(PacketPtr pkt) {
 AddrRangeList NodeController::CPUSidePort::getAddrRanges() const {
     return std::list<AddrRange> { AddrRange(0, 0xffffffffLL) };
 }
-
-void
-NodeController::functionalSetNodeValid(NodeID node_id, bool valid) {
-    Addr naddr = nodeID2Addr(node_id);
-    RequestPtr req = std::make_shared<Request>();
-    req->requestorId(requestorId);
-    req->setPaddr(naddr);
-    PacketPtr pkt = Packet::createWrite(req);
-    pkt->setSize(sizeof(Node));
-    pkt->allocate();
-    memset(pkt->getPtr<void>(), 0, sizeof(Node));
-    *(pkt->getPtr<char>()) = (char)valid;
-    mem_side.sendFunctional(pkt);
-    assert(pkt->isResponse());
-    delete pkt;
-}
-
     
 void
 NodeController::allocObject(const AddrRange& obj) {
-    functionalSetNodeValid((NodeID)objectRanges.size(), true);
     objectRanges.push_back(obj);
 }
 
 void
 NodeController::freeObject(Addr addr) {
-    std::optional<NodeID> node_id = lookupAddr(addr);
-    assert(node_id);
-    functionalSetNodeValid(node_id.value(), false);
-}
-
-void
-NodeController::removeObject(Addr addr) {
     objectRanges.remove_if([addr](auto obj) { return obj.contains(addr); });
-    // FIXME update the valid list
 }
 
 std::optional<NodeID>

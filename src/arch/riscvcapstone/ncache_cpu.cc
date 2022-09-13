@@ -83,7 +83,9 @@ TimingSimpleNCacheCPU::TimingSimpleNCacheCPU(const BaseTimingSimpleNCacheCPUPara
       fetchTranslation(this), icachePort(this),
       dcachePort(this), ncache_port(this), 
       ifetch_pkt(NULL), dcache_pkt(NULL), ncache_pkt(NULL), 
-      previousCycle(0), fetchEvent([this]{ fetch(); }, name())
+      previousCycle(0),
+      fetchEvent([this]{ fetch(); }, name()),
+      instPendingMem(NULL)
 {
     _status = Idle;
 }
@@ -931,19 +933,15 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
         // non-memory instruction: execute completely now
         Fault fault = curStaticInst->execute(&t_info, traceData);
 
-        // keep an instruction count
-        if (fault == NoFault)
-            countInst();
-        else if (traceData) {
-            traceFault();
+        RiscvStaticInst* rv_inst = dynamic_cast<RiscvStaticInst*>(curStaticInst.get());
+        panic_if(rv_inst == NULL, "non-RISC-V instructions unsupported!");
+        InstStateMachinePtr sm = rv_inst->getStateMachine(&t_info);
+        if(rv_inst->pendingMem(sm, &t_info)){
+            instPendingMem = rv_inst;
+            statePendingMem = sm;
+        } else{
+            completeInstExec(fault);
         }
-
-        postExecute();
-        // @todo remove me after debugging with legion done
-        if (curStaticInst && (!curStaticInst->isMicroop() ||
-                curStaticInst->isFirstMicroop()))
-            instCnt++;
-        advanceInst(fault);
     } else {
         advanceInst(NoFault);
     }
@@ -951,6 +949,25 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
     if (pkt) {
         delete pkt;
     }
+}
+
+void
+TimingSimpleNCacheCPU::completeInstExec(Fault fault) {
+    // keep an instruction count
+    if (fault == NoFault)
+        countInst();
+    else{
+        if (traceData) {
+            traceFault();
+        }
+    }
+
+    postExecute();
+    // @todo remove me after debugging with legion done
+    if (curStaticInst && (!curStaticInst->isMicroop() ||
+                curStaticInst->isFirstMicroop()))
+        instCnt++;
+    advanceInst(fault);
 }
 
 void
@@ -1399,8 +1416,23 @@ void TimingSimpleNCacheCPU::NCachePort::NCacheRespTickEvent::schedule(
     cpu->schedule(this, cpu->clockEdge(cycles));
 }
 
+void
+TimingSimpleNCacheCPU::handleNCacheResp(PacketPtr pkt) {
+    if(instPendingMem == NULL) {
+        completeNCacheLoad(pkt);
+    } else {
+        SimpleExecContext* xc = threadInfo[curThread];
+        Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
+        if(!instPendingMem->pendingMem(statePendingMem, xc)){
+            instPendingMem = NULL;
+            statePendingMem = nullptr;
+            completeInstExec(fault);
+        }
+    }
+}
+
 void TimingSimpleNCacheCPU::NCachePort::NCacheRespTickEvent::process() {
-    cpu->completeNCacheLoad(pkt);
+    cpu->handleNCacheResp(pkt);
 }
 
 bool TimingSimpleNCacheCPU::NCachePort::recvTimingResp(PacketPtr pkt) {
@@ -1480,6 +1512,20 @@ void TimingSimpleNCacheCPU::NCachePort::recvReqRetry() {
         cpu->ncache_status = NCACHE_WAITING;
         cpu->ncache_pkt = NULL;
     }
+}
+
+// Since the syscall emulation is not timing, we delay the actual node allocation
+// We simply mark the return register as "to-allocate"
+// Then before the CPU next does anything, wait until
+// the node is allocated
+void
+TimingSimpleNCacheCPU::allocObject(ThreadContext* tc, AddrRange obj) {
+    node_controller->allocObject(obj);
+}
+
+void
+TimingSimpleNCacheCPU::freeObject(ThreadContext* tc, Addr base_addr) {
+    node_controller->freeObject(base_addr);
 }
 
 

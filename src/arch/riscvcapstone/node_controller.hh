@@ -158,15 +158,15 @@ class NodeController : public ClockedObject {
         System* system; // the system the node controller belongs to
         RequestorID requestorId;
 
-        void functionalSetNodeValid(NodeID node_id, bool valid);
-
     public:
         NodeController(const NodeControllerParams& p);
         Port& getPort(const std::string& name, PortID idx) override;
 
+        // only update the object registry
+        // does not touch anything else
         void allocObject(const AddrRange& obj);
         void freeObject(Addr addr);
-        void removeObject(Addr addr);
+
         std::optional<NodeID> lookupAddr(Addr addr);
         Addr nodeID2Addr(NodeID node_id);
 

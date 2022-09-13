@@ -45,6 +45,7 @@
 #include <queue>
 #include "arch/generic/mmu.hh"
 #include "arch/riscvcapstone/node_controller.hh"
+#include "arch/riscvcapstone/insts/static_inst.hh"
 #include "cpu/simple/base.hh"
 #include "cpu/simple/exec_context.hh"
 #include "cpu/translation.hh"
@@ -350,6 +351,7 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
     void completeDataAccess(PacketPtr data_pkt, PacketPtr node_pkt);
     void completeDCacheLoad(PacketPtr pkt);
     void completeNCacheLoad(PacketPtr pkt);
+    void handleNCacheResp(PacketPtr pkt);
     void advanceInst(const Fault &fault);
 
     /** This function is used by the page table walker to determine if it could
@@ -380,9 +382,14 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
 
     Port& getPort(const std::string& name, PortID idx) override;
 
+    void allocObject(ThreadContext* tc, AddrRange obj);
+    void freeObject(ThreadContext* tc, Addr base_addr);
+
   private:
 
     EventFunctionWrapper fetchEvent;
+    RiscvStaticInst* instPendingMem;
+    InstStateMachinePtr statePendingMem;
 
     struct IprEvent : Event
     {
@@ -426,6 +433,7 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
 
     void endHandlingDCacheResp(PacketPtr pkt, Fault fault);
     void sendNCacheReq(Addr addr);
+    void completeInstExec(Fault fault);
 };
 
 } // namespace gem5

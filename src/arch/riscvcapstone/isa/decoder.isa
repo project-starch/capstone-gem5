@@ -1780,7 +1780,7 @@ decode QUADRANT default Unknown::unknown() {
             format SystemOp {
                 0x0: decode FUNCT7 {
                     0x0: decode RS2 {
-                        0x0: ecall({{
+                        0x0: EcallOp::ecall({{
                             return std::make_shared<SyscallFault>(
                                 (PrivilegeMode)xc->readMiscReg(MISCREG_PRV));
                         }}, IsSerializeAfter, IsNonSpeculative, IsSyscall,

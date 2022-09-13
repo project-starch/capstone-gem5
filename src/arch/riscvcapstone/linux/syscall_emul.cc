@@ -9,12 +9,12 @@ namespace gem5::RiscvcapstoneISA {
             DPRINTF(CapstoneAlloc, "malloc: %llx, %llx\n", addr, size);
 
             TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(tc->getCpuPtr());
-            if(cpu && cpu->node_controller) {
-                cpu->node_controller->allocObject(AddrRange((Addr)addr, (Addr)(addr + size)));
+            if(cpu) {
+                cpu->allocObject(tc, AddrRange((Addr)addr, (Addr)(addr + size)));
             } else {
-                DPRINTF(CapstoneAlloc, "malloc: warning! cpu is not TimingSimpleNCacheCPU or does not have a node controller set!\n");
+                DPRINTF(CapstoneAlloc, "malloc: warning! cpu is not TimingSimpleNCacheCPU!\n");
             }
-            return 0;
+            return addr;
         }
 
     SyscallReturn
@@ -23,10 +23,10 @@ namespace gem5::RiscvcapstoneISA {
             DPRINTF(CapstoneAlloc, "free: %llx\n", addr);
 
             TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(tc->getCpuPtr());
-            if(cpu && cpu->node_controller) {
-                cpu->node_controller->freeObject((Addr)addr);
+            if(cpu) {
+                cpu->freeObject(tc, (Addr)addr);
             } else{
-                DPRINTF(CapstoneAlloc, "free: warning! cpu is not TimingSimpleNCacheCPU or does not have a node controller set!\n");
+                DPRINTF(CapstoneAlloc, "free: warning! cpu is not TimingSimpleNCacheCPU!\n");
             }
             return 0;
         }

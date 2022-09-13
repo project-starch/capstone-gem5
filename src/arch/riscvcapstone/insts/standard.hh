@@ -44,7 +44,6 @@ namespace gem5
 
 namespace RiscvcapstoneISA
 {
-
 /**
  * Base class for operations that work only on registers
  */
@@ -81,6 +80,26 @@ class SystemOp : public RiscvStaticInst
 
     std::string generateDisassembly(
         Addr pc, const loader::SymbolTable *symtab) const override;
+};
+
+struct MallocStateMachine : InstStateMachine {
+    bool finished(ExecContext* xc) const override;
+    Fault transit(ExecContext* xc, PacketPtr pkt) override;
+};
+
+struct FreeStateMachine : InstStateMachine {
+    bool finished(ExecContext* xc) const override;
+    Fault transit(ExecContext* xc, PacketPtr pkt) override;
+};
+
+class EcallOp : public RiscvStaticInst {
+  protected:
+    using RiscvStaticInst::RiscvStaticInst;
+
+    std::string generateDisassembly(
+        Addr pc, const loader::SymbolTable *symtab) const override;
+  public:
+    InstStateMachinePtr getStateMachine(ExecContext* xc) const override;
 };
 
 /**
