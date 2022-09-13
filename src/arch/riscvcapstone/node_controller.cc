@@ -15,7 +15,7 @@
  * */
 
 #define CAPSTONE_NODE_BASE_ADDR 0x100000000000ULL
-
+#define CAPSTONE_NODE_N 256
 
 namespace gem5::RiscvcapstoneISA {
 
@@ -25,6 +25,7 @@ NodeController::NodeController(const NodeControllerParams& p) :
     mem_side(this),
     cpu_side(this),
     system(p.system),
+    freeNodeInited(0),
     free_head(NODE_ID_INVALID),
     tree_root(NODE_ID_INVALID) {
     DPRINTF(CapstoneNCache, "Size of node = %u\n", sizeof(Node));
@@ -102,17 +103,15 @@ NodeControllerAllocate::transit(NodeController& controller, PacketPtr current_pk
             node = pkt->getRaw<Node>();
             parentDepth = node.depth;
             nextNodeId = node.next;
-            node.next = controller.free_head;
+            node.next = toAllocate;
 
             state = NCAllocate_STORE_PARENT;
             controller.sendStore(parentId, node);
             return false;
         case NCAllocate_STORE_PARENT:
             if(nextNodeId == NODE_ID_INVALID) {
-                assert(controller.free_head != NODE_ID_INVALID);
-                // fetch the free node
                 state = NCAllocate_LOAD;
-                controller.sendLoad(controller.free_head);
+                controller.sendLoad(toAllocate);
             } else{
                 state = NCAllocate_LOAD_RIGHT;
                 controller.sendLoad(nextNodeId);
@@ -120,37 +119,42 @@ NodeControllerAllocate::transit(NodeController& controller, PacketPtr current_pk
             return false;
         case NCAllocate_LOAD_RIGHT:
             node = pkt->getRaw<Node>();
-            node.prev = controller.free_head;
+            node.prev = toAllocate;
             state = NCAllocate_STORE_RIGHT;
             controller.sendStore(nextNodeId, node);
             return false;
         case NCAllocate_STORE_RIGHT:
-            assert(controller.free_head != NODE_ID_INVALID);
-            // fetch the free node
             state = NCAllocate_LOAD;
-            controller.sendLoad(controller.free_head);
+            controller.sendLoad(toAllocate);
             return false;
         case NCAllocate_LOAD:
             node = pkt->getRaw<Node>(); // free node
             nextFreeNodeId = node.next;
-            // TODO: we need to mount the node at a location in the tree
             node.prev = parentId;
             node.next = nextNodeId;
             if(parentId == NODE_ID_INVALID) {
-                controller.tree_root = controller.free_head;
+                controller.tree_root = toAllocate;
             }
             node.state = 1;
             node.counter = 1;
             node.depth = parentDepth + 1;
-            controller.sendStore(controller.free_head, node);
+            controller.sendStore(toAllocate, node);
 
             state = NCAllocate_STORE;
             
             return false;
         case NCAllocate_STORE:
-            controller.free_head = nextFreeNodeId;
+            if(fromFreeList) {
+                controller.free_head = nextFreeNodeId;
+            } else{
+                ++ controller.freeNodeInited;
+            }
             current_pkt->makeResponse();
             current_pkt->deleteData();
+            // return a node ID
+            current_pkt->setSize(sizeof(NodeID));
+            current_pkt->allocate();
+            *(current_pkt->getPtr<NodeID>()) = toAllocate;
             // TODO: consider returning status code
             return true;
         default:
@@ -370,6 +374,14 @@ NodeControllerQuery::setup(NodeController& controller, PacketPtr pkt) {
 
 void
 NodeControllerAllocate::setup(NodeController& controller, PacketPtr pkt) {
+    if(controller.free_head == NODE_ID_INVALID) {
+        panic_if(controller.freeNodeInited >= CAPSTONE_NODE_N, "no free node remaining.");
+        toAllocate = (NodeID)controller.freeNodeInited;
+        fromFreeList = false;
+    } else{
+        toAllocate = controller.free_head;
+        fromFreeList = true;
+    }
     // TODO: need to handle the case when there are no free nodes
     if(parentId == NODE_ID_INVALID) {
         // skip setting parent
@@ -377,9 +389,8 @@ NodeControllerAllocate::setup(NodeController& controller, PacketPtr pkt) {
         nextNodeId = controller.tree_root;
         parentDepth = 0;
         if(nextNodeId == NODE_ID_INVALID) {
-            assert(controller.free_head != NODE_ID_INVALID);
             state = NCAllocate_LOAD;
-            controller.sendLoad(controller.free_head);
+            controller.sendLoad(toAllocate);
         } else {
             state = NCAllocate_LOAD_RIGHT;
             controller.sendLoad(nextNodeId);

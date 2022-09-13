@@ -11,14 +11,13 @@
 #include "mem/port.hh"
 #include "params/NodeController.hh"
 #include "base/trace.hh"
+#include "arch/riscvcapstone/cap_track.hh"
 
 // size of each revocation nodes (in bits)
 
 namespace gem5::RiscvcapstoneISA {
 
 const size_t CAPSTONE_NODE_SIZE = 128;
-
-typedef uint64_t NodeID;
 
 class NodeController;
 
@@ -49,8 +48,7 @@ struct NodeControllerRevoke : NodeControllerCommand {
             NCRevoke_LOAD,
             NCRevoke_STORE,
             NCRevoke_STORE_RIGHT,
-            NCRevoke_LOAD_LEFT,
-            NCRevoke_STORE_LEFT,
+            NCRevoke_LOAD_LEFT, NCRevoke_STORE_LEFT,
         } state;
         NodeID curNodeId;
         unsigned int rootDepth;
@@ -88,7 +86,8 @@ struct NodeControllerAllocate : NodeControllerCommand {
             NCAllocate_LOAD_RIGHT,
             NCAllocate_STORE_RIGHT,
         } state;
-        NodeID nextNodeId, nextFreeNodeId;
+        NodeID nextNodeId, nextFreeNodeId, toAllocate;
+        bool fromFreeList;
         unsigned int parentDepth;
 };
 
@@ -158,6 +157,8 @@ class NodeController : public ClockedObject {
         System* system; // the system the node controller belongs to
         RequestorID requestorId;
 
+        CapTrackMap capTrack;
+
     public:
         NodeController(const NodeControllerParams& p);
         Port& getPort(const std::string& name, PortID idx) override;
@@ -185,6 +186,7 @@ class NodeController : public ClockedObject {
         // tree
         NodeID tree_root;
 
+        int freeNodeInited;
 };
 
 } // end of namespace gem5::RiscvcapstoneISA

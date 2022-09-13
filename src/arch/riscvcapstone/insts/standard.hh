@@ -83,11 +83,17 @@ class SystemOp : public RiscvStaticInst
 };
 
 struct MallocStateMachine : InstStateMachine {
+    enum {
+        MALLOC_ALLOC_NODE,
+        MALLOC_DONE,
+    } state;
+    void setup(ExecContext* xc) override;
     bool finished(ExecContext* xc) const override;
     Fault transit(ExecContext* xc, PacketPtr pkt) override;
 };
 
 struct FreeStateMachine : InstStateMachine {
+    void setup(ExecContext* xc) override;
     bool finished(ExecContext* xc) const override;
     Fault transit(ExecContext* xc, PacketPtr pkt) override;
 };

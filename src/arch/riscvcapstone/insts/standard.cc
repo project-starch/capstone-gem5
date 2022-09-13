@@ -36,7 +36,12 @@
 #include "arch/riscvcapstone/insts/static_inst.hh"
 #include "arch/riscvcapstone/regs/misc.hh"
 #include "arch/riscvcapstone/utility.hh"
+#include "arch/riscvcapstone/node_controller.hh"
+#include "arch/riscvcapstone/ncache_cpu.hh"
+#include "cpu/exec_context.hh"
+#include "cpu/simple/exec_context.hh"
 #include "cpu/static_inst.hh"
+#include "debug/CapstoneNodeOps.hh"
 
 namespace gem5
 {
@@ -95,17 +100,51 @@ EcallOp::generateDisassembly(Addr pc, const loader::SymbolTable *symtab) const
 
 InstStateMachinePtr
 EcallOp::getStateMachine(ExecContext* xc) const {
-    return std::make_shared<MallocStateMachine>();
+    RegVal num = xc->tcBase()->readIntReg(RiscvcapstoneISA::SyscallNumReg);
+    switch(num) {
+        case 3000: // malloc
+            return std::make_shared<MallocStateMachine>();
+        case 3001:
+            return std::make_shared<FreeStateMachine>();
+        default:
+            return std::make_shared<DummyInstStateMachine>();
+
+    }
+}
+
+// Do three things
+// 1. Register the range of the object
+// 2. Allocate a new revocation node
+// 3. Record that the register contains a capability with the specific node ID
+void
+MallocStateMachine::setup(ExecContext* xc) {
+    SimpleExecContext* sxc = dynamic_cast<SimpleExecContext*>(xc);
+    panic_if(sxc == NULL, "non-SimpleExecContext unsupported.");
+    
+    NodeControllerAllocate* cmd = new NodeControllerAllocate();
+    cmd->parentId = NODE_ID_INVALID; 
+
+    TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(sxc->cpu);
+    panic_if(cpu == NULL, "non ncache-cpu unsupported.");
+    cpu->sendNCacheCommand(cmd);
+
+    state = MALLOC_ALLOC_NODE;
 }
 
 bool
 MallocStateMachine::finished(ExecContext* xc) const {
-    return true;
+    return state == MALLOC_DONE;
 }
 
 Fault
 MallocStateMachine::transit(ExecContext* xc, PacketPtr pkt) {
+    DPRINTF(CapstoneNodeOps, "Allocated node %u\n", pkt->getRaw<NodeID>());
+    state = MALLOC_DONE;
     return NoFault;
+}
+
+void
+FreeStateMachine::setup(ExecContext* xc) {
 }
 
 

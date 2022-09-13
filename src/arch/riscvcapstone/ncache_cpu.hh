@@ -385,11 +385,15 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
     void allocObject(ThreadContext* tc, AddrRange obj);
     void freeObject(ThreadContext* tc, Addr base_addr);
 
+    void sendNCacheReq(Addr addr);
+    void sendNCacheCommand(NodeControllerCommand* cmd);
+
   private:
 
     EventFunctionWrapper fetchEvent;
     RiscvStaticInst* instPendingMem;
     InstStateMachinePtr statePendingMem;
+    Fault faultPendingMem;
 
     struct IprEvent : Event
     {
@@ -432,7 +436,6 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
     bool tryCompleteDrain();
 
     void endHandlingDCacheResp(PacketPtr pkt, Fault fault);
-    void sendNCacheReq(Addr addr);
     void completeInstExec(Fault fault);
 };
 

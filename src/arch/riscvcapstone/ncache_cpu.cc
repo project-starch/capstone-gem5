@@ -361,22 +361,13 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
 }
 
 void
-TimingSimpleNCacheCPU::sendNCacheReq(Addr addr) {
+TimingSimpleNCacheCPU::sendNCacheCommand(NodeControllerCommand* cmd) {
     assert(ncache_status != NCACHE_RETRY);
-
-    std::optional<NodeID> node_id = node_controller->lookupAddr(addr);
-    if(!node_id) {
-        nodeResps.push(NULL);
-        return;
-    }
-
     RequestPtr ncache_req = std::make_shared<Request>();
     // pass the address
     //ncache_req->setPaddr(addr);
     //assert(ncache_req->hasPaddr() && !ncache_req->hasSize());
     PacketPtr ncache_pkt = Packet::createRead(ncache_req);
-    NodeControllerQuery* cmd = new NodeControllerQuery();
-    cmd->nodeId = node_id.value();
     ncache_pkt->dataDynamic<NodeControllerCommand>(cmd);
 
     if(ncache_port.sendTimingReq(ncache_pkt)) {
@@ -388,6 +379,21 @@ TimingSimpleNCacheCPU::sendNCacheReq(Addr addr) {
         ncache_status = NCACHE_RETRY;
         this->ncache_pkt = ncache_pkt;
     }
+}
+
+void
+TimingSimpleNCacheCPU::sendNCacheReq(Addr addr) {
+
+    std::optional<NodeID> node_id = node_controller->lookupAddr(addr);
+    if(!node_id) {
+        nodeResps.push(NULL);
+        return;
+    }
+
+    NodeControllerQuery* cmd = new NodeControllerQuery();
+    cmd->nodeId = node_id.value();
+
+    sendNCacheCommand(cmd);
 }
 
 void
@@ -936,9 +942,11 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
         RiscvStaticInst* rv_inst = dynamic_cast<RiscvStaticInst*>(curStaticInst.get());
         panic_if(rv_inst == NULL, "non-RISC-V instructions unsupported!");
         InstStateMachinePtr sm = rv_inst->getStateMachine(&t_info);
+        sm->setup(&t_info);
         if(rv_inst->pendingMem(sm, &t_info)){
             instPendingMem = rv_inst;
             statePendingMem = sm;
+            faultPendingMem = fault;
         } else{
             completeInstExec(fault);
         }
@@ -1423,10 +1431,13 @@ TimingSimpleNCacheCPU::handleNCacheResp(PacketPtr pkt) {
     } else {
         SimpleExecContext* xc = threadInfo[curThread];
         Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
+        //Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
+        delete pkt;
         if(!instPendingMem->pendingMem(statePendingMem, xc)){
             instPendingMem = NULL;
             statePendingMem = nullptr;
-            completeInstExec(fault);
+            completeInstExec(faultPendingMem);
+            faultPendingMem = NoFault;
         }
     }
 }

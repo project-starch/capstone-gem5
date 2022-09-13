@@ -46,12 +46,15 @@ namespace RiscvcapstoneISA
 {
 
 struct InstStateMachine {
+    virtual void setup(ExecContext* xc) = 0;
     virtual bool finished(ExecContext* xc) const = 0;
     virtual Fault transit(ExecContext* xc, PacketPtr pkt) = 0;
 };
 
 
 struct DummyInstStateMachine : InstStateMachine {
+    void setup(ExecContext* xc) override {}
+
     bool finished(ExecContext* xc) const override {
         return true;
     }

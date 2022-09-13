@@ -52,6 +52,7 @@ namespace RiscvcapstoneISA
 
 typedef uint32_t MachInst;
 typedef uint64_t ExtMachInst;
+typedef uint64_t NodeID;
 
 } // namespace RiscvcapstoneISA
 } // namespace gem5
