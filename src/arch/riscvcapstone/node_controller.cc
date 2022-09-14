@@ -5,6 +5,7 @@
 #include "base/trace.hh"
 #include "debug/CapstoneNCache.hh"
 #include "debug/CapstoneCapTrack.hh"
+#include "debug/CapstoneNodeOps.hh"
 
 
 /*
@@ -59,8 +60,9 @@ NodeController::MemSidePort::recvReqRetry() {
 }
 
 void
-NodeController::sendLoad(int obj_idx) {
-    Addr addr = idx2Addr(obj_idx);
+NodeController::sendLoad(NodeID node_id) {
+    Addr addr = nodeId2Addr(node_id);
+    DPRINTF(CapstoneNodeOps, "send load %lx\n", addr);
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestorId);
     req->setPaddr(addr);
@@ -72,8 +74,9 @@ NodeController::sendLoad(int obj_idx) {
 }
 
 void
-NodeController::sendStore(int obj_idx, const Node& node) {
-    Addr addr = idx2Addr(obj_idx);
+NodeController::sendStore(NodeID node_id, const Node& node) {
+    Addr addr = nodeId2Addr(node_id);
+    DPRINTF(CapstoneNodeOps, "send store %lx\n", addr);
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestorId);
     req->setPaddr(addr);
@@ -270,6 +273,9 @@ NodeControllerRcUpdate::transit(NodeController& controller, PacketPtr current_pk
             // TODO: consider returning status code
             return true;
         case NCRcUpdate_STORE_FREED:
+            DPRINTF(CapstoneNodeOps, "prevNodeId = %lu, nextNodeId = %lu, "
+                    "invalid = %lu\n",
+                    prevNodeId, nextNodeId, NODE_ID_INVALID);
             if(prevNodeId == NODE_ID_INVALID) {
                 if(nextNodeId == NODE_ID_INVALID) {
                     current_pkt->makeResponse();
@@ -347,8 +353,8 @@ NodeController::MemSidePort::MemSidePort(NodeController* owner) :
 }
 
 Addr
-NodeController::idx2Addr(int idx) {
-    return (Addr)(CAPSTONE_NODE_BASE_ADDR | (idx * (sizeof(Node))));
+NodeController::nodeId2Addr(NodeID node_id) {
+    return (Addr)(CAPSTONE_NODE_BASE_ADDR | ((Addr)node_id * (sizeof(Node))));
 }
 
 void
@@ -406,6 +412,7 @@ NodeControllerAllocate::setup(NodeController& controller, PacketPtr pkt) {
 
 void
 NodeControllerRcUpdate::setup(NodeController& controller, PacketPtr pkt) {
+    DPRINTF(CapstoneNodeOps, "rcupdate: %u %d\n", nodeId, delta);
     assert(nodeId != NODE_ID_INVALID);
     assert(delta != 0);
     state = NCRcUpdate_LOAD;

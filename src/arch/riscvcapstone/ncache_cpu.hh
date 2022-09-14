@@ -55,7 +55,7 @@
 namespace gem5::RiscvcapstoneISA
 {
 
-typedef std::queue<NodeControllerCommand> NCCommandQueue;
+typedef std::queue<NodeControllerCommandPtr> NCCommandQueue;
 
 class TimingSimpleNCacheCPU : public BaseSimpleCPU
 {
@@ -66,13 +66,10 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
 
     void init() override;
 
-    enum NCacheState {
-        NCACHE_IDLE,
-        NCACHE_RETRY,
-        NCACHE_WAITING,
-    };
-
-    NCacheState ncache_status;
+    enum {
+        NCACHE_INSTR_EXECUTION,
+        NCACHE_ISSUE_COMMANDS,
+    } ncache_status;
 
     NodeController* node_controller;
 
@@ -442,6 +439,8 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
     void endHandlingDCacheResp(PacketPtr pkt, Fault fault);
     void completeInstExec(Fault fault);
     void preOverwriteDest(SimpleExecContext& t_info, StaticInst* inst);
+    bool issueNCacheCommands();
+    void handleIssueNCacheCommandsResp(PacketPtr pkt);
 };
 
 } // namespace gem5

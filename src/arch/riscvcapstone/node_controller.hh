@@ -21,7 +21,7 @@ const size_t CAPSTONE_NODE_SIZE = 128;
 
 class NodeController;
 
-const NodeID NODE_ID_INVALID = (NodeID)-1ULL;
+const NodeID NODE_ID_INVALID = (NodeID)(-1ULL & ((1ULL << 31) - 1));
 
 /**
  * base class for all commands to node controller
@@ -33,6 +33,8 @@ struct NodeControllerCommand {
 
 struct NodeControllerQuery : NodeControllerCommand {
     NodeID nodeId;
+    NodeControllerQuery() {}
+    NodeControllerQuery(NodeID node_id) : nodeId(node_id) {}
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
 };
@@ -40,6 +42,8 @@ struct NodeControllerQuery : NodeControllerCommand {
 
 struct NodeControllerRevoke : NodeControllerCommand {
     NodeID nodeId;
+    NodeControllerRevoke() {}
+    NodeControllerRevoke(NodeID node_id) : nodeId(node_id) {}
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
     private:
@@ -58,6 +62,8 @@ struct NodeControllerRevoke : NodeControllerCommand {
 struct NodeControllerRcUpdate : NodeControllerCommand {
     NodeID nodeId;
     int delta;
+    NodeControllerRcUpdate() {}
+    NodeControllerRcUpdate(NodeID node_id, int delta): nodeId(node_id), delta(delta) {}
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
     private:
@@ -75,6 +81,8 @@ struct NodeControllerRcUpdate : NodeControllerCommand {
 
 struct NodeControllerAllocate : NodeControllerCommand {
     NodeID parentId;
+    NodeControllerAllocate() {}
+    NodeControllerAllocate(unsigned int parent_depth): parentDepth(parent_depth) {}
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
     private:
@@ -90,6 +98,8 @@ struct NodeControllerAllocate : NodeControllerCommand {
         bool fromFreeList;
         unsigned int parentDepth;
 };
+
+typedef NodeControllerCommand* NodeControllerCommandPtr;
 
 
 /*
@@ -169,7 +179,7 @@ class NodeController : public ClockedObject {
         void freeObject(Addr addr);
 
         std::optional<int> lookupAddr(Addr addr);
-        Addr idx2Addr(int idx);
+        Addr nodeId2Addr(NodeID node_id);
 
         void regStats() override;
 
@@ -178,8 +188,8 @@ class NodeController : public ClockedObject {
 
         void init() override;
 
-        void sendLoad(int obj_idx);
-        void sendStore(int obj_idx, const Node& node);
+        void sendLoad(NodeID node_id);
+        void sendStore(NodeID node_id, const Node& node);
 
         void addCapTrack(const CapLoc& loc, NodeID node_id);
         NodeID queryCapTrack(const CapLoc& loc);

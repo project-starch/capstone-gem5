@@ -53,6 +53,7 @@
 #include "debug/Mwait.hh"
 #include "debug/SimpleCPU.hh"
 #include "debug/CapstoneNCache.hh"
+#include "debug/CapstoneNodeOps.hh"
 #include "mem/packet.hh"
 #include "mem/packet_access.hh"
 #include "params/BaseTimingSimpleNCacheCPU.hh"
@@ -79,7 +80,7 @@ TimingSimpleNCacheCPU::TimingCPUPort::TickEvent::schedule(PacketPtr _pkt, Tick t
 
 TimingSimpleNCacheCPU::TimingSimpleNCacheCPU(const BaseTimingSimpleNCacheCPUParams &p)
     : BaseSimpleCPU(p), node_controller(p.node_controller),
-      ncache_status(NCACHE_IDLE),
+      ncache_status(NCACHE_INSTR_EXECUTION),
       fetchTranslation(this), icachePort(this),
       dcachePort(this), ncache_port(this), 
       ifetch_pkt(NULL), dcache_pkt(NULL), ncache_pkt(NULL), 
@@ -362,7 +363,6 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
 
 void
 TimingSimpleNCacheCPU::sendNCacheCommand(NodeControllerCommand* cmd) {
-    assert(ncache_status != NCACHE_RETRY);
     RequestPtr ncache_req = std::make_shared<Request>();
     // pass the address
     //ncache_req->setPaddr(addr);
@@ -372,11 +372,9 @@ TimingSimpleNCacheCPU::sendNCacheCommand(NodeControllerCommand* cmd) {
 
     if(ncache_port.sendTimingReq(ncache_pkt)) {
         DPRINTF(CapstoneNCache, "NCache packet sent\n");
-        ncache_status = NCACHE_WAITING;
         this->ncache_pkt = NULL;
     } else {
         DPRINTF(CapstoneNCache, "NCache packet to retry\n");
-        ncache_status = NCACHE_RETRY;
         this->ncache_pkt = ncache_pkt;
     }
 }
@@ -466,9 +464,11 @@ TimingSimpleNCacheCPU::translationFault(const Fault &fault)
         traceFault();
     }
 
-    postExecute();
+    if(!issueNCacheCommands()){
+        postExecute();
 
-    advanceInst(fault);
+        advanceInst(fault);
+    }
 }
 
 PacketPtr
@@ -938,7 +938,7 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
                 // TODO: strictly this should be done during wb
                 panic_if(rv_inst->numDestRegs() != 1, "load instruction should have exactly 1 destination register");
                 node_controller->addCapTrack(mem_loc, node_id);
-                // TODO: schedule for rc increment
+                ncToIssue.push(new NodeControllerRcUpdate(node_id, 1));
             }
         } else if(curStaticInst->isStore()) {
             // check for overwriting in-memory capability
@@ -947,7 +947,7 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
             if(mem_node != NODE_ID_INVALID) {
                 // the capability at the memory location will be overwritten
                 node_controller->removeCapTrack(mem_loc);
-                // TODO: schedule rc decrement
+                ncToIssue.push(new NodeControllerRcUpdate(mem_node, -1));
             }
 
             // check for writing capability to memory
@@ -959,7 +959,7 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
                 NodeID reg_node = node_controller->queryCapTrack(reg_loc);
                 if(reg_node != NODE_ID_INVALID) {
                     node_controller->addCapTrack(reg_loc, reg_node);
-                    // TODO: scheule rc decrement
+                    ncToIssue.push(new NodeControllerRcUpdate(reg_node, 1));
                 }
             }
         }
@@ -972,12 +972,14 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
                 traceFault();
             }
 
-            postExecute();
-            // @todo remove me after debugging with legion done
-            if (curStaticInst && (!curStaticInst->isMicroop() ||
-                        curStaticInst->isFirstMicroop()))
-                instCnt++;
-            advanceInst(fault);
+            if(!issueNCacheCommands()){
+                postExecute();
+                // @todo remove me after debugging with legion done
+                if (curStaticInst && (!curStaticInst->isMicroop() ||
+                            curStaticInst->isFirstMicroop()))
+                    instCnt++;
+                advanceInst(fault);
+            }
         }
     } else if (curStaticInst) {
         // non-memory instruction: execute completely now
@@ -1022,7 +1024,7 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
                 // 2. treat this as a non-linear capability
                 // doing 2 for now
                 node_controller->addCapTrack(dest_loc, src_node);
-                // TODO: schedule for counter increment
+                ncToIssue.push(new NodeControllerRcUpdate(src_node, 1));
             }
         }
 
@@ -1058,12 +1060,14 @@ TimingSimpleNCacheCPU::completeInstExec(Fault fault) {
         }
     }
 
-    postExecute();
-    // @todo remove me after debugging with legion done
-    if (curStaticInst && (!curStaticInst->isMicroop() ||
-                curStaticInst->isFirstMicroop()))
-        instCnt++;
-    advanceInst(fault);
+    if(!issueNCacheCommands()){
+        postExecute();
+        // @todo remove me after debugging with legion done
+        if (curStaticInst && (!curStaticInst->isMicroop() ||
+                    curStaticInst->isFirstMicroop()))
+            instCnt++;
+        advanceInst(fault);
+    }
 }
 
 void
@@ -1245,9 +1249,10 @@ TimingSimpleNCacheCPU::endHandlingDCacheResp(PacketPtr pkt,
 
     delete pkt;
 
-    postExecute();
-
-    advanceInst(fault);
+    if(!issueNCacheCommands()){
+        postExecute();
+        advanceInst(fault);
+    }
 }
 
 void
@@ -1514,19 +1519,28 @@ void TimingSimpleNCacheCPU::NCachePort::NCacheRespTickEvent::schedule(
 
 void
 TimingSimpleNCacheCPU::handleNCacheResp(PacketPtr pkt) {
-    if(instPendingMem == NULL) {
-        completeNCacheLoad(pkt);
-    } else {
-        SimpleExecContext* xc = threadInfo[curThread];
-        Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
-        //Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
-        delete pkt;
-        if(!instPendingMem->pendingMem(statePendingMem, xc)){
-            instPendingMem = NULL;
-            statePendingMem = nullptr;
-            completeInstExec(faultPendingMem);
-            faultPendingMem = NoFault;
-        }
+    switch(ncache_status) {
+        case NCACHE_INSTR_EXECUTION:
+            if(instPendingMem == NULL) {
+                completeNCacheLoad(pkt);
+            } else {
+                SimpleExecContext* xc = threadInfo[curThread];
+                Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
+                //Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
+                delete pkt;
+                if(!instPendingMem->pendingMem(statePendingMem, xc)){
+                    instPendingMem = NULL;
+                    statePendingMem = nullptr;
+                    completeInstExec(faultPendingMem);
+                    faultPendingMem = NoFault;
+                }
+            }
+            break;
+        case NCACHE_ISSUE_COMMANDS:
+            handleIssueNCacheCommandsResp(pkt);
+            break;
+        default:
+            panic("invalid ncache state");
     }
 }
 
@@ -1549,9 +1563,6 @@ bool TimingSimpleNCacheCPU::NCachePort::recvTimingResp(PacketPtr pkt) {
 void TimingSimpleNCacheCPU::completeNCacheLoad(PacketPtr pkt) {
     DPRINTF(CapstoneNCache, "NCache load complete\n");
 
-    ncache_status = NCACHE_IDLE; // set to idle; however
-                                      // before the dcache load also finishes,
-                                      // there should be no new request
     assert(nodeResps.empty() || dataResps.empty());
     if(!dataResps.empty()){
         PacketPtr data_pkt = dataResps.front();
@@ -1604,11 +1615,9 @@ void TimingSimpleNCacheCPU::completeDataAccess(
 }
 
 void TimingSimpleNCacheCPU::NCachePort::recvReqRetry() {
-    assert(cpu->ncache_status == NCACHE_RETRY);
     assert(cpu->ncache_pkt != NULL);
     
     if(sendTimingReq(cpu->ncache_pkt)) {
-        cpu->ncache_status = NCACHE_WAITING;
         cpu->ncache_pkt = NULL;
     }
 }
@@ -1642,8 +1651,37 @@ TimingSimpleNCacheCPU::preOverwriteDest(SimpleExecContext& t_info, StaticInst* i
         if(node_id == NODE_ID_INVALID)
             continue;
         node_controller->removeCapTrack(loc);
-        // TODO: schedule for counter decrement
+        ncToIssue.push(new NodeControllerRcUpdate(node_id, -1));
+    }
+}
+
+bool
+TimingSimpleNCacheCPU::issueNCacheCommands() {
+    if(!ncToIssue.empty()){
+        DPRINTF(CapstoneNodeOps, "issued command\n");
+        NodeControllerCommandPtr cmd = ncToIssue.front();
+        ncToIssue.pop();
+
+        sendNCacheCommand(cmd);
+        ncache_status = NCACHE_ISSUE_COMMANDS;
+        return true;
+    }
+    return false;
+}
+
+void
+TimingSimpleNCacheCPU::handleIssueNCacheCommandsResp(PacketPtr pkt) {
+    DPRINTF(CapstoneNodeOps, "received resp for issued command\n");
+    assert(ncache_status == NCACHE_ISSUE_COMMANDS);
+    delete pkt;
+    if(ncToIssue.empty()) {
+        ncache_status = NCACHE_INSTR_EXECUTION;
+        postExecute();
+        advanceInst(NoFault);
+    } else{
+        issueNCacheCommands();
     }
 }
 
 } // namespace gem5
+
