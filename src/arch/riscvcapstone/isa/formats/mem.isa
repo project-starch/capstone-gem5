@@ -46,6 +46,7 @@ def template LoadStoreDeclare {{
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
         Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
+        Addr getAddr(ExecContext *, Trace::InstRecord *) const override;
         Fault completeAcc(PacketPtr, ExecContext *,
                           Trace::InstRecord *) const override;
     };
@@ -134,6 +135,19 @@ def template LoadInitiateAcc {{
 
         return initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
     }
+
+    Addr
+    %(class_name)s::getAddr(ExecContext *xc,
+        Trace::InstRecord *traceData) const {
+
+        Addr EA;
+
+        %(op_src_decl)s;
+        %(op_rd)s;
+        %(ea_code)s;
+
+        return EA;
+    }
 }};
 
 def template LoadCompleteAcc {{
@@ -204,6 +218,19 @@ def template StoreInitiateAcc {{
         %(op_wb)s;
 
         return NoFault;
+    }
+
+    Addr
+    %(class_name)s::getAddr(ExecContext *xc,
+        Trace::InstRecord *traceData) const {
+
+        Addr EA;
+
+        %(op_decl)s;
+        %(op_rd)s;
+        %(ea_code)s;
+
+        return EA;
     }
 }};
 

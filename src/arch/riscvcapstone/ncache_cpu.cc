@@ -383,8 +383,9 @@ TimingSimpleNCacheCPU::sendNCacheCommand(NodeControllerCommand* cmd) {
 
 void
 TimingSimpleNCacheCPU::sendNCacheReq(Addr addr) {
-
-    std::optional<NodeID> node_id = node_controller->lookupAddr(addr);
+    //std::optional<NodeID> node_id = node_controller->lookupAddr(addr);
+    std::optional<NodeID> node_id;
+    // TODO: here we can't rely on the address alone any more
     if(!node_id) {
         nodeResps.push(NULL);
         return;
@@ -920,6 +921,49 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
         // load or store: just send to dcache
         Fault fault = curStaticInst->initiateAcc(&t_info, traceData);
 
+
+        panic_if(curStaticInst->isLoad() && curStaticInst->isStore(), "an instruction cannot be both store and load");
+        RiscvStaticInst* rv_inst = dynamic_cast<RiscvStaticInst*>(curStaticInst.get());
+        assert(rv_inst != NULL);
+        // TODO: track capabilities in load/store
+        // load
+        if(curStaticInst->isLoad()) { // probably better remove
+            preOverwriteDest(t_info, rv_inst);
+
+            // check if the value to be loaded in would be a capability
+            CapLoc mem_loc = CapLoc::makeMem(rv_inst->getAddr(&t_info, traceData));
+            NodeID node_id = node_controller->queryCapTrack(mem_loc);
+            if(node_id != NODE_ID_INVALID) {
+                // if yes, record the reg as a capability
+                // TODO: strictly this should be done during wb
+                panic_if(rv_inst->numDestRegs() != 1, "load instruction should have exactly 1 destination register");
+                node_controller->addCapTrack(mem_loc, node_id);
+                // TODO: schedule for rc increment
+            }
+        } else if(curStaticInst->isStore()) {
+            // check for overwriting in-memory capability
+            CapLoc mem_loc = CapLoc::makeMem(rv_inst->getAddr(&t_info, traceData));
+            NodeID mem_node = node_controller->queryCapTrack(mem_loc);
+            if(mem_node != NODE_ID_INVALID) {
+                // the capability at the memory location will be overwritten
+                node_controller->removeCapTrack(mem_loc);
+                // TODO: schedule rc decrement
+            }
+
+            // check for writing capability to memory
+            panic_if(rv_inst->numSrcRegs() != 2, "store instructions should have exactly 2 source registers"); 
+            RegId reg_id = rv_inst->srcRegIdx(1);
+            if(reg_id.classValue() == RegClassType::IntRegClass){
+                RegIndex reg_idx = reg_id.index();
+                CapLoc reg_loc = CapLoc::makeReg(t_info.thread->threadId(), reg_idx);
+                NodeID reg_node = node_controller->queryCapTrack(reg_loc);
+                if(reg_node != NODE_ID_INVALID) {
+                    node_controller->addCapTrack(reg_loc, reg_node);
+                    // TODO: scheule rc decrement
+                }
+            }
+        }
+
         // If we're not running now the instruction will complete in a dcache
         // response callback or the instruction faulted and has started an
         // ifetch
@@ -937,8 +981,52 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
         }
     } else if (curStaticInst) {
         // non-memory instruction: execute completely now
+
+        // track the capabilities
+        int num_src = curStaticInst->numSrcRegs();
+        int num_dest = curStaticInst->numDestRegs();
+        preOverwriteDest(t_info, curStaticInst.get());
+
         Fault fault = curStaticInst->execute(&t_info, traceData);
 
+        // after execution
+        // check which destinations contain new capabilities
+        for(int i = 0; i < num_src; i ++){
+            const RegId& src_id = curStaticInst->srcRegIdx(i);
+            if(src_id.classValue() != RegClassType::IntRegClass)
+                continue;
+            RegIndex src_idx = src_id.index();
+            // check whether it is a cap
+            CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
+            NodeID src_node = node_controller->queryCapTrack(src_loc);
+            if(src_node == NODE_ID_INVALID)
+                continue;
+            RegVal src_val = t_info.getRegOperand(curStaticInst.get(), src_idx);
+            std::optional<int> src_obj = node_controller->lookupAddr((Addr)src_val);
+            panic_if(!src_obj, "capabilities should always be associated with objects");
+            for(int j = 0; j < num_dest; j ++){
+                const RegId& dest_id = curStaticInst->destRegIdx(j);
+                if(dest_id.classValue() != RegClassType::IntRegClass)
+                    continue;
+                RegIndex dest_idx = dest_id.index();
+                RegVal dest_val = t_info.getRegOperand(curStaticInst.get(), dest_idx);
+                std::optional<int> dest_obj = node_controller->lookupAddr((Addr)dest_val);
+                if(!dest_obj || dest_obj.value() != src_obj.value())
+                    continue;
+                // src and dest are in the same region and the source is a capability
+                CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
+                panic_if(node_controller->queryCapTrack(dest_loc) != NODE_ID_INVALID,
+                        "dest reg already associated with a node");
+                // TODO: decide between two options:
+                // 1. allocate a new linear capability
+                // 2. treat this as a non-linear capability
+                // doing 2 for now
+                node_controller->addCapTrack(dest_loc, src_node);
+                // TODO: schedule for counter increment
+            }
+        }
+
+        // non-memory instructions might involve touching the node cache
         RiscvStaticInst* rv_inst = dynamic_cast<RiscvStaticInst*>(curStaticInst.get());
         panic_if(rv_inst == NULL, "non-RISC-V instructions unsupported!");
         InstStateMachinePtr sm = rv_inst->getStateMachine(&t_info);
@@ -1539,5 +1627,23 @@ TimingSimpleNCacheCPU::freeObject(ThreadContext* tc, Addr base_addr) {
     node_controller->freeObject(base_addr);
 }
 
+void
+TimingSimpleNCacheCPU::preOverwriteDest(SimpleExecContext& t_info, StaticInst* inst) {
+    int num_dest = curStaticInst->numDestRegs();
+    // before execution
+    // check which destinations will be overwritten
+    for(int i = 0; i < num_dest; i ++){
+        const RegId& dest_id = curStaticInst->destRegIdx(i);
+        if(dest_id.classValue() != RegClassType::IntRegClass)
+            continue;
+        RegIndex dest_idx = dest_id.index();
+        CapLoc loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
+        NodeID node_id = node_controller->queryCapTrack(loc);
+        if(node_id == NODE_ID_INVALID)
+            continue;
+        node_controller->removeCapTrack(loc);
+        // TODO: schedule for counter decrement
+    }
+}
 
 } // namespace gem5

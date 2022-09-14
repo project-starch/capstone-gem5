@@ -124,6 +124,10 @@ class RiscvStaticInst : public StaticInst
     virtual Fault handleMemResp(InstStateMachinePtr sm, ExecContext* xc, PacketPtr pkt) {
         return sm->transit(xc, pkt);
     }
+
+    virtual Addr getAddr(ExecContext *, Trace::InstRecord *) const {
+        return 0;
+    }
 };
 
 /**

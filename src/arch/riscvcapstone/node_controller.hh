@@ -168,8 +168,8 @@ class NodeController : public ClockedObject {
         void allocObject(const AddrRange& obj);
         void freeObject(Addr addr);
 
-        std::optional<NodeID> lookupAddr(Addr addr);
-        Addr nodeID2Addr(NodeID node_id);
+        std::optional<int> lookupAddr(Addr addr);
+        Addr idx2Addr(int idx);
 
         void regStats() override;
 
@@ -178,8 +178,8 @@ class NodeController : public ClockedObject {
 
         void init() override;
 
-        void sendLoad(NodeID node_id);
-        void sendStore(NodeID node_id, const Node& node);
+        void sendLoad(int obj_idx);
+        void sendStore(int obj_idx, const Node& node);
 
         void addCapTrack(const CapLoc& loc, NodeID node_id);
         NodeID queryCapTrack(const CapLoc& loc);

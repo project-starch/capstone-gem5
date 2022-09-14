@@ -59,8 +59,8 @@ NodeController::MemSidePort::recvReqRetry() {
 }
 
 void
-NodeController::sendLoad(NodeID node_id) {
-    Addr addr = nodeID2Addr(node_id);
+NodeController::sendLoad(int obj_idx) {
+    Addr addr = idx2Addr(obj_idx);
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestorId);
     req->setPaddr(addr);
@@ -72,8 +72,8 @@ NodeController::sendLoad(NodeID node_id) {
 }
 
 void
-NodeController::sendStore(NodeID node_id, const Node& node) {
-    Addr addr = nodeID2Addr(node_id);
+NodeController::sendStore(int obj_idx, const Node& node) {
+    Addr addr = idx2Addr(obj_idx);
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestorId);
     req->setPaddr(addr);
@@ -347,8 +347,8 @@ NodeController::MemSidePort::MemSidePort(NodeController* owner) :
 }
 
 Addr
-NodeController::nodeID2Addr(NodeID node_id) {
-    return (Addr)(CAPSTONE_NODE_BASE_ADDR | (node_id * (sizeof(Node))));
+NodeController::idx2Addr(int idx) {
+    return (Addr)(CAPSTONE_NODE_BASE_ADDR | (idx * (sizeof(Node))));
 }
 
 void
@@ -485,16 +485,16 @@ NodeController::freeObject(Addr addr) {
     objectRanges.remove_if([addr](auto obj) { return obj.contains(addr); });
 }
 
-std::optional<NodeID>
+std::optional<int>
 NodeController::lookupAddr(Addr addr) {
-    NodeID n = 0;
+    int n = 0;
     for(auto& obj : objectRanges) {
         if(obj.contains(addr)){
-            return std::optional<NodeID>(n);
+            return std::optional<int>(n);
         }
         ++ n;
     }
-    return std::optional<NodeID>();
+    return std::optional<int>();
 }
 
 void
@@ -510,7 +510,7 @@ NodeController::addCapTrack(const CapLoc& loc, NodeID node_id) {
 
 NodeID
 NodeController::queryCapTrack(const CapLoc& loc) {
-    DPRINTF(CapstoneCapTrack, "cap track queried\n");
+    //DPRINTF(CapstoneCapTrack, "cap track queried\n");
     try{
         return capTrackMap.at(loc);
     } catch(const std::out_of_range& e) {

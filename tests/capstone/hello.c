@@ -28,11 +28,24 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+
+void* do_whatever(void* f) {
+    return f;
+}
+
+void good(void* f){
+    *(volatile char*)f = 4;
+    printf("%p\n", f);
+}
 
 int main(int argc, char* argv[])
 {
     printf("Hello gem5!\n");
+    fflush(stdout);
     void* s = malloc(15);
+    void* c = (void*)((uintptr_t)do_whatever(s) + 2);
+    good(c);
     free(s);
     return 0;
 }
