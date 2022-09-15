@@ -8,7 +8,7 @@ namespace gem5::RiscvcapstoneISA {
 SyscallReturn
 notifymallocFunc(SyscallDesc* desc, ThreadContext* tc,
         uint64_t addr, uint64_t size) {
-    DPRINTF(CapstoneAlloc, "malloc: %llx, %llx\n", addr, size);
+    DPRINTF(CapstoneAlloc, "malloc: %llx, %llu\n", addr, size);
 
     TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(tc->getCpuPtr());
     if(cpu) {
@@ -30,7 +30,7 @@ notifyfreeFunc(SyscallDesc* desc, ThreadContext* tc,
     } else{
         DPRINTF(CapstoneAlloc, "free: warning! cpu is not TimingSimpleNCacheCPU!\n");
     }
-    return 0;
+    return SyscallReturn();
 }
 
 }

@@ -931,17 +931,22 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
             preOverwriteDest(t_info, rv_inst);
 
             // check if the value to be loaded in would be a capability
+            DPRINTF(CapstoneNodeOps, "load from %llx\n", rv_inst->getAddr(&t_info, traceData));
             CapLoc mem_loc = CapLoc::makeMem(rv_inst->getAddr(&t_info, traceData));
             NodeID node_id = node_controller->queryCapTrack(mem_loc);
             if(node_id != NODE_ID_INVALID) {
                 // if yes, record the reg as a capability
                 // TODO: strictly this should be done during wb
                 panic_if(rv_inst->numDestRegs() != 1, "load instruction should have exactly 1 destination register");
-                node_controller->addCapTrack(mem_loc, node_id);
+                node_controller->addCapTrack(
+                        CapLoc::makeReg(t_info.thread->threadId(),
+                            rv_inst->destRegIdx(0).index()),
+                        node_id);
                 ncToIssue.push(new NodeControllerRcUpdate(node_id, 1));
             }
         } else if(curStaticInst->isStore()) {
             // check for overwriting in-memory capability
+            DPRINTF(CapstoneNodeOps, "store to %llx\n", rv_inst->getAddr(&t_info, traceData));
             CapLoc mem_loc = CapLoc::makeMem(rv_inst->getAddr(&t_info, traceData));
             NodeID mem_node = node_controller->queryCapTrack(mem_loc);
             if(mem_node != NODE_ID_INVALID) {
@@ -958,7 +963,7 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
                 CapLoc reg_loc = CapLoc::makeReg(t_info.thread->threadId(), reg_idx);
                 NodeID reg_node = node_controller->queryCapTrack(reg_loc);
                 if(reg_node != NODE_ID_INVALID) {
-                    node_controller->addCapTrack(reg_loc, reg_node);
+                    node_controller->addCapTrack(mem_loc, reg_node);
                     ncToIssue.push(new NodeControllerRcUpdate(reg_node, 1));
                 }
             }
@@ -987,44 +992,54 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
         // track the capabilities
         int num_src = curStaticInst->numSrcRegs();
         int num_dest = curStaticInst->numDestRegs();
-        preOverwriteDest(t_info, curStaticInst.get());
+        if(!curStaticInst->isSyscall()){
+            preOverwriteDest(t_info, curStaticInst.get());
+        }
 
         Fault fault = curStaticInst->execute(&t_info, traceData);
 
         // after execution
         // check which destinations contain new capabilities
-        for(int i = 0; i < num_src; i ++){
-            const RegId& src_id = curStaticInst->srcRegIdx(i);
-            if(src_id.classValue() != RegClassType::IntRegClass)
-                continue;
-            RegIndex src_idx = src_id.index();
-            // check whether it is a cap
-            CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
-            NodeID src_node = node_controller->queryCapTrack(src_loc);
-            if(src_node == NODE_ID_INVALID)
-                continue;
-            RegVal src_val = t_info.getRegOperand(curStaticInst.get(), src_idx);
-            std::optional<int> src_obj = node_controller->lookupAddr((Addr)src_val);
-            //panic_if(!src_obj, "capabilities should always be associated with objects");
-            for(int j = 0; j < num_dest; j ++){
-                const RegId& dest_id = curStaticInst->destRegIdx(j);
-                if(dest_id.classValue() != RegClassType::IntRegClass)
+        if(!curStaticInst->isSyscall()){
+            for(int i = 0; i < num_src; i ++){
+                const RegId& src_id = curStaticInst->srcRegIdx(i);
+                if(src_id.classValue() != RegClassType::IntRegClass)
                     continue;
-                RegIndex dest_idx = dest_id.index();
-                RegVal dest_val = t_info.getRegOperand(curStaticInst.get(), dest_idx);
-                std::optional<int> dest_obj = node_controller->lookupAddr((Addr)dest_val);
-                if(!dest_obj || dest_obj.value() != src_obj.value())
+                RegIndex src_idx = src_id.index();
+                // check whether it is a cap
+                CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
+                NodeID src_node = node_controller->queryCapTrack(src_loc);
+                if(src_node == NODE_ID_INVALID)
                     continue;
-                // src and dest are in the same region and the source is a capability
-                CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
-                //panic_if(node_controller->queryCapTrack(dest_loc) != NODE_ID_INVALID,
-                        //"dest reg already associated with a node");
-                // TODO: decide between two options:
-                // 1. allocate a new linear capability
-                // 2. treat this as a non-linear capability
-                // doing 2 for now
-                node_controller->addCapTrack(dest_loc, src_node);
-                ncToIssue.push(new NodeControllerRcUpdate(src_node, 1));
+                RegVal src_val = t_info.getRegOperand(curStaticInst.get(), i);
+                std::optional<int> src_obj = node_controller->lookupAddr((Addr)src_val);
+                panic_if(!src_obj, "capabilities should always be associated with objects,"
+                        " value = %llx, index = %u",
+                        src_val, src_idx);
+                for(int j = 0; j < num_dest; j ++){
+                    const RegId& dest_id = curStaticInst->destRegIdx(j);
+                    if(dest_id.classValue() != RegClassType::IntRegClass)
+                        continue;
+                    RegIndex dest_idx = dest_id.index();
+                    RegVal dest_val = t_info.tcBase()->readIntReg(dest_idx);
+                    //RegVal dest_val = t_info.getRegOperand(curStaticInst.get(), j);
+                    std::optional<int> dest_obj = node_controller->lookupAddr((Addr)dest_val);
+                    if(!dest_obj || dest_obj.value() != src_obj.value())
+                        continue;
+                    // src and dest are in the same region and the source is a capability
+                    CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
+                    panic_if(node_controller->queryCapTrack(dest_loc) != NODE_ID_INVALID,
+                        "dest reg already associated with a node");
+                    // TODO: decide between two options:
+                    // 1. allocate a new linear capability
+                    // 2. treat this as a non-linear capability
+                    // doing 2 for now
+                    DPRINTF(CapstoneNodeOps, "add cap track to (%u, %u)\n",
+                            t_info.thread->threadId(),
+                            dest_idx);
+                    node_controller->addCapTrack(dest_loc, src_node);
+                    ncToIssue.push(new NodeControllerRcUpdate(src_node, 1));
+                }
             }
         }
 
@@ -1633,7 +1648,9 @@ TimingSimpleNCacheCPU::allocObject(ThreadContext* tc, AddrRange obj) {
 
 void
 TimingSimpleNCacheCPU::freeObject(ThreadContext* tc, Addr base_addr) {
-    node_controller->freeObject(base_addr);
+    // FIXME: decide what to do here
+    // might need to keep track of the ranges in each capability rather than centrally
+    // node_controller->freeObject(base_addr);
 }
 
 void

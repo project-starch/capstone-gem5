@@ -14,7 +14,7 @@ void* __wrap_malloc(size_t size) {
     if(obj) {
         return (void*)syscall(SYSCALL_NOTIFYMALLOC, obj, size);
     }
-    return obj;
+    return NULL;
 }
 
 void __wrap_free(void* ptr) {
