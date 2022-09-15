@@ -100,12 +100,13 @@ EcallOp::generateDisassembly(Addr pc, const loader::SymbolTable *symtab) const
 
 InstStateMachinePtr
 EcallOp::getStateMachine(ExecContext* xc) const {
-    RegVal num = xc->tcBase()->readIntReg(RiscvcapstoneISA::SyscallNumReg);
+    RegVal num = xc->tcBase()->readIntReg(SyscallNumReg);
     switch(num) {
         case 3000: // malloc
             return std::make_shared<MallocStateMachine>();
         case 3001:
-            return std::make_shared<FreeStateMachine>();
+            return std::make_shared<FreeStateMachine>(
+                    CapLoc::makeReg(xc->tcBase()->threadId(), ArgumentRegs[0]));
         default:
             return std::make_shared<DummyInstStateMachine>();
 
@@ -121,8 +122,7 @@ MallocStateMachine::setup(ExecContext* xc) {
     //SimpleExecContext* sxc = dynamic_cast<SimpleExecContext*>(xc);
     //panic_if(sxc == NULL, "non-SimpleExecContext unVksupported.");
     
-    NodeControllerAllocate* cmd = new NodeControllerAllocate();
-    cmd->parentId = NODE_ID_INVALID; 
+    NodeControllerAllocate* cmd = new NodeControllerAllocate(NODE_ID_INVALID);
 
     TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(xc->tcBase()->getCpuPtr());
     panic_if(cpu == NULL, "non ncache-cpu unsupported.");
@@ -144,25 +144,44 @@ MallocStateMachine::transit(ExecContext* xc, PacketPtr pkt) {
     TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(xc->tcBase()->getCpuPtr());
     panic_if(cpu == NULL, "non ncache-cpu unsupported.");
 
-    cpu->node_controller->addCapTrack(CapLoc::makeReg(xc->tcBase()->threadId(), SyscallNumReg), 
+    cpu->node_controller->addCapTrack(CapLoc::makeReg(xc->tcBase()->threadId(), ReturnValueReg), 
             node_id);
     
     state = MALLOC_DONE;
+
     return NoFault;
 }
 
 void
 FreeStateMachine::setup(ExecContext* xc) {
+
+    TimingSimpleNCacheCPU* cpu = dynamic_cast<TimingSimpleNCacheCPU*>(xc->tcBase()->getCpuPtr());
+    panic_if(cpu == NULL, "non ncache-cpu unsupported.");
+    
+    NodeID node_id = cpu->node_controller->queryCapTrack(loc);
+    if(node_id == NODE_ID_INVALID) {
+        DPRINTF(CapstoneNodeOps, "warning: no node associated with the location to free\n");
+        state = FREE_DONE;
+        return;
+    }
+    DPRINTF(CapstoneNodeOps, "Free node %u\n", node_id);
+    //panic_if(node_id == NODE_ID_INVALID, "attempted to revoke an invalid node id");
+
+    NodeControllerRevoke* cmd = new NodeControllerRevoke(node_id);
+    cpu->sendNCacheCommand(cmd);
+
+    state = FREE_FREE_NODE;
 }
 
 
 bool
 FreeStateMachine::finished(ExecContext* xc) const {
-    return true;
+    return state == FREE_DONE;
 }
 
 Fault
 FreeStateMachine::transit(ExecContext* xc, PacketPtr pkt) {
+    state = FREE_DONE;
     return NoFault;
 }
 

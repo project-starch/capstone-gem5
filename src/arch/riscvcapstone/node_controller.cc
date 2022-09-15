@@ -171,6 +171,7 @@ NodeControllerAllocate::transit(NodeController& controller, PacketPtr current_pk
 bool
 NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) {
     Node node;
+    NodeID old_node_id;
     switch(state) {
         case NCRevoke_LOAD_ROOT:
             node = pkt->getRaw<Node>();
@@ -178,6 +179,10 @@ NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt,
             curNodeId = node.next;
             prevNodeId = node.prev;
             node.state = 0; // invalidate
+            if(node.counter == 0){
+                // the node can be immediately freed
+                controller.freeNode(node, nodeId);
+            }
             controller.sendStore(nodeId, node);
 
             state = NCRevoke_STORE;
@@ -188,8 +193,13 @@ NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt,
             if(node.depth > rootDepth) {
                 // still in the subtree
                 node.state = 0;
-                controller.sendStore(curNodeId, node);
+                old_node_id = curNodeId;
                 curNodeId = node.next;
+                if(node.counter == 0){
+                    // immediately frees the node
+                    controller.freeNode(node, old_node_id);
+                }
+                controller.sendStore(old_node_id, node);
 
                 state = NCRevoke_STORE;
             } else{
@@ -243,6 +253,9 @@ NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt,
     }
 }
 
+// when rc reaches 0
+// if the node if invalid: add the node to the free list
+// if the node is valid: no need to do anything
 bool
 NodeControllerRcUpdate::transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) {
     Node node;
@@ -250,15 +263,15 @@ NodeControllerRcUpdate::transit(NodeController& controller, PacketPtr current_pk
         case NCRcUpdate_LOAD:
             node = pkt->getRaw<Node>();
             node.counter += delta;
-            if(node.counter == 0) {
-                node.state = 0;
-                prevNodeId = node.prev;
-                nextNodeId = node.next;
-                node.next = controller.free_head;
-                controller.free_head = nodeId;
+            if(node.counter == 0 && node.state == 0) {
+                // add node to free list
+                controller.freeNode(node, nodeId);
                 controller.sendStore(nodeId, node);
 
-                state = NCRcUpdate_STORE_FREED;
+                // note that we do not need to do anything 
+                // with prev and next because they are invalid notes
+
+                state = NCRcUpdate_STORE;
             } else{
                 controller.sendStore(nodeId, node);
 
@@ -267,51 +280,10 @@ NodeControllerRcUpdate::transit(NodeController& controller, PacketPtr current_pk
 
             return false;
         case NCRcUpdate_STORE:
-        case NCRcUpdate_STORE_RIGHT:
             current_pkt->makeResponse();
             current_pkt->deleteData();
             // TODO: consider returning status code
             return true;
-        case NCRcUpdate_STORE_FREED:
-            DPRINTF(CapstoneNodeOps, "prevNodeId = %lu, nextNodeId = %lu, "
-                    "invalid = %lu\n",
-                    prevNodeId, nextNodeId, NODE_ID_INVALID);
-            if(prevNodeId == NODE_ID_INVALID) {
-                if(nextNodeId == NODE_ID_INVALID) {
-                    current_pkt->makeResponse();
-                    current_pkt->deleteData();
-                    return true;
-                }
-                controller.sendLoad(nextNodeId);
-                state = NCRcUpdate_LOAD_RIGHT;
-                return false;
-            }
-            controller.sendLoad(prevNodeId);
-            state = NCRcUpdate_LOAD_LEFT;
-            return false;
-        case NCRcUpdate_LOAD_LEFT:
-            node = pkt->getRaw<Node>();
-            node.next = nextNodeId;
-            controller.sendStore(prevNodeId, node);
-
-            state = NCRcUpdate_STORE_LEFT;
-            return false;
-        case NCRcUpdate_LOAD_RIGHT:
-            node = pkt->getRaw<Node>();
-            node.prev = prevNodeId;
-            controller.sendStore(nextNodeId, node);
-
-            state = NCRcUpdate_STORE_RIGHT;
-            return false;
-        case NCRcUpdate_STORE_LEFT:
-            if(nextNodeId == NODE_ID_INVALID) {
-                current_pkt->makeResponse();
-                current_pkt->deleteData();
-                return true;
-            }
-            controller.sendLoad(nextNodeId);
-            state = NCRcUpdate_LOAD_RIGHT;
-            return false;
         default:
             panic("incorrect state for ref count update operation!");
     }
@@ -529,6 +501,13 @@ void
 NodeController::removeCapTrack(const CapLoc& loc) {
     DPRINTF(CapstoneCapTrack, "cap track removed\n");
     capTrackMap.erase(loc);
+}
+
+void
+NodeController::freeNode(Node& node, NodeID node_id) {
+    DPRINTF(CapstoneNodeOps, "free node with id %lu\n", node_id);
+    node.next = free_head;
+    free_head = node_id;
 }
 
 

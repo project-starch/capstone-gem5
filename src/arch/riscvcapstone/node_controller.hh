@@ -70,19 +70,13 @@ struct NodeControllerRcUpdate : NodeControllerCommand {
         enum {
             NCRcUpdate_LOAD,
             NCRcUpdate_STORE,
-            NCRcUpdate_STORE_FREED,
-            NCRcUpdate_LOAD_LEFT,
-            NCRcUpdate_STORE_LEFT,
-            NCRcUpdate_LOAD_RIGHT,
-            NCRcUpdate_STORE_RIGHT,
         } state;
-        NodeID prevNodeId, nextNodeId;
 };
 
 struct NodeControllerAllocate : NodeControllerCommand {
     NodeID parentId;
     NodeControllerAllocate() {}
-    NodeControllerAllocate(unsigned int parent_depth): parentDepth(parent_depth) {}
+    NodeControllerAllocate(NodeID parent_id): parentId(parent_id) {}
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
     private:
@@ -194,6 +188,8 @@ class NodeController : public ClockedObject {
         void addCapTrack(const CapLoc& loc, NodeID node_id);
         NodeID queryCapTrack(const CapLoc& loc);
         void removeCapTrack(const CapLoc& loc);
+
+        void freeNode(Node& node, NodeID node_id);
 
         // free list
         NodeID free_head;

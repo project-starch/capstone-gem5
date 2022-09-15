@@ -1005,7 +1005,7 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
                 continue;
             RegVal src_val = t_info.getRegOperand(curStaticInst.get(), src_idx);
             std::optional<int> src_obj = node_controller->lookupAddr((Addr)src_val);
-            panic_if(!src_obj, "capabilities should always be associated with objects");
+            //panic_if(!src_obj, "capabilities should always be associated with objects");
             for(int j = 0; j < num_dest; j ++){
                 const RegId& dest_id = curStaticInst->destRegIdx(j);
                 if(dest_id.classValue() != RegClassType::IntRegClass)
@@ -1017,8 +1017,8 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
                     continue;
                 // src and dest are in the same region and the source is a capability
                 CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
-                panic_if(node_controller->queryCapTrack(dest_loc) != NODE_ID_INVALID,
-                        "dest reg already associated with a node");
+                //panic_if(node_controller->queryCapTrack(dest_loc) != NODE_ID_INVALID,
+                        //"dest reg already associated with a node");
                 // TODO: decide between two options:
                 // 1. allocate a new linear capability
                 // 2. treat this as a non-linear capability

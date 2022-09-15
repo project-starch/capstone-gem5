@@ -36,6 +36,7 @@
 #include "arch/riscvcapstone/insts/bitfields.hh"
 #include "arch/riscvcapstone/insts/static_inst.hh"
 #include "arch/riscvcapstone/regs/misc.hh"
+#include "arch/riscvcapstone/cap_track.hh"
 #include "cpu/exec_context.hh"
 #include "cpu/static_inst.hh"
 
@@ -93,6 +94,15 @@ struct MallocStateMachine : InstStateMachine {
 };
 
 struct FreeStateMachine : InstStateMachine {
+    CapLoc loc;
+
+    FreeStateMachine() {}
+    FreeStateMachine(const CapLoc& loc) : loc(loc) {}
+
+    enum {
+        FREE_FREE_NODE,
+        FREE_DONE,
+    } state;
     void setup(ExecContext* xc) override;
     bool finished(ExecContext* xc) const override;
     Fault transit(ExecContext* xc, PacketPtr pkt) override;

@@ -47,6 +47,9 @@ int main(int argc, char* argv[])
     void* c = (void*)((uintptr_t)do_whatever(s) + 2);
     good(c);
     free(s);
+    s = malloc(4);
+    *(volatile char*)s = 0;
+    free(s);
     return 0;
 }
 
