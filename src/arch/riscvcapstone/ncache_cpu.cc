@@ -336,7 +336,7 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
         DPRINTF(CapstoneNCache, "Senddata read %llx\n", req->getVaddr());
         handleReadPacket(pkt);
 
-        sendNCacheReq(pkt->getAddr());
+        //sendNCacheReq(pkt->getAddr());
     } else {
         bool do_access = true;  // flag to suppress cache access
 
@@ -357,7 +357,7 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
             _status = DcacheWaitResponse;
             handleDCacheResp(pkt);
         }
-        sendNCacheReq(pkt->getAddr());
+        //sendNCacheReq(pkt->getAddr());
     }
 }
 
@@ -433,7 +433,7 @@ TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &r
             }
         }
 
-        sendNCacheReq(req->getVaddr());
+        //sendNCacheReq(req->getVaddr());
     } else {
         dcache_pkt = pkt1;
         SplitFragmentSenderState * send_state =
@@ -448,7 +448,7 @@ TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &r
             }
         }
 
-        sendNCacheReq(req->getVaddr());
+        //sendNCacheReq(req->getVaddr());
     }
 }
 
@@ -918,14 +918,16 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
     }
 
     if (curStaticInst && curStaticInst->isMemRef()) {
+        // issue commands for checking capabilities
+        panic_if(curStaticInst->isLoad() && curStaticInst->isStore(), "an instruction cannot be both store and load");
+        RiscvStaticInst* rv_inst = dynamic_cast<RiscvStaticInst*>(curStaticInst.get());
+        assert(rv_inst != NULL);
+        issueCapChecks(t_info, curStaticInst.get(), rv_inst->getAddr(&t_info, traceData));
+
         // load or store: just send to dcache
         Fault fault = curStaticInst->initiateAcc(&t_info, traceData);
 
 
-        panic_if(curStaticInst->isLoad() && curStaticInst->isStore(), "an instruction cannot be both store and load");
-        RiscvStaticInst* rv_inst = dynamic_cast<RiscvStaticInst*>(curStaticInst.get());
-        assert(rv_inst != NULL);
-        // TODO: track capabilities in load/store
         // load
         if(curStaticInst->isLoad()) { // probably better remove
             preOverwriteDest(t_info, rv_inst);
@@ -1534,29 +1536,17 @@ void TimingSimpleNCacheCPU::NCachePort::NCacheRespTickEvent::schedule(
 
 void
 TimingSimpleNCacheCPU::handleNCacheResp(PacketPtr pkt) {
-    switch(ncache_status) {
-        case NCACHE_INSTR_EXECUTION:
-            if(instPendingMem == NULL) {
-                completeNCacheLoad(pkt);
-            } else {
-                SimpleExecContext* xc = threadInfo[curThread];
-                Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
-                //Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
-                delete pkt;
-                if(!instPendingMem->pendingMem(statePendingMem, xc)){
-                    instPendingMem = NULL;
-                    statePendingMem = nullptr;
-                    completeInstExec(faultPendingMem);
-                    faultPendingMem = NoFault;
-                }
-            }
-            break;
-        case NCACHE_ISSUE_COMMANDS:
-            handleIssueNCacheCommandsResp(pkt);
-            break;
-        default:
-            panic("invalid ncache state");
-    }
+    handleIssueNCacheCommandsResp(pkt);
+    //switch(ncache_status) {
+        //case NCACHE_INSTR_EXECUTION:
+            //panic("should never receive ncache resp at INSTR_EXECUTION");
+            //break;
+        //case NCACHE_ISSUE_COMMANDS:
+            //handleIssueNCacheCommandsResp(pkt);
+            //break;
+        //default:
+            //panic("invalid ncache state");
+    //}
 }
 
 void TimingSimpleNCacheCPU::NCachePort::NCacheRespTickEvent::process() {
@@ -1578,25 +1568,25 @@ bool TimingSimpleNCacheCPU::NCachePort::recvTimingResp(PacketPtr pkt) {
 void TimingSimpleNCacheCPU::completeNCacheLoad(PacketPtr pkt) {
     DPRINTF(CapstoneNCache, "NCache load complete\n");
 
-    assert(nodeResps.empty() || dataResps.empty());
+    //assert(nodeResps.empty() || dataResps.empty());
     if(!dataResps.empty()){
         PacketPtr data_pkt = dataResps.front();
         dataResps.pop();
         completeDataAccess(data_pkt, pkt);
-    } else{
-        nodeResps.push(pkt);
     }
+    //} else{
+        //nodeResps.push(pkt);
+    //}
 }
 
 
 void TimingSimpleNCacheCPU::completeDCacheLoad(PacketPtr pkt) {
     DPRINTF(CapstoneNCache, "NCache completeDCacheLoad read %llx\n", pkt->getAddr());
-    if(!nodeResps.empty()){
-        PacketPtr node_pkt = nodeResps.front();
-        nodeResps.pop();
-        completeDataAccess(pkt, node_pkt);
+    if(ncache_status == NCACHE_INSTR_EXECUTION) {
+        // now we can finish
+        completeDataAccess(pkt, NULL); // TODO: skipping node check for now
     } else{
-        dataResps.push(pkt);
+        dataResps.push(pkt); // TODO: query is unncessary
     }
 }
 
@@ -1689,16 +1679,51 @@ TimingSimpleNCacheCPU::issueNCacheCommands() {
 void
 TimingSimpleNCacheCPU::handleIssueNCacheCommandsResp(PacketPtr pkt) {
     DPRINTF(CapstoneNodeOps, "received resp for issued command\n");
-    assert(ncache_status == NCACHE_ISSUE_COMMANDS);
+    //assert(ncache_status == NCACHE_ISSUE_COMMANDS);
     delete pkt;
     if(ncToIssue.empty()) {
         ncache_status = NCACHE_INSTR_EXECUTION;
-        postExecute();
-        advanceInst(NoFault);
+        if(curStaticInst->isMemRef() && !dataResps.empty()){
+            PacketPtr data_pkt = dataResps.front();
+            dataResps.pop();
+            completeDataAccess(pkt, NULL);
+        } else{
+            postExecute();
+            advanceInst(NoFault);
+        }
     } else{
         issueNCacheCommands();
     }
 }
 
+void
+TimingSimpleNCacheCPU::issueCapChecks(SimpleExecContext& t_info, 
+        StaticInst* inst, Addr addr) {
+    std::optional<int> target_obj_idx = node_controller->lookupAddr(addr);
+    if(!target_obj_idx)
+        return;
+    int num_src = inst->numSrcRegs();
+    for(int i = 0; i < num_src; i ++){
+        const RegId& src_id = inst->srcRegIdx(i);
+        if(src_id.classValue() != RegClassType::IntRegClass)
+            continue;
+        RegIndex src_idx = src_id.index();
+        RegVal src_val = t_info.getRegOperand(inst, i);
+        std::optional<int> obj_idx = node_controller->lookupAddr((Addr)src_val);
+        if(!obj_idx || obj_idx.value() != target_obj_idx.value())
+            continue;
+        NodeID node_id = node_controller->queryCapTrack(
+            CapLoc::makeReg(t_info.tcBase()->threadId(), src_idx));
+        if(node_id == NODE_ID_INVALID)
+            continue;
+        DPRINTF(CapstoneNodeOps, "Issued cap check %u\n", node_id);
+        ncToIssue.push(new NodeControllerQuery(node_id));
+        break;
+    }
+}
+
+
+
 } // namespace gem5
+
 

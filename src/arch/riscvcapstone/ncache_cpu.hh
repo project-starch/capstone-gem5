@@ -441,6 +441,8 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
     void preOverwriteDest(SimpleExecContext& t_info, StaticInst* inst);
     bool issueNCacheCommands();
     void handleIssueNCacheCommandsResp(PacketPtr pkt);
+    void issueCapChecks(SimpleExecContext& t_info,
+            StaticInst* inst, Addr addr);
 };
 
 } // namespace gem5
