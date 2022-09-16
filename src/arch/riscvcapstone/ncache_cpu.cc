@@ -381,7 +381,6 @@ TimingSimpleNCacheCPU::sendNCacheCommand(NodeControllerCommand* cmd) {
 
 void
 TimingSimpleNCacheCPU::sendNCacheReq(Addr addr) {
-    //std::optional<NodeID> node_id = node_controller->lookupAddr(addr);
     std::optional<NodeID> node_id;
     // TODO: here we can't rely on the address alone any more
     if(!node_id) {
@@ -1068,6 +1067,7 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
 
 void
 TimingSimpleNCacheCPU::completeInstExec(Fault fault) {
+    DPRINTF(CapstoneNodeOps, "complete inst exec\n");
     // keep an instruction count
     if (fault == NoFault)
         countInst();
@@ -1536,7 +1536,30 @@ void TimingSimpleNCacheCPU::NCachePort::NCacheRespTickEvent::schedule(
 
 void
 TimingSimpleNCacheCPU::handleNCacheResp(PacketPtr pkt) {
-    handleIssueNCacheCommandsResp(pkt);
+    switch(ncache_status){
+        case NCACHE_INSTR_EXECUTION:
+            if(instPendingMem == NULL) {
+                completeNCacheLoad(pkt);
+            } else {
+                SimpleExecContext* xc = threadInfo[curThread];
+                Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
+                //Fault fault = instPendingMem->handleMemResp(statePendingMem, xc, pkt);
+                delete pkt;
+                if(!instPendingMem->pendingMem(statePendingMem, xc)){
+                    instPendingMem = NULL;
+                    statePendingMem = nullptr;
+                    completeInstExec(faultPendingMem);
+                    faultPendingMem = NoFault;
+                }
+            }
+            break;
+        case NCACHE_ISSUE_COMMANDS:
+            handleIssueNCacheCommandsResp(pkt);
+            break;
+        default:
+            panic("invalid ncache state");
+    }
+    
     //switch(ncache_status) {
         //case NCACHE_INSTR_EXECUTION:
             //panic("should never receive ncache resp at INSTR_EXECUTION");
@@ -1582,12 +1605,12 @@ void TimingSimpleNCacheCPU::completeNCacheLoad(PacketPtr pkt) {
 
 void TimingSimpleNCacheCPU::completeDCacheLoad(PacketPtr pkt) {
     DPRINTF(CapstoneNCache, "NCache completeDCacheLoad read %llx\n", pkt->getAddr());
-    if(ncache_status == NCACHE_INSTR_EXECUTION) {
+    //if(ncache_status == NCACHE_INSTR_EXECUTION) {
         // now we can finish
-        completeDataAccess(pkt, NULL); // TODO: skipping node check for now
-    } else{
-        dataResps.push(pkt); // TODO: query is unncessary
-    }
+    completeDataAccess(pkt, NULL); // TODO: skipping node check for now
+    //} else{
+        //dataResps.push(pkt); // TODO: query is unncessary
+    //}
 }
 
 void TimingSimpleNCacheCPU::completeDataAccess(
@@ -1683,22 +1706,26 @@ TimingSimpleNCacheCPU::handleIssueNCacheCommandsResp(PacketPtr pkt) {
     delete pkt;
     if(ncToIssue.empty()) {
         ncache_status = NCACHE_INSTR_EXECUTION;
-        if(curStaticInst->isMemRef() && !dataResps.empty()){
-            PacketPtr data_pkt = dataResps.front();
-            dataResps.pop();
-            completeDataAccess(pkt, NULL);
-        } else{
-            postExecute();
-            advanceInst(NoFault);
-        }
+        //if(curStaticInst->isMemRef() && !dataResps.empty()){
+            //PacketPtr data_pkt = dataResps.front();
+            //dataResps.pop();
+            //completeDataAccess(pkt, NULL);
+        //} else{
+        // TODO: for now the ncache commands are issued after
+        // dcache responses are ready
+        postExecute();
+        advanceInst(NoFault);
+        //}
     } else{
         issueNCacheCommands();
     }
 }
 
+// issue node controller commands that check the validity of the involved capability
 void
 TimingSimpleNCacheCPU::issueCapChecks(SimpleExecContext& t_info, 
         StaticInst* inst, Addr addr) {
+    DPRINTF(CapstoneNodeOps, "To issue cap check 0x%llx\n", addr);
     std::optional<int> target_obj_idx = node_controller->lookupAddr(addr);
     if(!target_obj_idx)
         return;
