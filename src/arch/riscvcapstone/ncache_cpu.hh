@@ -443,6 +443,7 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
     void handleIssueNCacheCommandsResp(PacketPtr pkt);
     void issueCapChecks(SimpleExecContext& t_info,
             StaticInst* inst, Addr addr);
+    void overwriteIntReg(ThreadContext* tc, int reg_idx);
 };
 
 } // namespace gem5

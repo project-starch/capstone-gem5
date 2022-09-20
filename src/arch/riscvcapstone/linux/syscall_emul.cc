@@ -33,5 +33,7 @@ notifyfreeFunc(SyscallDesc* desc, ThreadContext* tc,
     return SyscallReturn();
 }
 
+// FIXME: the return value ovewrites registers. Needs to clean up the capabilities inside
+
 }
 

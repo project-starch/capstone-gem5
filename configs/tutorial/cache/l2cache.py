@@ -34,20 +34,25 @@ system.membus = SystemXBar()
 system.l2cache.connectMemSideBus(system.membus)
 
 system.cpu.createInterruptController()
-system.cpu.interrupts[0].pio = system.membus.mem_side_ports
-system.cpu.interrupts[0].int_requestor = system.membus.cpu_side_ports
-system.cpu.interrupts[0].int_responder = system.membus.mem_side_ports
 
 system.mem_ctrl = MemCtrl()
 system.mem_ctrl.dram = DDR3_1600_8x8()
 system.mem_ctrl.dram.range = system.mem_ranges[0]
 system.mem_ctrl.port = system.membus.mem_side_ports
 
-binary = 'tests/test-progs/hello/bin/x86/linux/hello'
+
+if len(sys.argv) < 2:
+    sys.stderr.write('No executable supplied!\n')
+    sys.exit(1)
+else:
+    binary = sys.argv[1]
+    args = sys.argv[2:]
+
+
 system.workload = SEWorkload.init_compatible(binary)
 
 process = Process()
-process.cmd = [binary]
+process.cmd = [binary] + args
 system.cpu.workload = process
 system.cpu.createThreads()
 

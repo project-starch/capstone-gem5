@@ -51,6 +51,18 @@ struct CapLoc {
         res.pos.reg.regId = reg_id;
         return res;
     }
+
+    inline std::string toString() const {
+        switch(type) {
+            case CAP_TRACK_MEM:
+                return std::string("(") + std::to_string(pos.mem.addr) + ")";
+            case CAP_TRACK_REG:
+                return std::string("(") + std::to_string(pos.reg.threadId) + ", "
+                    + std::to_string(pos.reg.regId) + ")";
+            default:
+                return "";
+        }
+    }
 };
 
 inline bool operator < (const CapLoc& a, const CapLoc& b) {

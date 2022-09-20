@@ -41,7 +41,7 @@
 
 #include "arch/riscvcapstone/ncache_cpu.hh"
 #include "arch/riscvcapstone/faults.hh"
-
+#include "arch/riscvcapstone/regs/int.hh"
 #include "arch/generic/decoder.hh"
 #include "base/compiler.hh"
 #include "config/the_isa.hh"
@@ -56,6 +56,7 @@
 #include "debug/CapstoneNodeOps.hh"
 #include "mem/packet.hh"
 #include "mem/packet_access.hh"
+#include "node_controller.hh"
 #include "params/BaseTimingSimpleNCacheCPU.hh"
 #include "base/trace.hh"
 #include "sim/faults.hh"
@@ -993,7 +994,9 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
         // track the capabilities
         int num_src = curStaticInst->numSrcRegs();
         int num_dest = curStaticInst->numDestRegs();
-        if(!curStaticInst->isSyscall()){
+        if(curStaticInst->isSyscall()){
+            overwriteIntReg(t_info.tcBase(), RiscvcapstoneISA::ReturnValueReg);
+        } else {
             preOverwriteDest(t_info, curStaticInst.get());
         }
 
@@ -1002,35 +1005,41 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
         // after execution
         // check which destinations contain new capabilities
         if(!curStaticInst->isSyscall()){
-            for(int i = 0; i < num_src; i ++){
-                const RegId& src_id = curStaticInst->srcRegIdx(i);
-                if(src_id.classValue() != RegClassType::IntRegClass)
+            for(int j = 0; j < num_dest; j ++){
+                const RegId& dest_id = curStaticInst->destRegIdx(j);
+                if(dest_id.classValue() != RegClassType::IntRegClass)
                     continue;
-                RegIndex src_idx = src_id.index();
-                // check whether it is a cap
-                CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
-                NodeID src_node = node_controller->queryCapTrack(src_loc);
-                if(src_node == NODE_ID_INVALID)
+                RegIndex dest_idx = dest_id.index();
+                RegVal dest_val = t_info.tcBase()->readIntReg(dest_idx);
+                //RegVal dest_val = t_info.getRegOperand(curStaticInst.get(), j);
+                std::optional<int> dest_obj = node_controller->lookupAddr((Addr)dest_val);
+                if(!dest_obj)
                     continue;
-                RegVal src_val = t_info.getRegOperand(curStaticInst.get(), i);
-                std::optional<int> src_obj = node_controller->lookupAddr((Addr)src_val);
-                panic_if(!src_obj, "capabilities should always be associated with objects,"
-                        " value = %llx, index = %u",
-                        src_val, src_idx);
-                for(int j = 0; j < num_dest; j ++){
-                    const RegId& dest_id = curStaticInst->destRegIdx(j);
-                    if(dest_id.classValue() != RegClassType::IntRegClass)
+                DPRINTF(CapstoneNodeOps, "Consider dest reg %d (%d)\n", j, dest_idx);
+                for(int i = 0; i < num_src; i ++){
+                    const RegId& src_id = curStaticInst->srcRegIdx(i);
+                    if(src_id.classValue() != RegClassType::IntRegClass)
                         continue;
-                    RegIndex dest_idx = dest_id.index();
-                    RegVal dest_val = t_info.tcBase()->readIntReg(dest_idx);
-                    //RegVal dest_val = t_info.getRegOperand(curStaticInst.get(), j);
-                    std::optional<int> dest_obj = node_controller->lookupAddr((Addr)dest_val);
-                    if(!dest_obj || dest_obj.value() != src_obj.value())
+                    RegIndex src_idx = src_id.index();
+                    // check whether it is a cap
+                    CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
+                    NodeID src_node = node_controller->queryCapTrack(src_loc);
+                    if(src_node == NODE_ID_INVALID)
                         continue;
+                    RegVal src_val = t_info.getRegOperand(curStaticInst.get(), i);
+                    std::optional<int> src_obj = node_controller->lookupAddr((Addr)src_val);
+                    panic_if(!src_obj, "capabilities should always be associated with objects,"
+                            " value = %llx, index = %u",
+                            src_val, src_idx);
+                    if(dest_obj.value() != src_obj.value())
+                        continue;
+                    DPRINTF(CapstoneNodeOps, "Consider src reg %d (%d)\n", i, src_idx);
                     // src and dest are in the same region and the source is a capability
                     CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
-                    panic_if(node_controller->queryCapTrack(dest_loc) != NODE_ID_INVALID,
-                        "dest reg already associated with a node");
+                    NodeID dest_node = node_controller->queryCapTrack(dest_loc);
+                    panic_if(dest_node != NODE_ID_INVALID,
+                            "dest reg %u already associated with a node (syscall=%d) %llu, src-node = %llu", dest_idx,
+                            curStaticInst->isSyscall(), dest_node, src_node);
                     // TODO: decide between two options:
                     // 1. allocate a new linear capability
                     // 2. treat this as a non-linear capability
@@ -1040,6 +1049,7 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
                             dest_idx);
                     node_controller->addCapTrack(dest_loc, src_node);
                     ncToIssue.push(new NodeControllerRcUpdate(src_node, 1));
+                    break;
                 }
             }
         }
@@ -1682,6 +1692,8 @@ TimingSimpleNCacheCPU::preOverwriteDest(SimpleExecContext& t_info, StaticInst* i
             continue;
         node_controller->removeCapTrack(loc);
         ncToIssue.push(new NodeControllerRcUpdate(node_id, -1));
+        node_id = node_controller->queryCapTrack(loc);
+        panic_if(node_id != NODE_ID_INVALID, "erase failed");
     }
 }
 
@@ -1749,7 +1761,15 @@ TimingSimpleNCacheCPU::issueCapChecks(SimpleExecContext& t_info,
     }
 }
 
-
+void
+TimingSimpleNCacheCPU::overwriteIntReg(ThreadContext* tc, int reg_idx) {
+    CapLoc loc = CapLoc::makeReg(tc->threadId(), reg_idx);
+    NodeID node_id = node_controller->queryCapTrack(loc);
+    if(node_id != NODE_ID_INVALID) {
+        node_controller->removeCapTrack(loc);
+        ncToIssue.push(new NodeControllerRcUpdate(node_id, -1));
+    }
+}
 
 } // namespace gem5
 

@@ -81,10 +81,10 @@ system.mem_ctrl.dram.range = system.mem_ranges[0]
 system.mem_ctrl.port = system.membus.mem_side_ports
 
 if len(sys.argv) < 2:
-    binary = 'tests/capstone/hello'
-    args = []
+    sys.stderr.write('No executable supplied!\n')
+    sys.exit(1)
 else:
-    binary = 'tests/capstone/' + sys.argv[1]
+    binary = sys.argv[1]
     args = sys.argv[2:]
 
 system.workload = SEWorkload.init_compatible(binary)

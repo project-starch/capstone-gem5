@@ -18,7 +18,7 @@
  * */
 
 #define CAPSTONE_NODE_BASE_ADDR 0x100000000000ULL
-#define CAPSTONE_NODE_N 256
+#define CAPSTONE_NODE_N 65536
 
 namespace gem5::RiscvcapstoneISA {
 
@@ -483,7 +483,8 @@ NodeController::regStats() {
 
 void
 NodeController::addCapTrack(const CapLoc& loc, NodeID node_id) {
-    DPRINTF(CapstoneCapTrack, "cap track added with node %u\n", node_id);
+    DPRINTF(CapstoneCapTrack, "cap track added with node %u, %s\n", node_id,
+            loc.toString().c_str());
     capTrackMap[loc] = node_id;
 }
 
@@ -499,7 +500,8 @@ NodeController::queryCapTrack(const CapLoc& loc) {
 
 void
 NodeController::removeCapTrack(const CapLoc& loc) {
-    DPRINTF(CapstoneCapTrack, "cap track removed\n");
+    DPRINTF(CapstoneCapTrack, "cap track removed %s\n",
+            loc.toString().c_str());
     capTrackMap.erase(loc);
 }
 

@@ -31,6 +31,7 @@
 #include "arch/riscvcapstone/reg_abi.hh"
 #include "arch/riscvcapstone/regs/int.hh"
 #include "arch/riscvcapstone/remote_gdb.hh"
+#include "ncache_cpu.hh"
 #include "params/RiscvSEWorkload.hh"
 #include "sim/se_workload.hh"
 #include "sim/syscall_abi.hh"
