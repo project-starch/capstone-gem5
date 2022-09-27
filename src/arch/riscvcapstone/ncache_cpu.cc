@@ -56,6 +56,7 @@
 #include "debug/CapstoneNodeOps.hh"
 #include "mem/packet.hh"
 #include "mem/packet_access.hh"
+#include "ncache_cpu.hh"
 #include "node_controller.hh"
 #include "params/BaseTimingSimpleNCacheCPU.hh"
 #include "base/trace.hh"
@@ -202,6 +203,12 @@ void
 TimingSimpleNCacheCPU::takeOverFrom(BaseCPU *oldCPU)
 {
     BaseSimpleCPU::takeOverFrom(oldCPU);
+
+    TimingSimpleNCacheCPU* old_timing_ncache_cpu =
+        dynamic_cast<TimingSimpleNCacheCPU*>(oldCPU);
+    if(old_timing_ncache_cpu != NULL) {
+        ncache_port.takeOverFrom(&old_timing_ncache_cpu->ncache_port);
+    }
 
     previousCycle = curCycle();
 }
