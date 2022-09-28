@@ -41,7 +41,7 @@ system.clk_domain.clock = '1GHz'
 system.clk_domain.voltage_domain = VoltageDomain()
 
 system.mem_mode = 'atomic'
-system.mem_ranges = [AddrRange(0x0, size='512MB'), AddrRange(0x100000000000, size='16MB')]
+system.mem_ranges = [AddrRange(0x0, size='512MB'), AddrRange(0x100000000000, size='64MB')]
 
 
 

@@ -6,6 +6,7 @@
 #include "debug/CapstoneNCache.hh"
 #include "debug/CapstoneCapTrack.hh"
 #include "debug/CapstoneNodeOps.hh"
+#include "node_controller.hh"
 
 
 /*
@@ -18,7 +19,7 @@
  * */
 
 #define CAPSTONE_NODE_BASE_ADDR 0x100000000000ULL
-#define CAPSTONE_NODE_N 65536
+#define CAPSTONE_NODE_N (1<<22)
 
 namespace gem5::RiscvcapstoneISA {
 
@@ -60,7 +61,16 @@ NodeController::MemSidePort::recvReqRetry() {
 }
 
 void
-NodeController::sendLoad(NodeID node_id) {
+NodeController::sendPacketToMem(PacketPtr pkt, bool atomic) {
+    if(atomic) {
+        mem_side.sendAtomic(pkt);
+    } else {
+        mem_side.trySendReq(pkt);
+    }
+}
+
+PacketPtr
+NodeController::sendLoad(NodeID node_id, bool atomic) {
     Addr addr = nodeId2Addr(node_id);
     DPRINTF(CapstoneNodeOps, "send load %lx\n", addr);
     RequestPtr req = std::make_shared<Request>();
@@ -70,11 +80,13 @@ NodeController::sendLoad(NodeID node_id) {
     pkt->setSize(sizeof(Node)); // FIXME: do we need to specify the size here?
     pkt->allocate();
 
-    mem_side.trySendReq(pkt);
+    sendPacketToMem(pkt, atomic);
+    return pkt;
 }
 
-void
-NodeController::sendStore(NodeID node_id, const Node& node) {
+PacketPtr
+NodeController::sendStore(NodeID node_id, const Node& node, 
+        bool atomic) {
     Addr addr = nodeId2Addr(node_id);
     DPRINTF(CapstoneNodeOps, "send store %lx\n", addr);
     RequestPtr req = std::make_shared<Request>();
@@ -85,7 +97,8 @@ NodeController::sendStore(NodeID node_id, const Node& node) {
     pkt->allocate();
     memcpy(pkt->getPtr<void>(), &node, sizeof(Node));
 
-    mem_side.trySendReq(pkt);
+    sendPacketToMem(pkt, atomic);
+    return pkt;
 }
 
 bool
@@ -166,6 +179,132 @@ NodeControllerAllocate::transit(NodeController& controller, PacketPtr current_pk
             panic("incorrect state for node allocation operation!");
     }
     
+}
+
+Tick
+NodeControllerQuery::handleAtomic(NodeController& controller, PacketPtr pkt) {
+    pkt->deleteData();
+    pkt->setSize(sizeof(Node));
+    pkt->allocate();
+    pkt->makeResponse();
+    controller.atomicLoadNode(nodeId, pkt->getPtr<Node>());
+    
+    return 0;
+}
+
+
+Tick
+NodeControllerRevoke::handleAtomic(NodeController& controller, PacketPtr pkt) {
+    Node node;
+    controller.atomicLoadNode(nodeId, &node);
+    rootDepth = node.depth;
+    curNodeId = node.next;
+    prevNodeId = node.prev;
+    node.state = 0; // invalidate the node
+    if(node.counter == 0) {
+        controller.freeNode(node, nodeId);
+    }
+    controller.atomicStoreNode(nodeId, &node);
+    while(curNodeId != NODE_ID_INVALID) {
+        controller.atomicLoadNode(curNodeId, &node);
+        if(node.depth > rootDepth) {
+            node.state = 0;
+            if(node.counter == 0){
+                controller.freeNode(node, curNodeId);
+            }
+            controller.atomicStoreNode(curNodeId, &node);
+            curNodeId = node.next;
+        } else{
+            node.prev = prevNodeId; 
+            controller.atomicStoreNode(curNodeId, &node);
+            break;
+        }
+    }
+    if(prevNodeId == NODE_ID_INVALID) {
+        controller.tree_root = curNodeId;
+    } else {
+        controller.atomicLoadNode(prevNodeId, &node);
+        node.next = curNodeId;
+        controller.atomicStoreNode(prevNodeId, &node);
+    }
+
+    pkt->deleteData();
+    pkt->makeResponse();
+
+    return 0;
+}
+
+
+Tick
+NodeControllerRcUpdate::handleAtomic(NodeController& controller, PacketPtr pkt) {
+    panic_if(delta == 0, "node controller does not allow rc updating with delta = 0 (atomic)");
+
+    Node node;
+    controller.atomicLoadNode(nodeId, &node);
+    node.counter += delta;
+    if(node.counter == 0 && node.state == 0) { // now I can free this node
+        controller.freeNode(node, nodeId);
+    }
+    controller.atomicStoreNode(nodeId, &node);
+    
+    pkt->deleteData();
+    pkt->makeResponse();
+
+    return 0;
+}
+
+Tick
+NodeControllerAllocate::handleAtomic(NodeController& controller, PacketPtr pkt) {
+    Node node;
+
+    if(controller.free_head == NODE_ID_INVALID) {
+        panic_if(controller.freeNodeInited >= CAPSTONE_NODE_N, "no free node remaining (atomic).");
+        toAllocate = (NodeID)controller.freeNodeInited;
+        fromFreeList = false;
+    } else{
+        toAllocate = controller.free_head;
+        fromFreeList = true;
+    }
+
+    if(parentId == NODE_ID_INVALID) {
+        nextNodeId = controller.tree_root;
+        parentDepth = 0;
+    } else{
+        controller.atomicLoadNode(parentId, &node);
+        nextNodeId = node.next;
+        parentDepth = node.depth;
+        node.next = toAllocate;
+        controller.atomicStoreNode(parentId, &node);
+    }
+
+    if(nextNodeId != NODE_ID_INVALID) {
+        controller.atomicLoadNode(nextNodeId, &node);
+        node.prev = toAllocate;
+        controller.atomicStoreNode(nextNodeId, &node);
+    }
+
+    controller.atomicLoadNode(toAllocate, &node);
+    nextFreeNodeId = node.next;
+    node.prev = parentId;
+    node.next = nextNodeId;
+    node.depth = parentDepth + 1;
+    node.counter = 1;
+    node.state = 1;
+    controller.atomicStoreNode(toAllocate, &node);
+    
+    if(fromFreeList) {
+        controller.free_head = nextFreeNodeId;
+    } else{
+        ++ controller.freeNodeInited;
+    }
+
+    pkt->makeResponse();
+    pkt->deleteData();
+    pkt->setSize(sizeof(NodeID));
+    pkt->allocate();
+    *(pkt->getPtr<NodeID>()) = toAllocate;
+
+    return 0;
 }
 
 bool
@@ -400,13 +539,13 @@ NodeControllerRevoke::setup(NodeController& controller, PacketPtr pkt) {
 
 
 bool
-NodeController::handleReq(PacketPtr pkt) {
+NodeController::handleTimingReq(PacketPtr pkt) {
     if(currentPkt != NULL) {
         return false;
     }
     
     NodeControllerCommand* cmd = pkt->getPtr<NodeControllerCommand>();
-    assert(cmd != NULL);
+    panic_if(cmd == NULL, "node controller received invalid command");
     cmd->setup(*this, pkt);
 
     currentPkt = pkt;
@@ -418,11 +557,24 @@ NodeController::handleReq(PacketPtr pkt) {
 bool NodeController::CPUSidePort::recvTimingReq(PacketPtr pkt) {
     DPRINTF(CapstoneNCache, "NCache packet received\n");
     // no latency
-    if(!owner->handleReq(pkt)) {
+    if(!owner->handleTimingReq(pkt)) {
         toRetryReq = true;
         return false;
     }
     return true;
+}
+
+Tick
+NodeController::handleAtomicReq(PacketPtr pkt) {
+    NodeControllerCommand* cmd  = pkt->getPtr<NodeControllerCommand>();
+    panic_if(cmd == NULL, "node controller received invalid command (atomic)");
+    return cmd->handleAtomic(*this, pkt);
+}
+
+
+Tick
+NodeController::CPUSidePort::recvAtomic(PacketPtr pkt) {
+    return owner->handleAtomicReq(pkt);
 }
 
 
@@ -451,6 +603,7 @@ void NodeController::CPUSidePort::recvFunctional(PacketPtr pkt) {
 
 
 AddrRangeList NodeController::CPUSidePort::getAddrRanges() const {
+    // this address doesn't actually mean anything
     return std::list<AddrRange> { AddrRange(0, 0xffffffffLL) };
 }
     

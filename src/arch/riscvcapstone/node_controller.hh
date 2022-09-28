@@ -29,6 +29,7 @@ const NodeID NODE_ID_INVALID = (NodeID)(-1ULL & ((1ULL << 31) - 1));
 struct NodeControllerCommand {
     virtual void setup(NodeController& controller, PacketPtr pkt) = 0;
     virtual bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) = 0;
+    virtual Tick handleAtomic(NodeController& controller, PacketPtr pkt) = 0;
 };
 
 struct NodeControllerQuery : NodeControllerCommand {
@@ -37,6 +38,7 @@ struct NodeControllerQuery : NodeControllerCommand {
     NodeControllerQuery(NodeID node_id) : nodeId(node_id) {}
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
+    Tick handleAtomic(NodeController& controller, PacketPtr pkt) override;
 };
 
 
@@ -46,6 +48,7 @@ struct NodeControllerRevoke : NodeControllerCommand {
     NodeControllerRevoke(NodeID node_id) : nodeId(node_id) {}
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
+    Tick handleAtomic(NodeController& controller, PacketPtr pkt) override;
     private:
         enum {
             NCRevoke_LOAD_ROOT,
@@ -66,6 +69,7 @@ struct NodeControllerRcUpdate : NodeControllerCommand {
     NodeControllerRcUpdate(NodeID node_id, int delta): nodeId(node_id), delta(delta) {}
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
+    Tick handleAtomic(NodeController& controller, PacketPtr pkt) override;
     private:
         enum {
             NCRcUpdate_LOAD,
@@ -79,6 +83,7 @@ struct NodeControllerAllocate : NodeControllerCommand {
     NodeControllerAllocate(NodeID parent_id): parentId(parent_id) {}
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
+    Tick handleAtomic(NodeController& controller, PacketPtr pkt) override;
     private:
         enum { 
             NCAllocate_LOAD,
@@ -125,9 +130,7 @@ class NodeController : public ClockedObject {
 
             public:
                 CPUSidePort(NodeController* owner);
-                Tick recvAtomic(PacketPtr pkt) override {
-                    panic("atomic mode unsupported.");
-                }
+                Tick recvAtomic(PacketPtr pkt) override;
                 bool recvTimingReq(PacketPtr pkt) override;
                 void recvRespRetry() override;
                 void recvFunctional(PacketPtr pkt) override;
@@ -163,6 +166,9 @@ class NodeController : public ClockedObject {
 
         CapTrackMap capTrackMap;
 
+
+        void sendPacketToMem(PacketPtr pkt, bool atomic);
+
     public:
         NodeController(const NodeControllerParams& p);
         Port& getPort(const std::string& name, PortID idx) override;
@@ -177,13 +183,25 @@ class NodeController : public ClockedObject {
 
         void regStats() override;
 
-        bool handleReq(PacketPtr pkt);
+        bool handleTimingReq(PacketPtr pkt);
+        Tick handleAtomicReq(PacketPtr pkt);
         void handleResp(PacketPtr pkt);
 
         void init() override;
 
-        void sendLoad(NodeID node_id);
-        void sendStore(NodeID node_id, const Node& node);
+        PacketPtr sendLoad(NodeID node_id, bool atomic = false);
+        PacketPtr sendStore(NodeID node_id, const Node& node, bool atomic = false);
+
+        void atomicLoadNode(NodeID node_id, Node* node) {
+            PacketPtr pkt = sendLoad(node_id, true);
+            memcpy(node, pkt->getPtr<void>(), sizeof(Node));
+            delete pkt;
+        }
+
+        void atomicStoreNode(NodeID node_id, const Node* node) {
+            PacketPtr pkt = sendStore(node_id, *node, true);
+            delete pkt;
+        }
 
         void addCapTrack(const CapLoc& loc, NodeID node_id);
         NodeID queryCapTrack(const CapLoc& loc);
