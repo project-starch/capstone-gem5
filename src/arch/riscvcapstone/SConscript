@@ -55,6 +55,7 @@ Source('reg_abi.cc', tags='riscvcapstone isa')
 Source('remote_gdb.cc', tags='riscvcapstone isa')
 Source('tlb.cc', tags='riscvcapstone isa')
 Source('ncache_cpu.cc', tags='riscvcapstone isa')
+Source('atomic_ncache_cpu.cc', tags='riscvcapstone isa')
 Source('node_controller.cc', tags='riscvcapstone isa')
 
 Source('linux/se_workload.cc', tags='riscvcapstone isa')
@@ -84,6 +85,8 @@ SimObject('NonCachingSimpleCPU.py', sim_objects=[], tags='riscvcapstone isa')
 SimObject('O3CPU.py', sim_objects=[], tags='riscvcapstone isa')
 SimObject('MinorCPU.py', sim_objects=[], tags='riscvcapstone isa')
 SimObject('BaseTimingSimpleNCacheCPU.py', sim_objects=['BaseTimingSimpleNCacheCPU'], \
+    tags='riscvcapstone isa')
+SimObject('BaseAtomicSimpleNCacheCPU.py', sim_objects=['BaseAtomicSimpleNCacheCPU'], \
     tags='riscvcapstone isa')
 SimObject('NodeController.py', sim_objects=['NodeController'], tags='riscvcapstone isa')
 

@@ -51,6 +51,7 @@
 #include <string>
 
 #include "base/types.hh"
+#include "base/logging.hh"
 
 namespace gem5
 {
@@ -137,7 +138,8 @@ class Port
     takeOverFrom(Port *old)
     {
         assert(old);
-        assert(old->isConnected());
+        panic_if(!old->isConnected(), "Old port is not connected! (%s)", name());
+        //assert(old->isConnected());
         assert(!isConnected());
         Port &peer = old->getPeer();
         assert(peer.isConnected());

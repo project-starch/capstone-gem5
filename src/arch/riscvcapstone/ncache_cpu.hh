@@ -46,6 +46,7 @@
 #include "arch/generic/mmu.hh"
 #include "arch/riscvcapstone/node_controller.hh"
 #include "arch/riscvcapstone/insts/static_inst.hh"
+#include "arch/riscvcapstone/typing.hh"
 #include "cpu/simple/base.hh"
 #include "cpu/simple/exec_context.hh"
 #include "cpu/translation.hh"
@@ -57,7 +58,7 @@ namespace gem5::RiscvcapstoneISA
 
 typedef std::queue<NodeControllerCommandPtr> NCCommandQueue;
 
-class TimingSimpleNCacheCPU : public BaseSimpleCPU
+class TimingSimpleNCacheCPU : public BaseSimpleCPUWithNodePort
 {
   public:
 
@@ -444,8 +445,11 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPU
     void issueCapChecks(SimpleExecContext& t_info,
             StaticInst* inst, Addr addr);
     void overwriteIntReg(ThreadContext* tc, int reg_idx);
+
+    Port &getNodePort() override { return ncache_port; }
+
 };
 
-} // namespace gem5
+} // namespace gem5::RiscvcapstoneISA
 
 #endif // __CPU_SIMPLE_TIMING_HH__

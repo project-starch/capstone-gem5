@@ -27,6 +27,7 @@ from m5.objects.BaseAtomicSimpleCPU import BaseAtomicSimpleCPU
 from m5.objects.BaseNonCachingSimpleCPU import BaseNonCachingSimpleCPU
 from m5.objects.BaseTimingSimpleCPU import BaseTimingSimpleCPU
 from .BaseTimingSimpleNCacheCPU import BaseTimingSimpleNCacheCPU
+from .BaseAtomicSimpleNCacheCPU import BaseAtomicSimpleNCacheCPU
 from m5.objects.BaseO3CPU import BaseO3CPU
 from m5.objects.BaseMinorCPU import BaseMinorCPU
 from m5.objects.RiscvDecoder import RiscvDecoder
@@ -56,5 +57,8 @@ class RiscvMinorCPU(BaseMinorCPU, RiscvCPU):
     mmu = RiscvMMU()
 
 class RiscvTimingSimpleNCacheCPU(BaseTimingSimpleNCacheCPU, RiscvCPU):
+    mmu = RiscvMMU()
+
+class RiscvAtomicSimpleNCacheCPU(BaseAtomicSimpleNCacheCPU, RiscvCPU):
     mmu = RiscvMMU()
 

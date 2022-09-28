@@ -81,7 +81,7 @@ TimingSimpleNCacheCPU::TimingCPUPort::TickEvent::schedule(PacketPtr _pkt, Tick t
 }
 
 TimingSimpleNCacheCPU::TimingSimpleNCacheCPU(const BaseTimingSimpleNCacheCPUParams &p)
-    : BaseSimpleCPU(p), node_controller(p.node_controller),
+    : BaseSimpleCPUWithNodePort(p), node_controller(p.node_controller),
       ncache_status(NCACHE_INSTR_EXECUTION),
       fetchTranslation(this), icachePort(this),
       dcachePort(this), ncache_port(this), 
@@ -204,10 +204,12 @@ TimingSimpleNCacheCPU::takeOverFrom(BaseCPU *oldCPU)
 {
     BaseSimpleCPU::takeOverFrom(oldCPU);
 
-    TimingSimpleNCacheCPU* old_timing_ncache_cpu =
-        dynamic_cast<TimingSimpleNCacheCPU*>(oldCPU);
-    if(old_timing_ncache_cpu != NULL) {
-        ncache_port.takeOverFrom(&old_timing_ncache_cpu->ncache_port);
+    BaseSimpleCPUWithNodePort* old_cpu_with_node_port =
+        dynamic_cast<BaseSimpleCPUWithNodePort*>(oldCPU);
+    if(old_cpu_with_node_port != NULL) {
+        ncache_port.takeOverFrom(&old_cpu_with_node_port->getNodePort());
+    } else {
+        panic("incompatible CPU types for switching!");
     }
 
     previousCycle = curCycle();

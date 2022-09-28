@@ -41,25 +41,17 @@ system.clk_domain.clock = '1GHz'
 system.clk_domain.voltage_domain = VoltageDomain()
 
 system.mem_mode = 'atomic'
-system.mem_ranges = [AddrRange(0x0, size='512MB'), AddrRange(0x100000000000, size='16MB')]
+system.mem_ranges = [AddrRange(0x0, size='512MB')]
 
 
 
 system.cpu = AtomicSimpleCPU()
-system.node_controller = NodeController()
-system.cpu.node_controller = system.node_controller
-
-system.node_mem_ctrl = MemCtrl()
-system.node_mem_ctrl.dram = DDR3_1600_8x8()
-system.node_mem_ctrl.dram.range = system.mem_ranges[1] 
 
 system.l2cache = L2Cache()
 system.l2bus = L2XBar()
 
 
 system.membus = SystemXBar()
-
-system.ncache = NCache()
 
 system.cpu.icache = L1ICache()
 system.cpu.dcache = L1DCache()
@@ -72,11 +64,8 @@ system.cpu.dcache.mem_side = system.l2bus.cpu_side_ports
 system.cpu.icache_port = system.cpu.icache.cpu_side
 system.cpu.dcache_port = system.cpu.dcache.cpu_side
 
-system.cpu.ncache_port = system.node_controller.cpu_side
-system.node_controller.mem_side = system.ncache.cpu_side
-
-system.ncache.mem_side = system.node_mem_ctrl.port
-
+system.cpu.mmu.itb.walker.port = system.membus.cpu_side_ports
+system.cpu.mmu.dtb.walker.port = system.membus.cpu_side_ports
 
 system.cpu.createInterruptController()
 
@@ -115,12 +104,10 @@ switchedout_cpu.isa = system.cpu.isa
 switchedout_cpu.workload = system.cpu.workload
 switchedout_cpu.max_insts_any_thread = emu_n
 switchedout_cpu.progress_interval = system.cpu.progress_interval
-switchedout_cpu.node_controller = system.node_controller
 switchedout_cpu.cpu_id = system.cpu.cpu_id
 switchedout_cpu.createThreads()
 system.switch_cpus = [switchedout_cpu]
 switch_list = [(system.cpu, switchedout_cpu)]
-
 
 m5.instantiate()
 print("Beginning simulation (fast-forward)!")

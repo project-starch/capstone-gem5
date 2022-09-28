@@ -77,7 +77,9 @@ class MMU : public BaseMMU
 
 
     Fault translateAtomic(const RequestPtr& req, ThreadContext* tc, Mode mode) override {
-        panic("atomic translation not supported.");
+        DPRINTF(CapstoneMem, "translate (atomic) %llx\n", req->getVaddr());
+        req->setPaddr(req->getVaddr()); // simply pass through
+        return NoFault;
     }
 
     void translateTiming(const RequestPtr& req, ThreadContext* tc,
