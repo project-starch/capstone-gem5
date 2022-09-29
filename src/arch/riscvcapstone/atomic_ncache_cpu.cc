@@ -770,9 +770,6 @@ AtomicSimpleNCacheCPU::tick()
                             RegIndex dest_idx = dest_id.index();
                             RegVal dest_val = t_info.tcBase()->readIntReg(dest_idx);
                             //RegVal dest_val = t_info.getRegOperand(curStaticInst.get(), j);
-                            std::optional<SimpleAddrRange> dest_obj = node_controller->lookupAddr((Addr)dest_val);
-                            if(!dest_obj)
-                                continue;
                             DPRINTF(CapstoneNodeOps, "Consider dest reg %d (%d)\n", j, dest_idx);
                             for(int i = 0; i < num_src; i ++){
                                 const RegId& src_id = curStaticInst->srcRegIdx(i);
@@ -782,17 +779,9 @@ AtomicSimpleNCacheCPU::tick()
                                 // check whether it is a cap
                                 CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
                                 NodeID src_node = node_controller->queryCapTrack(src_loc);
-                                if(src_node == NODE_ID_INVALID)
+                                if(src_node == NODE_ID_INVALID ||
+                                        !node_controller->node2Obj[src_node].contains((Addr)dest_val))
                                     continue;
-                                RegVal src_val = t_info.getRegOperand(curStaticInst.get(), i);
-                                if(!dest_obj.value().contains((Addr)src_val))
-                                    continue;
-                                //std::optional<int> src_obj = node_controller->lookupAddr((Addr)src_val);
-                                //panic_if(!src_obj, "capabilities should always be associated with objects,"
-                                //" value = %llx, index = %u",
-                                //src_val, src_idx);
-                                //if(dest_obj.value() != src_obj.value())
-                                //continue;
                                 DPRINTF(CapstoneNodeOps, "Consider src reg %d (%d)\n", i, src_idx);
                                 // src and dest are in the same region and the source is a capability
                                 CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
@@ -960,9 +949,6 @@ void
 AtomicSimpleNCacheCPU::capCheckAtomic(SimpleExecContext& t_info,
         StaticInst* inst, Addr addr) {
     DPRINTF(CapstoneNodeOps, "To issue cap check 0x%llx\n", addr);
-    std::optional<SimpleAddrRange> target_obj_idx = node_controller->lookupAddr(addr);
-    if(!target_obj_idx)
-        return;
     int num_src = inst->numSrcRegs();
     for(int i = 0; i < num_src; i ++){
         const RegId& src_id = inst->srcRegIdx(i);
@@ -970,11 +956,10 @@ AtomicSimpleNCacheCPU::capCheckAtomic(SimpleExecContext& t_info,
             continue;
         RegIndex src_idx = src_id.index();
         RegVal src_val = t_info.getRegOperand(inst, i);
-        if(!target_obj_idx.value().contains((Addr)src_val))
-            continue;
         NodeID node_id = node_controller->queryCapTrack(
                 CapLoc::makeReg(t_info.tcBase()->threadId(), src_idx));
-        if(node_id == NODE_ID_INVALID)
+        if(node_id == NODE_ID_INVALID ||
+                !node_controller->node2Obj[node_id].contains((Addr)src_val))
             continue;
         DPRINTF(CapstoneNodeOps, "Issued cap check %u\n", node_id);
         delete sendNCacheCommandAtomic(new NodeControllerQuery(node_id));

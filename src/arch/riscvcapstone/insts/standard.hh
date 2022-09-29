@@ -88,6 +88,9 @@ struct MallocStateMachine : InstStateMachine {
         MALLOC_ALLOC_NODE,
         MALLOC_DONE,
     } state;
+    Addr addr;
+    uint64_t size;
+    MallocStateMachine(Addr addr, uint64_t size): addr(addr), size(size) {}
     void setup(ExecContext* xc) override;
     bool finished(ExecContext* xc) const override;
     Fault transit(ExecContext* xc, PacketPtr pkt) override;

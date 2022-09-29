@@ -382,7 +382,6 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPUWithNodeController
 
     Port& getPort(const std::string& name, PortID idx) override;
 
-    void sendNCacheReq(Addr addr);
     void sendNCacheCommand(NodeControllerCommand* cmd);
 
   private:

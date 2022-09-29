@@ -18,8 +18,6 @@
  * Might consider optimising this in the future.
  * */
 
-#define CAPSTONE_NODE_BASE_ADDR 0x100000000000ULL
-#define CAPSTONE_NODE_N (1<<22)
 
 namespace gem5::RiscvcapstoneISA {
 
@@ -609,31 +607,32 @@ AddrRangeList NodeController::CPUSidePort::getAddrRanges() const {
     
 void
 NodeController::allocObject(const SimpleAddrRange& obj) {
-    objectRanges.insert(obj);
+    //objectRanges.insert(obj);
 }
 
 void
 NodeController::freeObject(Addr addr) {
-    SimpleAddrRange key(addr, 0);
-    auto res = objectRanges.lower_bound(key);
-    if(res != objectRanges.end() && res->start == addr) {
-        objectRanges.erase(res);
-    }
+    //return;
+    //SimpleAddrRange key(addr, 0);
+    //auto res = objectRanges.lower_bound(key);
+    //if(res != objectRanges.end() && res->start == addr) {
+        //objectRanges.erase(res);
+    //}
 }
 
-std::optional<SimpleAddrRange>
-NodeController::lookupAddr(Addr addr) {
-    SimpleAddrRange key(addr, (Addr)-1);
-    auto res = objectRanges.upper_bound(key);
-    if(res != objectRanges.begin()) {
-        -- res;
-        if(res->contains(addr)){
-            return std::optional<SimpleAddrRange>(*res);
-        }
-    }
+//std::optional<SimpleAddrRange>
+//NodeController::lookupAddr(Addr addr) {
+    //SimpleAddrRange key(addr, (Addr)-1);
+    //auto res = objectRanges.upper_bound(key);
+    //if(res != objectRanges.begin()) {
+        //-- res;
+        //if(res->contains(addr)){
+            //return std::optional<SimpleAddrRange>(*res);
+        //}
+    //}
 
-    return std::optional<SimpleAddrRange>();
-}
+    //return std::optional<SimpleAddrRange>();
+//}
 
 void
 NodeController::regStats() {

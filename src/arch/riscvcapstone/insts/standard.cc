@@ -104,7 +104,9 @@ EcallOp::getStateMachine(ExecContext* xc) const {
     RegVal num = xc->tcBase()->readIntReg(SyscallNumReg);
     switch(num) {
         case 3000: // malloc
-            return std::make_shared<MallocStateMachine>();
+            return std::make_shared<MallocStateMachine>(
+                    (Addr)xc->tcBase()->getReg(RegId(IntRegClass, ReturnValueReg)),
+                    (uint64_t)xc->tcBase()->getReg(RegId(IntRegClass, ReturnValueReg + 1)));
         case 3001:
             return std::make_shared<FreeStateMachine>(
                     CapLoc::makeReg(xc->tcBase()->threadId(), ArgumentRegs[0]));
@@ -137,6 +139,7 @@ MallocStateMachine::finished(ExecContext* xc) const {
     return state == MALLOC_DONE;
 }
 
+// Note that this is executed before the actual syscall handler
 Fault
 MallocStateMachine::transit(ExecContext* xc, PacketPtr pkt) {
     NodeID node_id = pkt->getRaw<NodeID>();
@@ -147,6 +150,7 @@ MallocStateMachine::transit(ExecContext* xc, PacketPtr pkt) {
 
     cpu->node_controller->addCapTrack(CapLoc::makeReg(xc->tcBase()->threadId(), ReturnValueReg), 
             node_id);
+    cpu->node_controller->node2Obj[node_id] = SimpleAddrRange(addr, (Addr)(addr + size));
     
     state = MALLOC_DONE;
 
@@ -198,6 +202,8 @@ MallocStateMachine::atomicExec(ExecContext* xc) {
     cpu->node_controller->addCapTrack(
             CapLoc::makeReg(xc->tcBase()->threadId(), ReturnValueReg), 
             node_id);
+    cpu->node_controller->node2Obj[node_id] = SimpleAddrRange(addr, (Addr)(addr + size));
+
     delete pkt;
 
     return 0;

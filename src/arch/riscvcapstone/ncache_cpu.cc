@@ -345,8 +345,6 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
     } else if (read) {
         DPRINTF(CapstoneNCache, "Senddata read %llx\n", req->getVaddr());
         handleReadPacket(pkt);
-
-        //sendNCacheReq(pkt->getAddr());
     } else {
         bool do_access = true;  // flag to suppress cache access
 
@@ -367,7 +365,6 @@ TimingSimpleNCacheCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *
             _status = DcacheWaitResponse;
             handleDCacheResp(pkt);
         }
-        //sendNCacheReq(pkt->getAddr());
     }
 }
 
@@ -387,21 +384,6 @@ TimingSimpleNCacheCPU::sendNCacheCommand(NodeControllerCommand* cmd) {
         DPRINTF(CapstoneNCache, "NCache packet to retry\n");
         this->ncache_pkt = ncache_pkt;
     }
-}
-
-void
-TimingSimpleNCacheCPU::sendNCacheReq(Addr addr) {
-    std::optional<NodeID> node_id;
-    // TODO: here we can't rely on the address alone any more
-    if(!node_id) {
-        nodeResps.push(NULL);
-        return;
-    }
-
-    NodeControllerQuery* cmd = new NodeControllerQuery();
-    cmd->nodeId = node_id.value();
-
-    sendNCacheCommand(cmd);
 }
 
 void
@@ -441,8 +423,6 @@ TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &r
                 send_state->clearFromParent();
             }
         }
-
-        //sendNCacheReq(req->getVaddr());
     } else {
         dcache_pkt = pkt1;
         SplitFragmentSenderState * send_state =
@@ -456,8 +436,6 @@ TimingSimpleNCacheCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &r
                 send_state->clearFromParent();
             }
         }
-
-        //sendNCacheReq(req->getVaddr());
     }
 }
 
@@ -1021,9 +999,6 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
                 RegIndex dest_idx = dest_id.index();
                 RegVal dest_val = t_info.tcBase()->readIntReg(dest_idx);
                 //RegVal dest_val = t_info.getRegOperand(curStaticInst.get(), j);
-                std::optional<SimpleAddrRange> dest_obj = node_controller->lookupAddr((Addr)dest_val);
-                if(!dest_obj)
-                    continue;
                 DPRINTF(CapstoneNodeOps, "Consider dest reg %d (%d)\n", j, dest_idx);
                 for(int i = 0; i < num_src; i ++){
                     const RegId& src_id = curStaticInst->srcRegIdx(i);
@@ -1033,17 +1008,9 @@ TimingSimpleNCacheCPU::completeIfetch(PacketPtr pkt)
                     // check whether it is a cap
                     CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
                     NodeID src_node = node_controller->queryCapTrack(src_loc);
-                    if(src_node == NODE_ID_INVALID)
+                    if(src_node == NODE_ID_INVALID ||
+                            !node_controller->node2Obj[src_node].contains((Addr)dest_val))
                         continue;
-                    RegVal src_val = t_info.getRegOperand(curStaticInst.get(), i);
-                    if(!dest_obj.value().contains((Addr)src_val))
-                        continue;
-                    //std::optional<int> src_obj = node_controller->lookupAddr((Addr)src_val);
-                    //panic_if(!src_obj, "capabilities should always be associated with objects,"
-                            //" value = %llx, index = %u",
-                            //src_val, src_idx);
-                    //if(dest_obj.value() != src_obj.value())
-                        //continue;
                     DPRINTF(CapstoneNodeOps, "Consider src reg %d (%d)\n", i, src_idx);
                     // src and dest are in the same region and the source is a capability
                     CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
@@ -1734,24 +1701,16 @@ void
 TimingSimpleNCacheCPU::issueCapChecks(SimpleExecContext& t_info, 
         StaticInst* inst, Addr addr) {
     DPRINTF(CapstoneNodeOps, "To issue cap check 0x%llx\n", addr);
-    std::optional<SimpleAddrRange> target_obj_idx = node_controller->lookupAddr(addr);
-    if(!target_obj_idx)
-        return;
     int num_src = inst->numSrcRegs();
     for(int i = 0; i < num_src; i ++){
         const RegId& src_id = inst->srcRegIdx(i);
         if(src_id.classValue() != RegClassType::IntRegClass)
             continue;
         RegIndex src_idx = src_id.index();
-        RegVal src_val = t_info.getRegOperand(inst, i);
-        //std::optional<int> obj_idx = node_controller->lookupAddr((Addr)src_val);
-        if(!target_obj_idx.value().contains((Addr)src_val))
-            continue;
-        //if(!obj_idx || obj_idx.value() != target_obj_idx.value())
-            //continue;
         NodeID node_id = node_controller->queryCapTrack(
             CapLoc::makeReg(t_info.tcBase()->threadId(), src_idx));
-        if(node_id == NODE_ID_INVALID)
+        if(node_id == NODE_ID_INVALID ||
+                !node_controller->node2Obj[node_id].contains(addr))
             continue;
         DPRINTF(CapstoneNodeOps, "Issued cap check %u\n", node_id);
         ncToIssue.push(new NodeControllerQuery(node_id));

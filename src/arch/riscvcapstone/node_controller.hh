@@ -13,6 +13,9 @@
 #include "base/trace.hh"
 #include "arch/riscvcapstone/cap_track.hh"
 
+#define CAPSTONE_NODE_BASE_ADDR 0x100000000000ULL
+#define CAPSTONE_NODE_N (1<<22)
+
 // size of each revocation nodes (in bits)
 
 namespace gem5::RiscvcapstoneISA {
@@ -121,6 +124,7 @@ static_assert(sizeof(Node) == (CAPSTONE_NODE_SIZE >> 3));
 
 struct SimpleAddrRange {
     Addr start, end;
+    SimpleAddrRange() {}
     SimpleAddrRange(Addr start, Addr end) : start(start), end(end) {}
     bool operator < (const SimpleAddrRange& other) const {
         if(start != other.start) {
@@ -200,7 +204,7 @@ class NodeController : public ClockedObject {
         void allocObject(const SimpleAddrRange& obj);
         void freeObject(Addr addr);
 
-        std::optional<SimpleAddrRange> lookupAddr(Addr addr);
+        //std::optional<SimpleAddrRange> lookupAddr(Addr addr);
         Addr nodeId2Addr(NodeID node_id);
 
         void regStats() override;
@@ -237,6 +241,8 @@ class NodeController : public ClockedObject {
         NodeID tree_root;
 
         int freeNodeInited;
+
+        SimpleAddrRange node2Obj[CAPSTONE_NODE_N];
 };
 
 } // end of namespace gem5::RiscvcapstoneISA
