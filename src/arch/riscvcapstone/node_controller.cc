@@ -23,6 +23,7 @@ namespace gem5::RiscvcapstoneISA {
 
 NodeController::NodeController(const NodeControllerParams& p) :
     ClockedObject(p),
+    stats(this),
     currentPkt(NULL),
     mem_side(this),
     cpu_side(this),
@@ -149,7 +150,7 @@ NodeControllerAllocate::transit(NodeController& controller, PacketPtr current_pk
             node.prev = parentId;
             node.next = nextNodeId;
             if(parentId == NODE_ID_INVALID) {
-                controller.tree_root = toAllocate;
+                controller.tree_root = toAllocate; // may not be necessary?
             }
             node.state = 1;
             node.counter = 1;
@@ -207,11 +208,12 @@ NodeControllerRevoke::handleAtomic(NodeController& controller, PacketPtr pkt) {
         controller.atomicLoadNode(curNodeId, &node);
         if(node.depth > rootDepth) {
             node.state = 0;
+            NodeID next = node.next;
             if(node.counter == 0){
                 controller.freeNode(node, curNodeId);
             }
             controller.atomicStoreNode(curNodeId, &node);
-            curNodeId = node.next;
+            curNodeId = next;
         } else{
             node.prev = prevNodeId; 
             controller.atomicStoreNode(curNodeId, &node);
@@ -288,6 +290,9 @@ NodeControllerAllocate::handleAtomic(NodeController& controller, PacketPtr pkt) 
     node.depth = parentDepth + 1;
     node.counter = 1;
     node.state = 1;
+    if(parentId == NODE_ID_INVALID) {
+        controller.tree_root = toAllocate;
+    }
     controller.atomicStoreNode(toAllocate, &node);
     
     if(fromFreeList) {
@@ -541,6 +546,7 @@ NodeController::handleTimingReq(PacketPtr pkt) {
     if(currentPkt != NULL) {
         return false;
     }
+    ++ stats.timingReqCount;
     
     NodeControllerCommand* cmd = pkt->getPtr<NodeControllerCommand>();
     panic_if(cmd == NULL, "node controller received invalid command");
@@ -566,6 +572,9 @@ Tick
 NodeController::handleAtomicReq(PacketPtr pkt) {
     NodeControllerCommand* cmd  = pkt->getPtr<NodeControllerCommand>();
     panic_if(cmd == NULL, "node controller received invalid command (atomic)");
+    
+    ++ stats.atomicReqCount;
+
     return cmd->handleAtomic(*this, pkt);
 }
 

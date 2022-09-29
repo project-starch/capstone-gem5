@@ -959,7 +959,7 @@ AtomicSimpleNCacheCPU::capCheckAtomic(SimpleExecContext& t_info,
         NodeID node_id = node_controller->queryCapTrack(
                 CapLoc::makeReg(t_info.tcBase()->threadId(), src_idx));
         if(node_id == NODE_ID_INVALID ||
-                !node_controller->node2Obj[node_id].contains((Addr)src_val))
+                !node_controller->node2Obj[node_id].contains(addr))
             continue;
         DPRINTF(CapstoneNodeOps, "Issued cap check %u\n", node_id);
         delete sendNCacheCommandAtomic(new NodeControllerQuery(node_id));

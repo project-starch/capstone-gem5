@@ -12,6 +12,7 @@
 #include "params/NodeController.hh"
 #include "base/trace.hh"
 #include "arch/riscvcapstone/cap_track.hh"
+#include "base/statistics.hh"
 
 #define CAPSTONE_NODE_BASE_ADDR 0x100000000000ULL
 #define CAPSTONE_NODE_N (1<<22)
@@ -179,6 +180,21 @@ class NodeController : public ClockedObject {
                 void trySendReq(PacketPtr pkt);
             
         };
+
+        struct NodeControllerStats : public statistics::Group {
+            NodeControllerStats(statistics::Group* parent):
+                statistics::Group(parent),
+                ADD_STAT(timingReqCount, "Number of timing requests received"),
+                ADD_STAT(atomicReqCount, "Number of atomic requests received"),
+                ADD_STAT(totReqCount, "Total number of requests received",
+                        timingReqCount + atomicReqCount) {}
+
+            statistics::Scalar timingReqCount;
+            statistics::Scalar atomicReqCount;
+            statistics::Formula totReqCount;
+        };
+
+        NodeControllerStats stats;
 
         PacketPtr currentPkt; // packet currently handling
         

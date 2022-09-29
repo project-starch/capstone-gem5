@@ -150,6 +150,9 @@ MallocStateMachine::transit(ExecContext* xc, PacketPtr pkt) {
 
     cpu->node_controller->addCapTrack(CapLoc::makeReg(xc->tcBase()->threadId(), ReturnValueReg), 
             node_id);
+    DPRINTF(CapstoneNodeOps, "Associated node %llu with addr range (0x%llx, 0x%llx)\n", 
+            node_id,
+            addr, (Addr)(addr + size));
     cpu->node_controller->node2Obj[node_id] = SimpleAddrRange(addr, (Addr)(addr + size));
     
     state = MALLOC_DONE;
@@ -202,6 +205,9 @@ MallocStateMachine::atomicExec(ExecContext* xc) {
     cpu->node_controller->addCapTrack(
             CapLoc::makeReg(xc->tcBase()->threadId(), ReturnValueReg), 
             node_id);
+    DPRINTF(CapstoneNodeOps, "Associated node %llu with addr range (0x%llx, 0x%llx)\n", 
+            node_id,
+            addr, (Addr)(addr + size));
     cpu->node_controller->node2Obj[node_id] = SimpleAddrRange(addr, (Addr)(addr + size));
 
     delete pkt;
