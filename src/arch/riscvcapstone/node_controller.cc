@@ -608,25 +608,31 @@ AddrRangeList NodeController::CPUSidePort::getAddrRanges() const {
 }
     
 void
-NodeController::allocObject(const AddrRange& obj) {
-    objectRanges.push_back(obj);
+NodeController::allocObject(const SimpleAddrRange& obj) {
+    objectRanges.insert(obj);
 }
 
 void
 NodeController::freeObject(Addr addr) {
-    objectRanges.remove_if([addr](auto obj) { return obj.contains(addr); });
+    SimpleAddrRange key(addr, 0);
+    auto res = objectRanges.lower_bound(key);
+    if(res != objectRanges.end() && res->start == addr) {
+        objectRanges.erase(res);
+    }
 }
 
-std::optional<int>
+std::optional<SimpleAddrRange>
 NodeController::lookupAddr(Addr addr) {
-    int n = 0;
-    for(auto& obj : objectRanges) {
-        if(obj.contains(addr)){
-            return std::optional<int>(n);
+    SimpleAddrRange key(addr, (Addr)-1);
+    auto res = objectRanges.upper_bound(key);
+    if(res != objectRanges.begin()) {
+        -- res;
+        if(res->contains(addr)){
+            return std::optional<SimpleAddrRange>(*res);
         }
-        ++ n;
     }
-    return std::optional<int>();
+
+    return std::optional<SimpleAddrRange>();
 }
 
 void

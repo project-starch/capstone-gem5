@@ -119,6 +119,28 @@ struct Node {
 
 static_assert(sizeof(Node) == (CAPSTONE_NODE_SIZE >> 3));
 
+struct SimpleAddrRange {
+    Addr start, end;
+    SimpleAddrRange(Addr start, Addr end) : start(start), end(end) {}
+    bool operator < (const SimpleAddrRange& other) const {
+        if(start != other.start) {
+            return start < other.start;
+        }
+        return end < other.end;
+    }
+
+    bool operator == (const SimpleAddrRange& other) const {
+        return start == other.start &&
+            end == other.end;
+    }
+
+    bool contains(const Addr& addr) const {
+        return start <= addr && addr < end;
+    }
+};
+
+typedef std::set<SimpleAddrRange> SimpleAddrRangeSet;
+
 
 class NodeController : public ClockedObject {
     private:
@@ -159,7 +181,7 @@ class NodeController : public ClockedObject {
         CPUSidePort cpu_side;
         MemSidePort mem_side;
 
-        AddrRangeList objectRanges;
+        SimpleAddrRangeSet objectRanges;
     
         System* system; // the system the node controller belongs to
         RequestorID requestorId;
@@ -175,10 +197,10 @@ class NodeController : public ClockedObject {
 
         // only update the object registry
         // does not touch anything else
-        void allocObject(const AddrRange& obj);
+        void allocObject(const SimpleAddrRange& obj);
         void freeObject(Addr addr);
 
-        std::optional<int> lookupAddr(Addr addr);
+        std::optional<SimpleAddrRange> lookupAddr(Addr addr);
         Addr nodeId2Addr(NodeID node_id);
 
         void regStats() override;

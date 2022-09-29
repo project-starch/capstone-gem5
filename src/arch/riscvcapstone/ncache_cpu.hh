@@ -58,7 +58,7 @@ namespace gem5::RiscvcapstoneISA
 
 typedef std::queue<NodeControllerCommandPtr> NCCommandQueue;
 
-class TimingSimpleNCacheCPU : public BaseSimpleCPUWithNodePort
+class TimingSimpleNCacheCPU : public BaseSimpleCPUWithNodeController
 {
   public:
 
@@ -382,9 +382,6 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPUWithNodePort
 
     Port& getPort(const std::string& name, PortID idx) override;
 
-    void allocObject(ThreadContext* tc, AddrRange obj);
-    void freeObject(ThreadContext* tc, Addr base_addr);
-
     void sendNCacheReq(Addr addr);
     void sendNCacheCommand(NodeControllerCommand* cmd);
 
@@ -447,6 +444,7 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPUWithNodePort
     void overwriteIntReg(ThreadContext* tc, int reg_idx);
 
     Port &getNodePort() override { return ncache_port; }
+    NodeController* getNodeController() override { return node_controller; }
 
 };
 

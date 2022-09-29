@@ -5,12 +5,16 @@
 #include "cpu/simple/base.hh"
 #include "params/BaseSimpleCPU.hh"
 
+
 namespace gem5::RiscvcapstoneISA {
 
-class BaseSimpleCPUWithNodePort : public BaseSimpleCPU {
+class NodeController;
+
+class BaseSimpleCPUWithNodeController : public BaseSimpleCPU {
     public:
-        BaseSimpleCPUWithNodePort(const BaseSimpleCPUParams& p): BaseSimpleCPU(p) {}
+        BaseSimpleCPUWithNodeController(const BaseSimpleCPUParams& p): BaseSimpleCPU(p) {}
         virtual Port& getNodePort() = 0;
+        virtual NodeController* getNodeController() = 0;
 };
 
 }

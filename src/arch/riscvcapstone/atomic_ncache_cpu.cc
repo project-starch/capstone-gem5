@@ -77,7 +77,7 @@ AtomicSimpleNCacheCPU::init()
 }
 
 AtomicSimpleNCacheCPU::AtomicSimpleNCacheCPU(const BaseAtomicSimpleNCacheCPUParams &p)
-    : BaseSimpleCPUWithNodePort(p),
+    : BaseSimpleCPUWithNodeController(p),
       tickEvent([this]{ tick(); }, "AtomicSimpleNCacheCPU tick",
                 false, Event::CPU_Tick_Pri),
       width(p.width), locked(false),
@@ -211,8 +211,8 @@ AtomicSimpleNCacheCPU::takeOverFrom(BaseCPU *old_cpu)
 {
     BaseSimpleCPU::takeOverFrom(old_cpu);
 
-    BaseSimpleCPUWithNodePort* old_cpu_with_node_port =
-        dynamic_cast<BaseSimpleCPUWithNodePort*>(old_cpu);
+    BaseSimpleCPUWithNodeController* old_cpu_with_node_port =
+        dynamic_cast<BaseSimpleCPUWithNodeController*>(old_cpu);
     if(old_cpu_with_node_port != NULL) {
         ncache_port.takeOverFrom(&old_cpu_with_node_port->getNodePort());
     } else {
@@ -703,104 +703,118 @@ AtomicSimpleNCacheCPU::tick()
                     dynamic_cast<RiscvStaticInst*>(curStaticInst.get());
                 panic_if(rv_inst == NULL, "non-RISC-V instructions unsupported!");
 
-                // load
-                if(curStaticInst->isLoad()) { // probably better remove
-                    preOverwriteDest(t_info, rv_inst);
-
-                    // check if the value to be loaded in would be a capability
-                    DPRINTF(CapstoneNodeOps, "load from %llx\n", rv_inst->getAddr(&t_info, traceData));
-                    CapLoc mem_loc = CapLoc::makeMem(rv_inst->getAddr(&t_info, traceData));
-                    NodeID node_id = node_controller->queryCapTrack(mem_loc);
-                    if(node_id != NODE_ID_INVALID) {
-                        // if yes, record the reg as a capability
-                        // TODO: strictly this should be done during wb
-                        panic_if(rv_inst->numDestRegs() != 1, "load instruction should have exactly 1 destination register");
-                        node_controller->addCapTrack(
-                                CapLoc::makeReg(t_info.thread->threadId(),
-                                    rv_inst->destRegIdx(0).index()),
-                                node_id);
-                        delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(node_id, 1));
-                    }
-                } else if(curStaticInst->isStore()) {
-                    // check for overwriting in-memory capability
-                    DPRINTF(CapstoneNodeOps, "store to %llx\n", rv_inst->getAddr(&t_info, traceData));
-                    CapLoc mem_loc = CapLoc::makeMem(rv_inst->getAddr(&t_info, traceData));
-                    NodeID mem_node = node_controller->queryCapTrack(mem_loc);
-                    if(mem_node != NODE_ID_INVALID) {
-                        // the capability at the memory location will be overwritten
-                        node_controller->removeCapTrack(mem_loc);
-                        delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(mem_node, -1));
-                    }
-
-                    // check for writing capability to memory
-                    panic_if(rv_inst->numSrcRegs() != 2, "store instructions should have exactly 2 source registers"); 
-                    RegId reg_id = rv_inst->srcRegIdx(1);
-                    if(reg_id.classValue() == RegClassType::IntRegClass){
-                        RegIndex reg_idx = reg_id.index();
-                        CapLoc reg_loc = CapLoc::makeReg(t_info.thread->threadId(), reg_idx);
-                        NodeID reg_node = node_controller->queryCapTrack(reg_loc);
-                        if(reg_node != NODE_ID_INVALID) {
-                            node_controller->addCapTrack(mem_loc, reg_node);
-                            delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(reg_node, 1));
-                        }
-                    }
-                }
-
-
-                fault = curStaticInst->execute(&t_info, traceData);
-
                 int num_src = curStaticInst->numSrcRegs();
                 int num_dest = curStaticInst->numDestRegs();
-                if(!curStaticInst->isSyscall()) {
-                    for(int j = 0; j < num_dest; j ++){
-                        const RegId& dest_id = curStaticInst->destRegIdx(j);
-                        if(dest_id.classValue() != RegClassType::IntRegClass)
-                            continue;
-                        RegIndex dest_idx = dest_id.index();
-                        RegVal dest_val = t_info.tcBase()->readIntReg(dest_idx);
-                        //RegVal dest_val = t_info.getRegOperand(curStaticInst.get(), j);
-                        std::optional<int> dest_obj = node_controller->lookupAddr((Addr)dest_val);
-                        if(!dest_obj)
-                            continue;
-                        DPRINTF(CapstoneNodeOps, "Consider dest reg %d (%d)\n", j, dest_idx);
-                        for(int i = 0; i < num_src; i ++){
-                            const RegId& src_id = curStaticInst->srcRegIdx(i);
-                            if(src_id.classValue() != RegClassType::IntRegClass)
-                                continue;
-                            RegIndex src_idx = src_id.index();
-                            // check whether it is a cap
-                            CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
-                            NodeID src_node = node_controller->queryCapTrack(src_loc);
-                            if(src_node == NODE_ID_INVALID)
-                                continue;
-                            RegVal src_val = t_info.getRegOperand(curStaticInst.get(), i);
-                            std::optional<int> src_obj = node_controller->lookupAddr((Addr)src_val);
-                            panic_if(!src_obj, "capabilities should always be associated with objects,"
-                                    " value = %llx, index = %u",
-                                    src_val, src_idx);
-                            if(dest_obj.value() != src_obj.value())
-                                continue;
-                            DPRINTF(CapstoneNodeOps, "Consider src reg %d (%d)\n", i, src_idx);
-                            // src and dest are in the same region and the source is a capability
-                            CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
-                            NodeID dest_node = node_controller->queryCapTrack(dest_loc);
-                            panic_if(dest_node != NODE_ID_INVALID,
-                                    "dest reg %u already associated with a node (syscall=%d) %llu, src-node = %llu", dest_idx,
-                                    curStaticInst->isSyscall(), dest_node, src_node);
-                            // TODO: decide between two options:
-                            // 1. allocate a new linear capability
-                            // 2. treat this as a non-linear capability
-                            // doing 2 for now
-                            DPRINTF(CapstoneNodeOps, "add cap track to (%u, %u)\n",
-                                    t_info.thread->threadId(),
-                                    dest_idx);
-                            node_controller->addCapTrack(dest_loc, src_node);
-                            delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(src_node, 1));
-                            break;
+
+                if(curStaticInst->isMemRef()) {
+                    capCheckAtomic(t_info, curStaticInst.get(), rv_inst->getAddr(&t_info, traceData));
+                    // load
+                    if(curStaticInst->isLoad()) { // probably better remove
+                        preOverwriteDest(t_info, rv_inst);
+
+                        // check if the value to be loaded in would be a capability
+                        DPRINTF(CapstoneNodeOps, "load from %llx\n", rv_inst->getAddr(&t_info, traceData));
+                        CapLoc mem_loc = CapLoc::makeMem(rv_inst->getAddr(&t_info, traceData));
+                        NodeID node_id = node_controller->queryCapTrack(mem_loc);
+                        if(node_id != NODE_ID_INVALID) {
+                            // if yes, record the reg as a capability
+                            // TODO: strictly this should be done during wb
+                            panic_if(rv_inst->numDestRegs() != 1, "load instruction should have exactly 1 destination register");
+                            node_controller->addCapTrack(
+                                    CapLoc::makeReg(t_info.thread->threadId(),
+                                        rv_inst->destRegIdx(0).index()),
+                                    node_id);
+                            delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(node_id, 1));
+                        }
+                    } else if(curStaticInst->isStore()) {
+                        // check for overwriting in-memory capability
+                        DPRINTF(CapstoneNodeOps, "store to %llx\n", rv_inst->getAddr(&t_info, traceData));
+                        CapLoc mem_loc = CapLoc::makeMem(rv_inst->getAddr(&t_info, traceData));
+                        NodeID mem_node = node_controller->queryCapTrack(mem_loc);
+                        if(mem_node != NODE_ID_INVALID) {
+                            // the capability at the memory location will be overwritten
+                            node_controller->removeCapTrack(mem_loc);
+                            delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(mem_node, -1));
+                        }
+
+                        // check for writing capability to memory
+                        panic_if(rv_inst->numSrcRegs() != 2, "store instructions should have exactly 2 source registers"); 
+                        RegId reg_id = rv_inst->srcRegIdx(1);
+                        if(reg_id.classValue() == RegClassType::IntRegClass){
+                            RegIndex reg_idx = reg_id.index();
+                            CapLoc reg_loc = CapLoc::makeReg(t_info.thread->threadId(), reg_idx);
+                            NodeID reg_node = node_controller->queryCapTrack(reg_loc);
+                            if(reg_node != NODE_ID_INVALID) {
+                                node_controller->addCapTrack(mem_loc, reg_node);
+                                delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(reg_node, 1));
+                            }
                         }
                     }
+                    
+                    fault = curStaticInst->execute(&t_info, traceData);
+                } else{
 
+                    if(curStaticInst->isSyscall()){
+                        overwriteIntReg(t_info.tcBase(), RiscvcapstoneISA::ReturnValueReg);
+                    } else {
+                        preOverwriteDest(t_info, curStaticInst.get());
+                    }
+
+                    fault = curStaticInst->execute(&t_info, traceData);
+
+                    if(!curStaticInst->isSyscall()) {
+                        for(int j = 0; j < num_dest; j ++){
+                            const RegId& dest_id = curStaticInst->destRegIdx(j);
+                            if(dest_id.classValue() != RegClassType::IntRegClass)
+                                continue;
+                            RegIndex dest_idx = dest_id.index();
+                            RegVal dest_val = t_info.tcBase()->readIntReg(dest_idx);
+                            //RegVal dest_val = t_info.getRegOperand(curStaticInst.get(), j);
+                            std::optional<SimpleAddrRange> dest_obj = node_controller->lookupAddr((Addr)dest_val);
+                            if(!dest_obj)
+                                continue;
+                            DPRINTF(CapstoneNodeOps, "Consider dest reg %d (%d)\n", j, dest_idx);
+                            for(int i = 0; i < num_src; i ++){
+                                const RegId& src_id = curStaticInst->srcRegIdx(i);
+                                if(src_id.classValue() != RegClassType::IntRegClass)
+                                    continue;
+                                RegIndex src_idx = src_id.index();
+                                // check whether it is a cap
+                                CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
+                                NodeID src_node = node_controller->queryCapTrack(src_loc);
+                                if(src_node == NODE_ID_INVALID)
+                                    continue;
+                                RegVal src_val = t_info.getRegOperand(curStaticInst.get(), i);
+                                if(!dest_obj.value().contains((Addr)src_val))
+                                    continue;
+                                //std::optional<int> src_obj = node_controller->lookupAddr((Addr)src_val);
+                                //panic_if(!src_obj, "capabilities should always be associated with objects,"
+                                //" value = %llx, index = %u",
+                                //src_val, src_idx);
+                                //if(dest_obj.value() != src_obj.value())
+                                //continue;
+                                DPRINTF(CapstoneNodeOps, "Consider src reg %d (%d)\n", i, src_idx);
+                                // src and dest are in the same region and the source is a capability
+                                CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
+                                NodeID dest_node = node_controller->queryCapTrack(dest_loc);
+                                panic_if(dest_node != NODE_ID_INVALID,
+                                        "dest reg %u already associated with a node (syscall=%d) %llu, src-node = %llu", dest_idx,
+                                        curStaticInst->isSyscall(), dest_node, src_node);
+                                // TODO: decide between two options:
+                                // 1. allocate a new linear capability
+                                // 2. treat this as a non-linear capability
+                                // doing 2 for now
+                                DPRINTF(CapstoneNodeOps, "add cap track to (%u, %u)\n",
+                                        t_info.thread->threadId(),
+                                        dest_idx);
+                                node_controller->addCapTrack(dest_loc, src_node);
+                                delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(src_node, 1));
+                                break;
+                            }
+                        }
+                    }
                 }
+
 
                 InstStateMachinePtr sm = rv_inst->getStateMachine(&t_info);
                 sm->atomicExec(&t_info);
@@ -929,6 +943,42 @@ AtomicSimpleNCacheCPU::preOverwriteDest(SimpleExecContext& t_info, StaticInst* i
         delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(node_id, -1));
         node_id = node_controller->queryCapTrack(loc);
         panic_if(node_id != NODE_ID_INVALID, "erase failed");
+    }
+}
+
+void
+AtomicSimpleNCacheCPU::overwriteIntReg(ThreadContext* tc, int reg_idx) {
+    CapLoc loc = CapLoc::makeReg(tc->threadId(), reg_idx);
+    NodeID node_id = node_controller->queryCapTrack(loc);
+    if(node_id != NODE_ID_INVALID) {
+        node_controller->removeCapTrack(loc);
+        delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(node_id, -1));
+    }
+}
+
+void
+AtomicSimpleNCacheCPU::capCheckAtomic(SimpleExecContext& t_info,
+        StaticInst* inst, Addr addr) {
+    DPRINTF(CapstoneNodeOps, "To issue cap check 0x%llx\n", addr);
+    std::optional<SimpleAddrRange> target_obj_idx = node_controller->lookupAddr(addr);
+    if(!target_obj_idx)
+        return;
+    int num_src = inst->numSrcRegs();
+    for(int i = 0; i < num_src; i ++){
+        const RegId& src_id = inst->srcRegIdx(i);
+        if(src_id.classValue() != RegClassType::IntRegClass)
+            continue;
+        RegIndex src_idx = src_id.index();
+        RegVal src_val = t_info.getRegOperand(inst, i);
+        if(!target_obj_idx.value().contains((Addr)src_val))
+            continue;
+        NodeID node_id = node_controller->queryCapTrack(
+                CapLoc::makeReg(t_info.tcBase()->threadId(), src_idx));
+        if(node_id == NODE_ID_INVALID)
+            continue;
+        DPRINTF(CapstoneNodeOps, "Issued cap check %u\n", node_id);
+        delete sendNCacheCommandAtomic(new NodeControllerQuery(node_id));
+        break;
     }
 }
 

@@ -52,7 +52,7 @@
 namespace gem5::RiscvcapstoneISA
 {
 
-class AtomicSimpleNCacheCPU : public BaseSimpleCPUWithNodePort
+class AtomicSimpleNCacheCPU : public BaseSimpleCPUWithNodeController
 {
   public:
 
@@ -177,6 +177,9 @@ class AtomicSimpleNCacheCPU : public BaseSimpleCPUWithNodePort
     ProbePointArg<std::pair<SimpleThread *, const StaticInstPtr>> *ppCommit;
     void preOverwriteDest(SimpleExecContext& t_info,
             StaticInst* inst);
+    void overwriteIntReg(ThreadContext* tc, int reg_idx);
+    void capCheckAtomic(SimpleExecContext& t_info,
+                StaticInst* inst, Addr addr);
 
   protected:
 
@@ -264,6 +267,7 @@ class AtomicSimpleNCacheCPU : public BaseSimpleCPUWithNodePort
     void printAddr(Addr a);
 
     Port &getNodePort() override { return ncache_port; }
+    NodeController* getNodeController() override { return node_controller; }
 
     PacketPtr sendNCacheCommandAtomic(NodeControllerCommand* cmd);
 };
