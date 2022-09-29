@@ -34,6 +34,7 @@
 
 #include "arch/riscvcapstone/pcstate.hh"
 #include "arch/riscvcapstone/types.hh"
+#include "base/types.hh"
 #include "cpu/exec_context.hh"
 #include "cpu/static_inst.hh"
 #include "cpu/thread_context.hh"
@@ -49,6 +50,7 @@ struct InstStateMachine {
     virtual void setup(ExecContext* xc) = 0;
     virtual bool finished(ExecContext* xc) const = 0;
     virtual Fault transit(ExecContext* xc, PacketPtr pkt) = 0;
+    virtual Tick atomicExec(ExecContext* xc) = 0;
 };
 
 
@@ -61,6 +63,10 @@ struct DummyInstStateMachine : InstStateMachine {
     
     Fault transit(ExecContext* xc, PacketPtr pkt) override {
         return NoFault;
+    }
+
+    Tick atomicExec(ExecContext* xc) override {
+        return 0;
     }
 };
 

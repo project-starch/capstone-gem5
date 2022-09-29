@@ -38,6 +38,7 @@
 #include "arch/riscvcapstone/utility.hh"
 #include "arch/riscvcapstone/node_controller.hh"
 #include "arch/riscvcapstone/ncache_cpu.hh"
+#include "arch/riscvcapstone/atomic_ncache_cpu.hh"
 #include "cpu/exec_context.hh"
 #include "cpu/simple/exec_context.hh"
 #include "cpu/static_inst.hh"
@@ -185,6 +186,41 @@ FreeStateMachine::transit(ExecContext* xc, PacketPtr pkt) {
     return NoFault;
 }
 
+Tick
+MallocStateMachine::atomicExec(ExecContext* xc) {
+    AtomicSimpleNCacheCPU* cpu = 
+        dynamic_cast<AtomicSimpleNCacheCPU*>(xc->tcBase()->getCpuPtr());
+    panic_if(cpu == NULL, "only atomic ncache cpu supports atomic execution");
+
+    PacketPtr pkt = cpu->sendNCacheCommandAtomic(
+            new NodeControllerAllocate(NODE_ID_INVALID));
+    NodeID node_id = pkt->getRaw<NodeID>();
+    cpu->node_controller->addCapTrack(
+            CapLoc::makeReg(xc->tcBase()->threadId(), ReturnValueReg), 
+            node_id);
+    delete pkt;
+
+    return 0;
+}
+
+Tick
+FreeStateMachine::atomicExec(ExecContext* xc) {
+    AtomicSimpleNCacheCPU* cpu = 
+        dynamic_cast<AtomicSimpleNCacheCPU*>(xc->tcBase()->getCpuPtr());
+    panic_if(cpu == NULL, "only atomic ncache cpu supports atomic execution");
+
+    NodeID node_id = cpu->node_controller->queryCapTrack(loc);
+    if(node_id == NODE_ID_INVALID) {
+        DPRINTF(CapstoneNodeOps, "warning: no node associated with the location to free\n");
+        return 0;
+    }
+
+    PacketPtr pkt = cpu->sendNCacheCommandAtomic(
+            new NodeControllerRevoke(node_id));
+    delete pkt;
+
+    return 0;
+}
 
 
 } // namespace RiscvcapstoneISA

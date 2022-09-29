@@ -175,6 +175,8 @@ class AtomicSimpleNCacheCPU : public BaseSimpleCPUWithNodePort
 
     /** Probe Points. */
     ProbePointArg<std::pair<SimpleThread *, const StaticInstPtr>> *ppCommit;
+    void preOverwriteDest(SimpleExecContext& t_info,
+            StaticInst* inst);
 
   protected:
 
@@ -263,6 +265,7 @@ class AtomicSimpleNCacheCPU : public BaseSimpleCPUWithNodePort
 
     Port &getNodePort() override { return ncache_port; }
 
+    PacketPtr sendNCacheCommandAtomic(NodeControllerCommand* cmd);
 };
 
 } // namespace gem5::RiscvcapstoneISA
