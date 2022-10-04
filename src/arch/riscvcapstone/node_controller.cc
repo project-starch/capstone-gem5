@@ -474,6 +474,7 @@ NodeController::nodeId2Addr(NodeID node_id) {
 void
 NodeController::MemSidePort::trySendReq(PacketPtr pkt) {
     assert(retryPkt == NULL);
+    assert(pkt->isRead() || pkt->isWrite());
     if(!sendTimingReq(pkt)) {
         retryPkt = pkt;
     }

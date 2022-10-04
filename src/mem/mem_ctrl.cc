@@ -408,7 +408,8 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
              "is responding");
 
     panic_if(!(pkt->isRead() || pkt->isWrite()),
-             "Should only see read and writes at memory controller\n");
+             "Should only see read and writes at memory controller (%s), actual is %s\n",
+             name(), pkt->cmd.toString().c_str());
 
     // Calc avg gap between requests
     if (prevArrival != 0) {

@@ -20,8 +20,14 @@ class L1ICache(L1Cache):
 class L1DCache(L1Cache):
     size = '64kB'
 
-class NCache(L1Cache):
+class NCache(NoncoherentCache):
     size = '8kB'
+    assoc = 2
+    tag_latency = 2
+    data_latency = 2
+    response_latency = 2
+    mshrs = 4
+    tgts_per_mshr = 20
 
 class L2Cache(Cache):
     size = '256kB'
