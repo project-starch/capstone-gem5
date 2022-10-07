@@ -14,7 +14,8 @@
 #include "arch/riscvcapstone/cap_track.hh"
 #include "base/statistics.hh"
 
-#define CAPSTONE_NODE_BASE_ADDR 0x100000000000ULL
+//#define CAPSTONE_NODE_BASE_ADDR 0x100000000000ULL
+#define CAPSTONE_NODE_BASE_ADDR 0x7d0000000ULL
 #define CAPSTONE_NODE_N (1<<22)
 
 // size of each revocation nodes (in bits)

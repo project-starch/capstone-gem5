@@ -468,7 +468,7 @@ NodeController::MemSidePort::MemSidePort(NodeController* owner) :
 
 Addr
 NodeController::nodeId2Addr(NodeID node_id) {
-    return (Addr)(CAPSTONE_NODE_BASE_ADDR | ((Addr)node_id * (sizeof(Node))));
+    return (Addr)(CAPSTONE_NODE_BASE_ADDR + ((Addr)node_id * (sizeof(Node))));
 }
 
 void

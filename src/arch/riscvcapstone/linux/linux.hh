@@ -85,29 +85,29 @@ class RiscvLinux64 : public RiscvLinux, public OpenFlagTable<RiscvLinux64>
 
     //@{
     /// open(2) flag values.
-    static constexpr int TGT_O_RDONLY       = 0x000000; //!< O_RDONLY
-    static constexpr int TGT_O_WRONLY       = 0x000001; //!< O_WRONLY
-    static constexpr int TGT_O_RDWR         = 0x000002; //!< O_RDWR
-    static constexpr int TGT_O_CREAT        = 0x000040; //!< O_CREAT
-    static constexpr int TGT_O_EXCL         = 0x000080; //!< O_EXCL
-    static constexpr int TGT_O_NOCTTY       = 0x000100; //!< O_NOCTTY
-    static constexpr int TGT_O_TRUNC        = 0x000200; //!< O_TRUNC
-    static constexpr int TGT_O_APPEND       = 0x000400; //!< O_APPEND
-    static constexpr int TGT_O_NONBLOCK     = 0x000800; //!< O_NONBLOCK
-    static constexpr int TGT_O_SYNC         = 0x001000; //!< O_SYNC
+    static constexpr int TGT_O_RDONLY       = 00000000; //!< O_RDONLY
+    static constexpr int TGT_O_WRONLY       = 00000001; //!< O_WRONLY
+    static constexpr int TGT_O_RDWR         = 00000002; //!< O_RDWR
+    static constexpr int TGT_O_CREAT        = 00000100; //!< O_CREAT
+    static constexpr int TGT_O_EXCL         = 00000200; //!< O_EXCL
+    static constexpr int TGT_O_NOCTTY       = 00000400; //!< O_NOCTTY
+    static constexpr int TGT_O_TRUNC        = 00001000; //!< O_TRUNC
+    static constexpr int TGT_O_APPEND       = 00002000; //!< O_APPEND
+    static constexpr int TGT_O_NONBLOCK     = 00004000; //!< O_NONBLOCK
+    static constexpr int TGT_O_SYNC         = 04010000; //!< O_SYNC
     static constexpr int TGT_FSYNC          = 0x001000; //!< FSYNC
-    static constexpr int TGT_FASYNC         = 0x008000; //!< FASYNC
+    static constexpr int TGT_FASYNC         = 00020000; //!< FASYNC
     // The following are not present in riscv64-unknown-elf <fcntl.h>
-    static constexpr int TGT_O_DSYNC        = 0x010000; //!< O_DSYNC
-    static constexpr int TGT_O_CLOEXEC      = 0x040000; //!< O_CLOEXEC
+    static constexpr int TGT_O_DSYNC        = 00010000; //!< O_DSYNC
+    static constexpr int TGT_O_CLOEXEC      = 02000000; //!< O_CLOEXEC
     static constexpr int TGT_O_NOINHERIT    = 0x040000; //!< O_NOINHERIT
-    static constexpr int TGT_O_DIRECT       = 0x080000; //!< O_DIRECT
-    static constexpr int TGT_O_NOFOLLOW     = 0x100000; //!< O_NOFOLLOW
-    static constexpr int TGT_O_DIRECTORY    = 0x200000; //!< O_DIRECTORY
+    static constexpr int TGT_O_DIRECT       = 00040000; //!< O_DIRECT
+    static constexpr int TGT_O_NOFOLLOW     = 00400000; //!< O_NOFOLLOW
+    static constexpr int TGT_O_DIRECTORY    = 00200000; //!< O_DIRECTORY
     // The following are not defined by riscv64-unknown-elf
-    static constexpr int TGT_O_LARGEFILE    = 0x020000; //!< O_LARGEFILE
-    static constexpr int TGT_O_NOATIME      = 0x800000; //!< O_NOATIME
-    static constexpr int TGT_O_PATH         = 0x400000; //!< O_PATH
+    static constexpr int TGT_O_LARGEFILE    = 00100000; //!< O_LARGEFILE
+    static constexpr int TGT_O_NOATIME      = 01000000; //!< O_NOATIME
+    static constexpr int TGT_O_PATH         = 010000000; //!< O_PATH
     //@}
 
     // Only defined in riscv-unknown-elf for proxy kernel and not linux kernel

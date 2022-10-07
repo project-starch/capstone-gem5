@@ -251,6 +251,13 @@ startswith(const std::string &s, const std::string &prefix)
     return (s.compare(0, prefix.size(), prefix) == 0);
 }
 
+
+inline bool
+endswith(const std::string &s, const std::string &suffix) {
+    return s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
 } // namespace gem5
+
 
 #endif //__BASE_STR_HH__

@@ -762,6 +762,7 @@ SyscallReturn
 openatFunc(SyscallDesc *desc, ThreadContext *tc,
            int tgt_dirfd, VPtr<> pathname, int tgt_flags, int mode)
 {
+    DPRINTF_SYSCALL(Verbose, "openat tgt_flags = %x\n", tgt_flags);
     auto p = tc->getProcessPtr();
 
     /**
@@ -818,6 +819,8 @@ openatFunc(SyscallDesc *desc, ThreadContext *tc,
         abs_path = ffdp->getFileName() + path;
         redir_path = p->checkPathRedirect(abs_path);
     }
+
+    DPRINTF_SYSCALL(Verbose, "abs_path = %s, redir_path = %s, tgt_dirfd = %d, mode = %x, tgt_flags = %x, host_flags = %x\n", abs_path.c_str(), redir_path.c_str(), tgt_dirfd, mode, tgt_flags, host_flags);
 
     /**
      * Since this is an emulated environment, we create pseudo file
@@ -878,6 +881,8 @@ openatFunc(SyscallDesc *desc, ThreadContext *tc,
     }
     if (sim_fd == -1) {
         sim_fd = open(redir_path.c_str(), host_flags, mode);
+        DPRINTF_SYSCALL(Verbose, "Open %s with flags %x and mode %x; returned %d\n",
+                redir_path.c_str(), host_flags, mode, sim_fd);
         used_path = redir_path;
     }
     if (sim_fd == -1) {
