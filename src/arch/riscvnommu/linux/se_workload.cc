@@ -33,6 +33,7 @@
 #include <sys/syscall.h>
 
 #include "arch/riscvnommu/process.hh"
+#include "arch/riscvnommu/linux/syscall_emul.hh"
 #include "base/loader/object_file.hh"
 #include "base/trace.hh"
 #include "cpu/thread_context.hh"
@@ -459,7 +460,10 @@ SyscallDescTable<SEWorkload::SyscallABI> EmuLinux::syscallDescs64 = {
     { 1077, "uselib" },
     { 1078, "sysctl" },
     { 1079, "fork" },
-    { 2011, "getmainvars" }
+    { 2011, "getmainvars" },
+    // for Capstone benchmarking
+    { 3000, "notifymalloc", gem5::RiscvnommuISA::notifymallocFunc },
+    { 3001, "notifyfree", gem5::RiscvnommuISA::notifyfreeFunc }
 };
 
 SyscallDescTable<SEWorkload::SyscallABI> EmuLinux::syscallDescs32 = {
@@ -798,7 +802,10 @@ SyscallDescTable<SEWorkload::SyscallABI> EmuLinux::syscallDescs32 = {
     { 1077, "uselib" },
     { 1078, "sysctl" },
     { 1079, "fork" },
-    { 2011, "getmainvars" }
+    { 2011, "getmainvars" },
+    // for Capstone benchmarking
+    { 3000, "notifymalloc", gem5::RiscvnommuISA::notifymallocFunc },
+    { 3001, "notifyfree", gem5::RiscvnommuISA::notifyfreeFunc }
 };
 
 } // namespace RiscvnommuISA

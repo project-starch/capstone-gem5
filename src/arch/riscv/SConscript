@@ -57,6 +57,7 @@ Source('tlb.cc', tags='riscv isa')
 
 Source('linux/se_workload.cc', tags='riscv isa')
 Source('linux/fs_workload.cc', tags='riscv isa')
+Source('linux/syscall_emul.cc', tags='riscv isa')
 
 Source('bare_metal/fs_workload.cc', tags='riscv isa')
 
