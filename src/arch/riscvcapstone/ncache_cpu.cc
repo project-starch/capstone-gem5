@@ -375,7 +375,7 @@ TimingSimpleNCacheCPU::sendNCacheCommand(NodeControllerCommand* cmd) {
     //ncache_req->setPaddr(addr);
     //assert(ncache_req->hasPaddr() && !ncache_req->hasSize());
     PacketPtr ncache_pkt = Packet::createRead(ncache_req);
-    ncache_pkt->dataDynamic<NodeControllerCommand>(cmd);
+    ncache_pkt->dataStatic<NodeControllerCommand>(cmd);
 
     if(ncache_port.sendTimingReq(ncache_pkt)) {
         DPRINTF(CapstoneNCache, "NCache packet sent\n");

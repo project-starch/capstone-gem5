@@ -32,9 +32,16 @@ const NodeID NODE_ID_INVALID = (NodeID)(-1ULL & ((1ULL << 31) - 1));
  * base class for all commands to node controller
  * */
 struct NodeControllerCommand {
+    typedef enum {
+        ALLOCATE,
+        QUERY,
+        RC_UPDATE,
+        REVOKE
+    } Type;
     virtual void setup(NodeController& controller, PacketPtr pkt) = 0;
     virtual bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) = 0;
     virtual Tick handleAtomic(NodeController& controller, PacketPtr pkt) = 0;
+    virtual Type getType() const = 0;
 };
 
 struct NodeControllerQuery : NodeControllerCommand {
@@ -44,6 +51,7 @@ struct NodeControllerQuery : NodeControllerCommand {
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
     Tick handleAtomic(NodeController& controller, PacketPtr pkt) override;
+    Type getType() const override;
 };
 
 
@@ -54,6 +62,7 @@ struct NodeControllerRevoke : NodeControllerCommand {
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
     Tick handleAtomic(NodeController& controller, PacketPtr pkt) override;
+    Type getType() const override;
     private:
         enum {
             NCRevoke_LOAD_ROOT,
@@ -75,6 +84,7 @@ struct NodeControllerRcUpdate : NodeControllerCommand {
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
     Tick handleAtomic(NodeController& controller, PacketPtr pkt) override;
+    Type getType() const override;
     private:
         enum {
             NCRcUpdate_LOAD,
@@ -89,6 +99,7 @@ struct NodeControllerAllocate : NodeControllerCommand {
     void setup(NodeController& controller, PacketPtr pkt) override;
     bool transit(NodeController& controller, PacketPtr current_pkt, PacketPtr pkt) override;
     Tick handleAtomic(NodeController& controller, PacketPtr pkt) override;
+    Type getType() const override;
     private:
         enum { 
             NCAllocate_LOAD,
@@ -188,12 +199,56 @@ class NodeController : public ClockedObject {
                 ADD_STAT(timingReqCount, "Number of timing requests received"),
                 ADD_STAT(atomicReqCount, "Number of atomic requests received"),
                 ADD_STAT(totReqCount, "Total number of requests received",
-                        timingReqCount + atomicReqCount) {}
+                        timingReqCount + atomicReqCount),
+                ADD_STAT(allocateCount, "Number of node allocations"),
+                ADD_STAT(queryCount, "Number of node queries"),
+                ADD_STAT(revokeCount, "Number of node revocations"),
+                ADD_STAT(rcUpdateCount, "Number of node rc updates"),
+                ADD_STAT(allocatePacketStoreCount, "Number of store packets for node allocations"),
+                ADD_STAT(queryPacketStoreCount, "Number of store packets for node queries"),
+                ADD_STAT(revokePacketStoreCount, "Number of store packets for node revocations"),
+                ADD_STAT(rcUpdatePacketStoreCount, "Number of store packets for node rc updates"),
+                ADD_STAT(allocatePacketLoadCount, "Number of load packets for node allocations"),
+                ADD_STAT(queryPacketLoadCount, "Number of load packets for node queries"),
+                ADD_STAT(revokePacketLoadCount, "Number of load packets for node revocations"),
+                ADD_STAT(rcUpdatePacketLoadCount, "Number of load packets for node rc updates"),
+                ADD_STAT(allocatePacketCount, "Number of all packets for node allocations",
+                        allocatePacketStoreCount + allocatePacketLoadCount),
+                ADD_STAT(queryPacketCount, "Number of all packets for node queries",
+                        queryPacketStoreCount + queryPacketLoadCount),
+                ADD_STAT(revokePacketCount, "Number of all packets for node revocations",
+                        revokePacketStoreCount + revokePacketLoadCount),
+                ADD_STAT(rcUpdatePacketCount, "Number of all packets for node rc updates",
+                        rcUpdatePacketStoreCount + rcUpdatePacketLoadCount)
+                    {}
 
+            // overall request statistics
             statistics::Scalar timingReqCount;
             statistics::Scalar atomicReqCount;
             statistics::Formula totReqCount;
+            
+            // constituent requests
+            statistics::Scalar allocateCount;
+            statistics::Scalar queryCount;
+            statistics::Scalar revokeCount;
+            statistics::Scalar rcUpdateCount;
+
+            // packet counts for each request type
+            statistics::Scalar allocatePacketStoreCount;
+            statistics::Scalar queryPacketStoreCount;
+            statistics::Scalar revokePacketStoreCount;
+            statistics::Scalar rcUpdatePacketStoreCount;
+            statistics::Scalar allocatePacketLoadCount;
+            statistics::Scalar queryPacketLoadCount;
+            statistics::Scalar revokePacketLoadCount;
+            statistics::Scalar rcUpdatePacketLoadCount;
+
+            statistics::Formula allocatePacketCount;
+            statistics::Formula queryPacketCount;
+            statistics::Formula revokePacketCount;
+            statistics::Formula rcUpdatePacketCount;
         };
+
 
         NodeControllerStats stats;
 
@@ -211,6 +266,7 @@ class NodeController : public ClockedObject {
 
 
         void sendPacketToMem(PacketPtr pkt, bool atomic);
+        void handleCommon(NodeControllerCommandPtr cmd);
 
     public:
         NodeController(const NodeControllerParams& p);
@@ -232,17 +288,19 @@ class NodeController : public ClockedObject {
 
         void init() override;
 
-        PacketPtr sendLoad(NodeID node_id, bool atomic = false);
-        PacketPtr sendStore(NodeID node_id, const Node& node, bool atomic = false);
+        PacketPtr sendLoad(NodeControllerCommandPtr cmd, NodeID node_id, 
+                bool atomic = false);
+        PacketPtr sendStore(NodeControllerCommandPtr cmd, NodeID node_id,
+                const Node& node, bool atomic = false);
 
-        void atomicLoadNode(NodeID node_id, Node* node) {
-            PacketPtr pkt = sendLoad(node_id, true);
+        void atomicLoadNode(NodeControllerCommandPtr cmd, NodeID node_id, Node* node) {
+            PacketPtr pkt = sendLoad(cmd, node_id, true);
             memcpy(node, pkt->getPtr<void>(), sizeof(Node));
             delete pkt;
         }
 
-        void atomicStoreNode(NodeID node_id, const Node* node) {
-            PacketPtr pkt = sendStore(node_id, *node, true);
+        void atomicStoreNode(NodeControllerCommandPtr cmd, NodeID node_id, const Node* node) {
+            PacketPtr pkt = sendStore(cmd, node_id, *node, true);
             delete pkt;
         }
 

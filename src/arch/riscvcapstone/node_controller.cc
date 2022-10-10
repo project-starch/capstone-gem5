@@ -69,7 +69,23 @@ NodeController::sendPacketToMem(PacketPtr pkt, bool atomic) {
 }
 
 PacketPtr
-NodeController::sendLoad(NodeID node_id, bool atomic) {
+NodeController::sendLoad(NodeControllerCommandPtr cmd, NodeID node_id, bool atomic) {
+    switch(cmd->getType()) {
+        case NodeControllerCommand::Type::ALLOCATE:
+            ++ stats.allocatePacketLoadCount;
+            break;
+        case NodeControllerCommand::Type::REVOKE:
+            ++ stats.revokePacketLoadCount;
+            break;
+        case NodeControllerCommand::Type::RC_UPDATE:
+            ++ stats.rcUpdatePacketLoadCount;
+            break;
+        case NodeControllerCommand::Type::QUERY:
+            ++ stats.queryPacketLoadCount;
+            break;
+        default:;
+    }
+
     Addr addr = nodeId2Addr(node_id);
     DPRINTF(CapstoneNodeOps, "send load %lx\n", addr);
     RequestPtr req = std::make_shared<Request>();
@@ -84,8 +100,24 @@ NodeController::sendLoad(NodeID node_id, bool atomic) {
 }
 
 PacketPtr
-NodeController::sendStore(NodeID node_id, const Node& node, 
+NodeController::sendStore(NodeControllerCommandPtr cmd, NodeID node_id, const Node& node, 
         bool atomic) {
+    switch(cmd->getType()) {
+        case NodeControllerCommand::Type::ALLOCATE:
+            ++ stats.allocatePacketStoreCount;
+            break;
+        case NodeControllerCommand::Type::REVOKE:
+            ++ stats.revokePacketStoreCount;
+            break;
+        case NodeControllerCommand::Type::RC_UPDATE:
+            ++ stats.rcUpdatePacketStoreCount;
+            break;
+        case NodeControllerCommand::Type::QUERY:
+            ++ stats.queryPacketStoreCount;
+            break;
+        default:;
+    }
+
     Addr addr = nodeId2Addr(node_id);
     DPRINTF(CapstoneNodeOps, "send store %lx\n", addr);
     RequestPtr req = std::make_shared<Request>();
@@ -123,26 +155,26 @@ NodeControllerAllocate::transit(NodeController& controller, PacketPtr current_pk
             node.next = toAllocate;
 
             state = NCAllocate_STORE_PARENT;
-            controller.sendStore(parentId, node);
+            controller.sendStore(this, parentId, node);
             return false;
         case NCAllocate_STORE_PARENT:
             if(nextNodeId == NODE_ID_INVALID) {
                 state = NCAllocate_LOAD;
-                controller.sendLoad(toAllocate);
+                controller.sendLoad(this, toAllocate);
             } else{
                 state = NCAllocate_LOAD_RIGHT;
-                controller.sendLoad(nextNodeId);
+                controller.sendLoad(this, nextNodeId);
             }
             return false;
         case NCAllocate_LOAD_RIGHT:
             node = pkt->getRaw<Node>();
             node.prev = toAllocate;
             state = NCAllocate_STORE_RIGHT;
-            controller.sendStore(nextNodeId, node);
+            controller.sendStore(this, nextNodeId, node);
             return false;
         case NCAllocate_STORE_RIGHT:
             state = NCAllocate_LOAD;
-            controller.sendLoad(toAllocate);
+            controller.sendLoad(this, toAllocate);
             return false;
         case NCAllocate_LOAD:
             node = pkt->getRaw<Node>(); // free node
@@ -155,7 +187,7 @@ NodeControllerAllocate::transit(NodeController& controller, PacketPtr current_pk
             node.state = 1;
             node.counter = 1;
             node.depth = parentDepth + 1;
-            controller.sendStore(toAllocate, node);
+            controller.sendStore(this, toAllocate, node);
 
             state = NCAllocate_STORE;
             
@@ -186,7 +218,7 @@ NodeControllerQuery::handleAtomic(NodeController& controller, PacketPtr pkt) {
     pkt->setSize(sizeof(Node));
     pkt->allocate();
     pkt->makeResponse();
-    controller.atomicLoadNode(nodeId, pkt->getPtr<Node>());
+    controller.atomicLoadNode(this, nodeId, pkt->getPtr<Node>());
     
     return 0;
 }
@@ -195,7 +227,7 @@ NodeControllerQuery::handleAtomic(NodeController& controller, PacketPtr pkt) {
 Tick
 NodeControllerRevoke::handleAtomic(NodeController& controller, PacketPtr pkt) {
     Node node;
-    controller.atomicLoadNode(nodeId, &node);
+    controller.atomicLoadNode(this, nodeId, &node);
     rootDepth = node.depth;
     curNodeId = node.next;
     prevNodeId = node.prev;
@@ -203,29 +235,29 @@ NodeControllerRevoke::handleAtomic(NodeController& controller, PacketPtr pkt) {
     if(node.counter == 0) {
         controller.freeNode(node, nodeId);
     }
-    controller.atomicStoreNode(nodeId, &node);
+    controller.atomicStoreNode(this, nodeId, &node);
     while(curNodeId != NODE_ID_INVALID) {
-        controller.atomicLoadNode(curNodeId, &node);
+        controller.atomicLoadNode(this, curNodeId, &node);
         if(node.depth > rootDepth) {
             node.state = 0;
             NodeID next = node.next;
             if(node.counter == 0){
                 controller.freeNode(node, curNodeId);
             }
-            controller.atomicStoreNode(curNodeId, &node);
+            controller.atomicStoreNode(this, curNodeId, &node);
             curNodeId = next;
         } else{
             node.prev = prevNodeId; 
-            controller.atomicStoreNode(curNodeId, &node);
+            controller.atomicStoreNode(this, curNodeId, &node);
             break;
         }
     }
     if(prevNodeId == NODE_ID_INVALID) {
         controller.tree_root = curNodeId;
     } else {
-        controller.atomicLoadNode(prevNodeId, &node);
+        controller.atomicLoadNode(this, prevNodeId, &node);
         node.next = curNodeId;
-        controller.atomicStoreNode(prevNodeId, &node);
+        controller.atomicStoreNode(this, prevNodeId, &node);
     }
 
     pkt->deleteData();
@@ -240,12 +272,12 @@ NodeControllerRcUpdate::handleAtomic(NodeController& controller, PacketPtr pkt) 
     panic_if(delta == 0, "node controller does not allow rc updating with delta = 0 (atomic)");
 
     Node node;
-    controller.atomicLoadNode(nodeId, &node);
+    controller.atomicLoadNode(this, nodeId, &node);
     node.counter += delta;
     if(node.counter == 0 && node.state == 0) { // now I can free this node
         controller.freeNode(node, nodeId);
     }
-    controller.atomicStoreNode(nodeId, &node);
+    controller.atomicStoreNode(this, nodeId, &node);
     
     pkt->deleteData();
     pkt->makeResponse();
@@ -270,20 +302,20 @@ NodeControllerAllocate::handleAtomic(NodeController& controller, PacketPtr pkt) 
         nextNodeId = controller.tree_root;
         parentDepth = 0;
     } else{
-        controller.atomicLoadNode(parentId, &node);
+        controller.atomicLoadNode(this, parentId, &node);
         nextNodeId = node.next;
         parentDepth = node.depth;
         node.next = toAllocate;
-        controller.atomicStoreNode(parentId, &node);
+        controller.atomicStoreNode(this, parentId, &node);
     }
 
     if(nextNodeId != NODE_ID_INVALID) {
-        controller.atomicLoadNode(nextNodeId, &node);
+        controller.atomicLoadNode(this, nextNodeId, &node);
         node.prev = toAllocate;
-        controller.atomicStoreNode(nextNodeId, &node);
+        controller.atomicStoreNode(this, nextNodeId, &node);
     }
 
-    controller.atomicLoadNode(toAllocate, &node);
+    controller.atomicLoadNode(this, toAllocate, &node);
     nextFreeNodeId = node.next;
     node.prev = parentId;
     node.next = nextNodeId;
@@ -293,7 +325,7 @@ NodeControllerAllocate::handleAtomic(NodeController& controller, PacketPtr pkt) 
     if(parentId == NODE_ID_INVALID) {
         controller.tree_root = toAllocate;
     }
-    controller.atomicStoreNode(toAllocate, &node);
+    controller.atomicStoreNode(this, toAllocate, &node);
     
     if(fromFreeList) {
         controller.free_head = nextFreeNodeId;
@@ -325,7 +357,7 @@ NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt,
                 // the node can be immediately freed
                 controller.freeNode(node, nodeId);
             }
-            controller.sendStore(nodeId, node);
+            controller.sendStore(this, nodeId, node);
 
             state = NCRevoke_STORE;
 
@@ -341,7 +373,7 @@ NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt,
                     // immediately frees the node
                     controller.freeNode(node, old_node_id);
                 }
-                controller.sendStore(old_node_id, node);
+                controller.sendStore(this, old_node_id, node);
 
                 state = NCRevoke_STORE;
             } else{
@@ -349,7 +381,7 @@ NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt,
                 // current node is the right node
                 // need to update its prevNodeId
                 node.prev = prevNodeId;
-                controller.sendStore(curNodeId, node);
+                controller.sendStore(this, curNodeId, node);
                 state = NCRevoke_STORE_RIGHT;
             }
             return false;
@@ -360,13 +392,13 @@ NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt,
                 current_pkt->deleteData();
                 return true;
             }
-            controller.sendLoad(prevNodeId);
+            controller.sendLoad(this, prevNodeId);
             state = NCRevoke_LOAD_LEFT;
             return false;
         case NCRevoke_LOAD_LEFT:
             node = pkt->getRaw<Node>();
             node.next = curNodeId;
-            controller.sendStore(prevNodeId, node);
+            controller.sendStore(this, prevNodeId, node);
             state = NCRevoke_STORE_LEFT;
             return false;
         case NCRevoke_STORE_LEFT:
@@ -383,10 +415,10 @@ NodeControllerRevoke::transit(NodeController& controller, PacketPtr current_pkt,
                     return true;
                 }
                 // need to change prev->next
-                controller.sendLoad(prevNodeId);
+                controller.sendLoad(this, prevNodeId);
                 state = NCRevoke_LOAD_LEFT;
             } else{
-                controller.sendLoad(curNodeId);
+                controller.sendLoad(this, curNodeId);
                 state = NCRevoke_LOAD;
             }
             return false;
@@ -408,14 +440,14 @@ NodeControllerRcUpdate::transit(NodeController& controller, PacketPtr current_pk
             if(node.counter == 0 && node.state == 0) {
                 // add node to free list
                 controller.freeNode(node, nodeId);
-                controller.sendStore(nodeId, node);
+                controller.sendStore(this, nodeId, node);
 
                 // note that we do not need to do anything 
                 // with prev and next because they are invalid notes
 
                 state = NCRcUpdate_STORE;
             } else{
-                controller.sendStore(nodeId, node);
+                controller.sendStore(this, nodeId, node);
 
                 state = NCRcUpdate_STORE;
             }
@@ -445,6 +477,8 @@ NodeController::handleResp(PacketPtr pkt) {
     if(finish) {
         pkt = currentPkt;
         currentPkt = NULL;
+
+        delete cmd;
 
         cpu_side.trySendResp(pkt);
     }
@@ -491,7 +525,7 @@ void
 NodeControllerQuery::setup(NodeController& controller, PacketPtr pkt) {
     DPRINTF(CapstoneNCache, "Read from node cache\n");
 
-    controller.sendLoad(nodeId);
+    controller.sendLoad(this, nodeId);
 }
 
 
@@ -513,15 +547,15 @@ NodeControllerAllocate::setup(NodeController& controller, PacketPtr pkt) {
         parentDepth = 0;
         if(nextNodeId == NODE_ID_INVALID) {
             state = NCAllocate_LOAD;
-            controller.sendLoad(toAllocate);
+            controller.sendLoad(this, toAllocate);
         } else {
             state = NCAllocate_LOAD_RIGHT;
-            controller.sendLoad(nextNodeId);
+            controller.sendLoad(this, nextNodeId);
         }
     } else{
         // load parent first so we know the depth and the next node
         state = NCAllocate_LOAD_PARENT;
-        controller.sendLoad(parentId);
+        controller.sendLoad(this, parentId);
     }
 }
 
@@ -531,14 +565,14 @@ NodeControllerRcUpdate::setup(NodeController& controller, PacketPtr pkt) {
     assert(nodeId != NODE_ID_INVALID);
     assert(delta != 0);
     state = NCRcUpdate_LOAD;
-    controller.sendLoad(nodeId);
+    controller.sendLoad(this, nodeId);
 }
 
 void
 NodeControllerRevoke::setup(NodeController& controller, PacketPtr pkt) {
     assert(nodeId != NODE_ID_INVALID);
     state = NCRevoke_LOAD_ROOT;
-    controller.sendLoad(nodeId);
+    controller.sendLoad(this, nodeId);
 }
 
 
@@ -551,6 +585,9 @@ NodeController::handleTimingReq(PacketPtr pkt) {
     
     NodeControllerCommand* cmd = pkt->getPtr<NodeControllerCommand>();
     panic_if(cmd == NULL, "node controller received invalid command");
+
+    handleCommon(cmd);
+
     cmd->setup(*this, pkt);
 
     currentPkt = pkt;
@@ -569,6 +606,25 @@ bool NodeController::CPUSidePort::recvTimingReq(PacketPtr pkt) {
     return true;
 }
 
+void
+NodeController::handleCommon(NodeControllerCommandPtr cmd) {
+    switch(cmd->getType()) {
+        case NodeControllerCommand::Type::ALLOCATE:
+            ++ stats.allocateCount;
+            break;
+        case NodeControllerCommand::Type::REVOKE:
+            ++ stats.revokeCount;
+            break;
+        case NodeControllerCommand::Type::RC_UPDATE:
+            ++ stats.rcUpdateCount;
+            break;
+        case NodeControllerCommand::Type::QUERY:
+            ++ stats.queryCount;
+            break;
+        default:;
+    }
+}
+
 Tick
 NodeController::handleAtomicReq(PacketPtr pkt) {
     NodeControllerCommand* cmd  = pkt->getPtr<NodeControllerCommand>();
@@ -576,7 +632,13 @@ NodeController::handleAtomicReq(PacketPtr pkt) {
     
     ++ stats.atomicReqCount;
 
-    return cmd->handleAtomic(*this, pkt);
+    handleCommon(cmd);
+
+    Tick ticks = cmd->handleAtomic(*this, pkt);
+
+    delete cmd;
+
+    return ticks;
 }
 
 
@@ -678,6 +740,22 @@ NodeController::freeNode(Node& node, NodeID node_id) {
     DPRINTF(CapstoneNodeOps, "free node with id %lu\n", node_id);
     node.next = free_head;
     free_head = node_id;
+}
+
+NodeControllerCommand::Type NodeControllerAllocate::getType() const {
+    return Type::ALLOCATE;
+}
+
+NodeControllerCommand::Type NodeControllerQuery::getType() const {
+    return Type::QUERY;
+}
+
+NodeControllerCommand::Type NodeControllerRcUpdate::getType() const {
+    return Type::RC_UPDATE;
+}
+
+NodeControllerCommand::Type NodeControllerRevoke::getType() const {
+    return Type::REVOKE;
 }
 
 

@@ -906,7 +906,7 @@ PacketPtr
 AtomicSimpleNCacheCPU::sendNCacheCommandAtomic(NodeControllerCommand* cmd) {
     RequestPtr ncache_req = std::make_shared<Request>();
     PacketPtr ncache_pkt = Packet::createRead(ncache_req);
-    ncache_pkt->dataDynamic<NodeControllerCommand>(cmd);
+    ncache_pkt->dataStatic<NodeControllerCommand>(cmd);
 
     // TODO: count the ticks
     ncache_port.sendAtomic(ncache_pkt);
