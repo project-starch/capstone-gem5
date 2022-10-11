@@ -16,7 +16,7 @@
 
 //#define CAPSTONE_NODE_BASE_ADDR 0x100000000000ULL
 #define CAPSTONE_NODE_BASE_ADDR 0x7d0000000ULL
-#define CAPSTONE_NODE_N (1<<22)
+#define CAPSTONE_NODE_N (1<<24)
 
 // size of each revocation nodes (in bits)
 

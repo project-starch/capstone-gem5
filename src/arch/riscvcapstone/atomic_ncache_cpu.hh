@@ -175,9 +175,12 @@ class AtomicSimpleNCacheCPU : public BaseSimpleCPUWithNodeController
 
     /** Probe Points. */
     ProbePointArg<std::pair<SimpleThread *, const StaticInstPtr>> *ppCommit;
-    void preOverwriteDest(SimpleExecContext& t_info,
+    void preOverwriteDest(NodeID* nodes, int* node_n, 
+            SimpleExecContext& t_info,
             StaticInst* inst);
-    void overwriteIntReg(ThreadContext* tc, int reg_idx);
+    void overwriteIntReg(NodeID* nodes, int* node_n,
+            ThreadContext* tc, int reg_idx);
+    void cleanupDest(SimpleExecContext& t_info, StaticInst* inst);
     void capCheckAtomic(SimpleExecContext& t_info,
                 StaticInst* inst, Addr addr);
 

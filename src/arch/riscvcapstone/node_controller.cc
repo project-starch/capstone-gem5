@@ -6,6 +6,7 @@
 #include "debug/CapstoneNCache.hh"
 #include "debug/CapstoneCapTrack.hh"
 #include "debug/CapstoneNodeOps.hh"
+#include "debug/CapstoneNodeOpsAtomic.hh"
 #include "node_controller.hh"
 
 
@@ -273,6 +274,7 @@ NodeControllerRcUpdate::handleAtomic(NodeController& controller, PacketPtr pkt) 
 
     Node node;
     controller.atomicLoadNode(this, nodeId, &node);
+    DPRINTF(CapstoneNodeOpsAtomic, "rc update %llu %d %d %d\n", nodeId, node.counter, delta, node.state);
     node.counter += delta;
     if(node.counter == 0 && node.state == 0) { // now I can free this node
         controller.freeNode(node, nodeId);

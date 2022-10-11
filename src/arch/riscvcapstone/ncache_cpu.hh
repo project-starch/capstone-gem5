@@ -435,12 +435,13 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPUWithNodeController
 
     void endHandlingDCacheResp(PacketPtr pkt, Fault fault);
     void completeInstExec(Fault fault);
-    void preOverwriteDest(SimpleExecContext& t_info, StaticInst* inst);
+    void preOverwriteDest(NodeID* nodes, int* node_n, SimpleExecContext& t_info, StaticInst* inst);
     bool issueNCacheCommands();
     void handleIssueNCacheCommandsResp(PacketPtr pkt);
     void issueCapChecks(SimpleExecContext& t_info,
             StaticInst* inst, Addr addr);
-    void overwriteIntReg(ThreadContext* tc, int reg_idx);
+    void overwriteIntReg(NodeID* nodes, int* node_n, ThreadContext* tc, int reg_idx);
+    void cleanupDest(SimpleExecContext& t_info, StaticInst* inst);
 
     Port &getNodePort() override { return ncache_port; }
     NodeController* getNodeController() override { return node_controller; }

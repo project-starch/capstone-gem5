@@ -710,7 +710,7 @@ AtomicSimpleNCacheCPU::tick()
                     capCheckAtomic(t_info, curStaticInst.get(), rv_inst->getAddr(&t_info, traceData));
                     // load
                     if(curStaticInst->isLoad()) { // probably better remove
-                        preOverwriteDest(t_info, rv_inst);
+                        cleanupDest(t_info, rv_inst);
 
                         // check if the value to be loaded in would be a capability
                         DPRINTF(CapstoneNodeOps, "load from %llx\n", rv_inst->getAddr(&t_info, traceData));
@@ -754,10 +754,13 @@ AtomicSimpleNCacheCPU::tick()
                     fault = curStaticInst->execute(&t_info, traceData);
                 } else{
 
+                    NodeID source_nodes[32];
+                    int source_n = 0;
                     if(curStaticInst->isSyscall()){
-                        overwriteIntReg(t_info.tcBase(), RiscvcapstoneISA::ReturnValueReg);
+                        overwriteIntReg(source_nodes, &source_n, t_info.tcBase(),
+                                RiscvcapstoneISA::ReturnValueReg);
                     } else {
-                        preOverwriteDest(t_info, curStaticInst.get());
+                        preOverwriteDest(source_nodes, &source_n, t_info, curStaticInst.get());
                     }
 
                     fault = curStaticInst->execute(&t_info, traceData);
@@ -771,35 +774,50 @@ AtomicSimpleNCacheCPU::tick()
                             RegVal dest_val = t_info.tcBase()->readIntReg(dest_idx);
                             //RegVal dest_val = t_info.getRegOperand(curStaticInst.get(), j);
                             DPRINTF(CapstoneNodeOps, "Consider dest reg %d (%d)\n", j, dest_idx);
-                            for(int i = 0; i < num_src; i ++){
-                                const RegId& src_id = curStaticInst->srcRegIdx(i);
-                                if(src_id.classValue() != RegClassType::IntRegClass)
-                                    continue;
-                                RegIndex src_idx = src_id.index();
-                                // check whether it is a cap
-                                CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
-                                NodeID src_node = node_controller->queryCapTrack(src_loc);
-                                if(src_node == NODE_ID_INVALID ||
-                                        !node_controller->node2Obj[src_node].contains((Addr)dest_val))
-                                    continue;
-                                DPRINTF(CapstoneNodeOps, "Consider src reg %d (%d)\n", i, src_idx);
-                                // src and dest are in the same region and the source is a capability
-                                CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
-                                NodeID dest_node = node_controller->queryCapTrack(dest_loc);
-                                panic_if(dest_node != NODE_ID_INVALID,
-                                        "dest reg %u already associated with a node (syscall=%d) %llu, src-node = %llu", dest_idx,
-                                        curStaticInst->isSyscall(), dest_node, src_node);
-                                // TODO: decide between two options:
-                                // 1. allocate a new linear capability
-                                // 2. treat this as a non-linear capability
-                                // doing 2 for now
-                                DPRINTF(CapstoneNodeOps, "add cap track to (%u, %u)\n",
-                                        t_info.thread->threadId(),
-                                        dest_idx);
-                                node_controller->addCapTrack(dest_loc, src_node);
-                                delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(src_node, 1));
-                                break;
+                            int i;
+                            for(i = 0; i < source_n; i ++){
+                                if(node_controller->node2Obj[source_nodes[i]].contains((Addr)dest_val))
+                                    break;
                             }
+                            CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
+                            NodeID dest_node = node_controller->queryCapTrack(dest_loc);
+                            if(dest_node != NODE_ID_INVALID && (i >= source_n || dest_node != source_nodes[i])){
+                                node_controller->removeCapTrack(dest_loc);
+                                delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(dest_node, -1));
+                            }
+                            if(i < source_n && dest_node != source_nodes[i]) {
+                                node_controller->addCapTrack(dest_loc, source_nodes[i]);
+                                delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(source_nodes[i], 1));
+                            }
+                            //for(int i = 0; i < num_src; i ++){
+                                //const RegId& src_id = curStaticInst->srcRegIdx(i);
+                                //if(src_id.classValue() != RegClassType::IntRegClass)
+                                    //continue;
+                                //RegIndex src_idx = src_id.index();
+                                //// check whether it is a cap
+                                //CapLoc src_loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
+                                //NodeID src_node = node_controller->queryCapTrack(src_loc);
+                                //if(src_node == NODE_ID_INVALID ||
+                                        //!node_controller->node2Obj[src_node].contains((Addr)dest_val))
+                                    //continue;
+                                //DPRINTF(CapstoneNodeOps, "Consider src reg %d (%d)\n", i, src_idx);
+                                //// src and dest are in the same region and the source is a capability
+                                //CapLoc dest_loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
+                                //NodeID dest_node = node_controller->queryCapTrack(dest_loc);
+                                //panic_if(dest_node != NODE_ID_INVALID,
+                                        //"dest reg %u already associated with a node (syscall=%d) %llu, src-node = %llu", dest_idx,
+                                        //curStaticInst->isSyscall(), dest_node, src_node);
+                                //// TODO: decide between two options:
+                                //// 1. allocate a new linear capability
+                                //// 2. treat this as a non-linear capability
+                                //// doing 2 for now
+                                //DPRINTF(CapstoneNodeOps, "add cap track to (%u, %u)\n",
+                                        //t_info.thread->threadId(),
+                                        //dest_idx);
+                                //node_controller->addCapTrack(dest_loc, src_node);
+                                //delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(src_node, 1));
+                                //break;
+                            //}
                         }
                     }
                 }
@@ -914,34 +932,41 @@ AtomicSimpleNCacheCPU::sendNCacheCommandAtomic(NodeControllerCommand* cmd) {
     return ncache_pkt;
 }
 
+
 void
-AtomicSimpleNCacheCPU::preOverwriteDest(SimpleExecContext& t_info, StaticInst* inst) {
-    int num_dest = curStaticInst->numDestRegs();
+AtomicSimpleNCacheCPU::preOverwriteDest(NodeID* nodes, 
+        int* node_n, SimpleExecContext& t_info, StaticInst* inst) {
+    int num_src = curStaticInst->numSrcRegs();
+    DPRINTF(CapstoneNodeOps, "num_src = %d\n", num_src);
     // before execution
     // check which destinations will be overwritten
-    for(int i = 0; i < num_dest; i ++){
-        const RegId& dest_id = curStaticInst->destRegIdx(i);
-        if(dest_id.classValue() != RegClassType::IntRegClass)
+    for(int i = 0; i < num_src; i ++){
+        const RegId& src_id = curStaticInst->srcRegIdx(i);
+        if(src_id.classValue() != RegClassType::IntRegClass)
             continue;
-        RegIndex dest_idx = dest_id.index();
-        CapLoc loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
+        RegIndex src_idx = src_id.index();
+        DPRINTF(CapstoneNodeOps, "Source %d = %d\n", i, src_idx);
+        CapLoc loc = CapLoc::makeReg(t_info.thread->threadId(), src_idx);
         NodeID node_id = node_controller->queryCapTrack(loc);
         if(node_id == NODE_ID_INVALID)
             continue;
-        node_controller->removeCapTrack(loc);
-        delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(node_id, -1));
-        node_id = node_controller->queryCapTrack(loc);
-        panic_if(node_id != NODE_ID_INVALID, "erase failed");
+        nodes[(*node_n) ++] = node_id;
+        //node_controller->removeCapTrack(loc);
+        //ncToIssue.push(new NodeControllerRcUpdate(node_id, -1));
+        //node_id = node_controller->queryCapTrack(loc);
+        //panic_if(node_id != NODE_ID_INVALID, "erase failed");
     }
 }
 
+
 void
-AtomicSimpleNCacheCPU::overwriteIntReg(ThreadContext* tc, int reg_idx) {
+AtomicSimpleNCacheCPU::overwriteIntReg(NodeID* nodes, int* node_n, ThreadContext* tc, int reg_idx) {
     CapLoc loc = CapLoc::makeReg(tc->threadId(), reg_idx);
     NodeID node_id = node_controller->queryCapTrack(loc);
     if(node_id != NODE_ID_INVALID) {
-        node_controller->removeCapTrack(loc);
-        delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(node_id, -1));
+        nodes[(*node_n) ++] = node_id;
+        //node_controller->removeCapTrack(loc);
+        //delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(node_id, -1));
     }
 }
 
@@ -966,6 +991,28 @@ AtomicSimpleNCacheCPU::capCheckAtomic(SimpleExecContext& t_info,
         break;
     }
 }
+
+void
+AtomicSimpleNCacheCPU::cleanupDest(SimpleExecContext& t_info, StaticInst* inst) {
+    int num_dest = curStaticInst->numDestRegs();
+    // before execution
+    // check which destinations will be overwritten
+    for(int i = 0; i < num_dest; i ++){
+        const RegId& dest_id = curStaticInst->destRegIdx(i);
+        if(dest_id.classValue() != RegClassType::IntRegClass)
+            continue;
+        RegIndex dest_idx = dest_id.index();
+        CapLoc loc = CapLoc::makeReg(t_info.thread->threadId(), dest_idx);
+        NodeID node_id = node_controller->queryCapTrack(loc);
+        if(node_id == NODE_ID_INVALID)
+            continue;
+        node_controller->removeCapTrack(loc);
+        delete sendNCacheCommandAtomic(new NodeControllerRcUpdate(node_id, -1));
+        //node_id = node_controller->queryCapTrack(loc);
+        //panic_if(node_id != NODE_ID_INVALID, "erase failed");
+    }
+}
+
 
 
 } // namespace gem5

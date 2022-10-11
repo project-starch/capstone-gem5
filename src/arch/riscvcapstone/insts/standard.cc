@@ -223,7 +223,8 @@ FreeStateMachine::atomicExec(ExecContext* xc) {
 
     NodeID node_id = cpu->node_controller->queryCapTrack(loc);
     if(node_id == NODE_ID_INVALID) {
-        DPRINTF(CapstoneNodeOps, "warning: no node associated with the location to free\n");
+        DPRINTF(CapstoneNodeOps, "warning: no node associated with the location to free %llx\n",
+                xc->tcBase()->readIntReg(ArgumentRegs[0]));
         return 0;
     }
 
