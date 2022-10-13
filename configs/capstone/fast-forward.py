@@ -13,6 +13,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--skip', type=int, default=0, help='number of instructions to skip through fast-forwarding')
 parser.add_argument('--lim', type=int, default=0, help='max number of instructions to simulate (0 for no limit)')
 parser.add_argument('--atomic', action='store_true', help='use atomic model instead of timing model for simulation')
+parser.add_argument('--ncache-size', type=str, default='8kB', help='size of the node cache')
+parser.add_argument('--checkpoint-period', type=int, default=0, help='interval between checkpoints')
+parser.add_argument('--checkpoint-folder', type=str, default='./checkpoints', help='where to store the checkpoints')
 
 if '--' not in sys.argv:
     sys.stderr.write('Usage: fast-forward.py [flags] -- <commands>')
@@ -49,7 +52,7 @@ class L1DCache(L1Cache):
     size = '64kB'
 
 class NCache(Cache):
-    size = '8kB'
+    size = args.ncache_size
     assoc = 2
     tag_latency = 2
     data_latency = 2
@@ -168,4 +171,6 @@ else:
 exit_event = m5.simulate()
 print('Simulation exiting @ tick {} because {}'
         .format(m5.curTick(), exit_event.getCause()))
+
+# m5.checkpoint('m5out/ckp')
 
