@@ -1,4 +1,17 @@
-# Copyright 2021 Google, Inc.
+# Copyright (c) 2017 ARM Limited
+# All rights reserved
+#
+# The license below extends only to copyright in the software and shall
+# not be construed as granting a license to any other intellectual
+# property including but not limited to intellectual property relating
+# to a hardware implementation of the functionality of the software
+# licensed hereunder.  You may use the software subject to the license
+# terms below provided that you ensure that this notice is replicated
+# unmodified and in its entirety in all distributions of the software,
+# modified or unmodified, in source code or in binary form.
+#
+# Copyright (c) 2006-2007 The Regents of The University of Michigan
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -23,9 +36,17 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects.RiscvCPU import RiscvCapstoneO3CPU
+from m5.SimObject import SimObject
+from m5.params import *
+from m5.objects.FuncUnit import *
+from m5.objects.FuncUnitConfig import *
 
-O3CPU = RiscvCapstoneO3CPU
+class CapstoneFUPool(SimObject):
+    type = 'CapstoneFUPool'
+    cxx_class = 'gem5::RiscvcapstoneISA::o3::FUPool'
+    cxx_header = "arch/riscvcapstone/o3/fu_pool.hh"
+    FUList = VectorParam.FUDesc("list of FU's for this pool")
 
-# Deprecated
-DerivO3CPU = O3CPU
+class DefaultFUPool(CapstoneFUPool):
+    FUList = [ IntALU(), IntMultDiv(), FP_ALU(), FP_MultDiv(), ReadPort(),
+               SIMD_Unit(), PredALU(), WritePort(), RdWrPort(), IprPort() ]

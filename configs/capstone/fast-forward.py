@@ -12,10 +12,10 @@ from m5.objects import *
 parser = argparse.ArgumentParser()
 parser.add_argument('--skip', type=int, default=0, help='number of instructions to skip through fast-forwarding')
 parser.add_argument('--lim', type=int, default=0, help='max number of instructions to simulate (0 for no limit)')
-parser.add_argument('--atomic', action='store_true', help='use atomic model instead of timing model for simulation')
 parser.add_argument('--ncache-size', type=str, default='8kB', help='size of the node cache')
 parser.add_argument('--checkpoint-period', type=int, default=0, help='interval between checkpoints')
 parser.add_argument('--checkpoint-folder', type=str, default='./checkpoints', help='where to store the checkpoints')
+parser.add_argument('--cpu', type=str, default='simple', help='CPU model (atomic, simple, o3)')
 
 if '--' not in sys.argv:
     sys.stderr.write('Usage: fast-forward.py [flags] -- <commands>')
@@ -26,12 +26,18 @@ arg_delimiter_idx = sys.argv.index('--')
 args = parser.parse_args(sys.argv[1:arg_delimiter_idx])
 commands = sys.argv[arg_delimiter_idx + 1:]
 
-start_with_atomic = args.skip > 0 or args.atomic
+start_with_atomic = args.skip > 0 or args.cpu == 'atomic'
 
 binary = commands[0]
 arguments = commands[1:]
 
-MainCPU, main_timing = (AtomicSimpleCPU, 'atomic') if args.atomic else (TimingSimpleCPU, 'timing')
+if args.cpu == 'simple':
+    MainCPU, main_timing = (TimingSimpleCPU, 'timing')
+elif args.cpu == 'o3':
+    MainCPU, main_timing = (O3CPU, 'timing')
+else:
+    MainCPU, main_timing = (AtomicSimpleCPU, 'atomic')
+
 InitCPU, init_timing = (AtomicSimpleCPU, 'atomic') if args.skip > 0 else (MainCPU, main_timing)
 
 is_capstone = 'NodeController' in globals()

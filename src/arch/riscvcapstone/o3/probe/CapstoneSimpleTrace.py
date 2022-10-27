@@ -1,4 +1,14 @@
-# Copyright 2021 Google, Inc.
+# Copyright (c) 2013 ARM Limited
+# All rights reserved.
+#
+# The license below extends only to copyright in the software and shall
+# not be construed as granting a license to any other intellectual
+# property including but not limited to intellectual property relating
+# to a hardware implementation of the functionality of the software
+# licensed hereunder.  You may use the software subject to the license
+# terms below provided that you ensure that this notice is replicated
+# unmodified and in its entirety in all distributions of the software,
+# modified or unmodified, in source code or in binary form.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -23,9 +33,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects.RiscvCPU import RiscvCapstoneO3CPU
+from m5.objects.Probe import *
 
-O3CPU = RiscvCapstoneO3CPU
-
-# Deprecated
-DerivO3CPU = O3CPU
+class CapstoneSimpleTrace(ProbeListenerObject):
+    type = 'CapstoneSimpleTrace'
+    cxx_class = 'gem5::RiscvcapstoneISA::o3::SimpleTrace'
+    cxx_header = 'arch/riscvcapstone/o3/probe/simple_trace.hh'

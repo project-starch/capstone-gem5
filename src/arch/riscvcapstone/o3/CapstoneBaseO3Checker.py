@@ -1,4 +1,5 @@
-# Copyright 2021 Google, Inc.
+# Copyright (c) 2007 The Regents of The University of Michigan
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -23,9 +24,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects.RiscvCPU import RiscvCapstoneO3CPU
+from m5.params import *
+from m5.objects.CheckerCPU import CheckerCPU
 
-O3CPU = RiscvCapstoneO3CPU
-
-# Deprecated
-DerivO3CPU = O3CPU
+class CapstoneBaseO3Checker(CheckerCPU):
+    type = 'CapstoneBaseO3Checker'
+    cxx_class = 'gem5::RiscvcapstoneISA::o3::Checker'
+    cxx_header = 'arch/riscvcapstone/o3/checker.hh'
