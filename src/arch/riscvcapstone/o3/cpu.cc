@@ -116,6 +116,7 @@ CPU::CPU(const CapstoneBaseO3CPUParams &params)
       system(params.system),
       lastRunningCycle(curCycle()),
       cpuStats(this),
+      node_controller(params.node_controller),
       ncache_pkt(NULL),
       ncache_port(this)
 {

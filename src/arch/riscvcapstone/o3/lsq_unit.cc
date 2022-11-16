@@ -598,7 +598,13 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
 
     assert(!inst->isSquashed());
 
+    // TODO: check the destination register
+    // it is going to be overwritten
+
     load_fault = inst->initiateAcc();
+
+    // TODO: check the new value of the destination register
+    // see if it is a capability
 
     if (load_fault == NoFault && !inst->readMemAccPredicate()) {
         assert(inst->readPredicate());

@@ -644,6 +644,7 @@ class CPU : public BaseCPU
     };
 
     NCachePort ncache_port;
+    NodeController* node_controller;
 
   public:
     // hardware transactional memory
@@ -660,6 +661,10 @@ class CPU : public BaseCPU
 
     NCachePort& getNodePort() {
         return ncache_port;
+    }
+
+    NodeController* getNodeController() {
+        return node_controller;
     }
 };
 
