@@ -1188,6 +1188,8 @@ IEW::executeInsts()
 
         Fault fault = NoFault;
 
+        // TODO: examine operand registers and update the reference counts
+
         // Execute instruction.
         // Note that if the instruction faults, it will be handled
         // at the commit stage.
