@@ -51,6 +51,7 @@
 #include "arch/riscvcapstone/o3/limits.hh"
 #include "arch/riscvcapstone/o3/lsq.hh"
 #include "arch/riscvcapstone/o3/scoreboard.hh"
+#include "arch/riscvcapstone/o3/node_controller.hh"
 #include "cpu/timebuf.hh"
 #include "debug/IEW.hh"
 #include "sim/probe/probe.hh"
@@ -156,6 +157,8 @@ class IEW
     /** Sets pointer to the scoreboard. */
     void setScoreboard(Scoreboard *sb_ptr);
 
+    void setNodeController(NodeController *node_controller);
+
     /** Perform sanity checks after a drain. */
     void drainSanityCheck() const;
 
@@ -202,6 +205,7 @@ class IEW
 
     /** Resets entries of the IQ and the LSQ. */
     void resetEntries();
+
 
     /** Tells the CPU to wakeup if it has descheduled itself due to no
      * activity. Used mainly by the LdWritebackEvent.
@@ -442,6 +446,8 @@ class IEW
         /** Stat for number of times the LSQ becomes full. */
         statistics::Scalar lsqFullEvents;
         /** Stat for total number of memory ordering violation events. */
+        statistics::Scalar syscallInsts;
+
         statistics::Scalar memOrderViolationEvents;
         /** Stat for total number of incorrect predicted taken branches. */
         statistics::Scalar predictedTakenIncorrect;
@@ -489,6 +495,10 @@ class IEW
         /** Average number of woken instructions per writeback. */
         statistics::Formula wbFanout;
     } iewStats;
+
+
+    /** Capstone-related */
+    NodeController* nodeController;
 };
 
 } // namespace RiscvcapstoneISA::o3

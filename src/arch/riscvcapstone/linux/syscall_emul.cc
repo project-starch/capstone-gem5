@@ -2,7 +2,7 @@
 #include "debug/CapstoneAlloc.hh"
 #include "arch/riscvcapstone/node_controller.hh"
 #include "arch/riscvcapstone/typing.hh"
-#include "arch/riscvcapstone/o3/cpu.hh"
+//#include "arch/riscvcapstone/o3/cpu.hh"
 
 namespace gem5::RiscvcapstoneISA {
 
@@ -14,14 +14,14 @@ notifymallocFunc(SyscallDesc* desc, ThreadContext* tc,
 
     BaseSimpleCPUWithNodeController* cpu = 
         dynamic_cast<BaseSimpleCPUWithNodeController*>(tc->getCpuPtr());
-    o3::CPU* o3_cpu = dynamic_cast<o3::CPU*>(tc->getCpuPtr());    
+ //   o3::CPU* o3_cpu = dynamic_cast<o3::CPU*>(tc->getCpuPtr());    
     // TODO: there should be more graceful solutions
     if(cpu) {
         cpu->getNodeController()->
             allocObject(SimpleAddrRange((Addr)addr, (Addr)(addr + size)));
-    } else if(o3_cpu) {
-        o3_cpu->getNodeController()->
-            allocObject(SimpleAddrRange((Addr)addr, (Addr)(addr + size)));
+    //} else if(o3_cpu) {
+        //o3_cpu->getNodeController()->
+            //allocObject(SimpleAddrRange((Addr)addr, (Addr)(addr + size)));
     } else {
         DPRINTF(CapstoneAlloc, "malloc: warning! cpu does not have a node controller!\n");
     }
@@ -36,11 +36,11 @@ notifyfreeFunc(SyscallDesc* desc, ThreadContext* tc,
 
     BaseSimpleCPUWithNodeController* cpu = 
         dynamic_cast<BaseSimpleCPUWithNodeController*>(tc->getCpuPtr());
-    o3::CPU* o3_cpu = dynamic_cast<o3::CPU*>(tc->getCpuPtr());    
+    //o3::CPU* o3_cpu = dynamic_cast<o3::CPU*>(tc->getCpuPtr());    
     if(cpu) {
         cpu->getNodeController()->freeObject((Addr)addr);
-    } else if(o3_cpu) {
-        o3_cpu->getNodeController()->freeObject((Addr)addr);
+    //} else if(o3_cpu) {
+        //o3_cpu->getNodeController()->freeObject((Addr)addr);
     } else {
         DPRINTF(CapstoneAlloc, "free: warning! cpu does not have a node controller!\n");
     }

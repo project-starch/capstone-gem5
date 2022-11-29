@@ -62,6 +62,7 @@
 #include "cpu/op_class.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/static_inst.hh"
+#include "arch/riscvcapstone/insts/static_inst.hh"
 #include "cpu/translation.hh"
 #include "debug/HtmCpu.hh"
 
@@ -1174,6 +1175,13 @@ class DynInst : public ExecContext, public RefCounted
             return;
         cpu->setReg(reg, val);
         //TODO setResult
+    }
+
+    // Capstone-related
+    InstStateMachinePtr getStateMachine() {
+        auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
+        assert(rvStaticInst != nullptr);
+        return rvStaticInst->getStateMachine(this);
     }
 };
 

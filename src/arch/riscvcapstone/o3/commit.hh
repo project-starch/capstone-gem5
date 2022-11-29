@@ -52,6 +52,7 @@
 #include "arch/riscvcapstone/o3/limits.hh"
 #include "arch/riscvcapstone/o3/rename_map.hh"
 #include "arch/riscvcapstone/o3/rob.hh"
+#include "arch/riscvcapstone/o3/node_controller.hh"
 #include "cpu/timebuf.hh"
 #include "enums/CommitPolicy.hh"
 #include "sim/probe/probe.hh"
@@ -156,6 +157,8 @@ class Commit
 
     /** Sets the pointer to the IEW stage. */
     void setIEWStage(IEW *iew_stage);
+
+    void setNodeController(NodeController* node_controller);
 
     /** The pointer to the IEW stage. Used solely to ensure that
      * various events (traps, interrupts, syscalls) do not occur until
@@ -507,6 +510,8 @@ class Commit
         /** Number of cycles where the commit bandwidth limit is reached. */
         statistics::Scalar commitEligibleSamples;
     } stats;
+
+    NodeController* nodeController;
 };
 
 } // namespace RiscvcapstoneISA::o3

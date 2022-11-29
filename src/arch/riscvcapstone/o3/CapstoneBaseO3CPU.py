@@ -58,6 +58,7 @@ class CapstoneBaseO3CPU(BaseCPU):
     type = 'CapstoneBaseO3CPU'
     cxx_class = 'gem5::RiscvcapstoneISA::o3::CPU'
     cxx_header = 'arch/riscvcapstone/o3/dyn_inst.hh'
+    # cxx_header = 'arch/riscvcapstone/o3/cpu.hh'
 
     @classmethod
     def memory_mode(cls):
@@ -174,4 +175,4 @@ class CapstoneBaseO3CPU(BaseCPU):
 
     # Capstone-specific
     ncache_port = RequestPort('node cache port')
-    node_controller = Param.NodeController('node controller for revocation nodes')
+    node_controller = Param.CapstoneO3NodeController('node controller for revocation nodes')

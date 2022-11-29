@@ -48,6 +48,7 @@
 #include "arch/riscvcapstone/o3/comm.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
 #include "arch/riscvcapstone/o3/limits.hh"
+#include "arch/riscvcapstone/o3/node_controller.hh"
 #include "cpu/pc_event.hh"
 #include "cpu/pred/bpred_unit.hh"
 #include "cpu/timebuf.hh"
@@ -220,6 +221,8 @@ class Fetch
 
     /** Sets pointer to time buffer used to communicate to the next stage. */
     void setFetchQueue(TimeBuffer<FetchStruct> *fq_ptr);
+
+    void setNodeController(NodeController* node_controller);
 
     /** Initialize stage. */
     void startupStage();
@@ -587,6 +590,9 @@ class Fetch
         /** Number of instruction fetched per cycle. */
         statistics::Formula rate;
     } fetchStats;
+
+    /** Capstone-related */
+    NodeController* nodeController;
 };
 
 } // namespace RiscvcapstoneISA::o3

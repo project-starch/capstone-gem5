@@ -1620,5 +1620,11 @@ Fetch::IcachePort::recvReqRetry()
     fetch->recvReqRetry();
 }
 
+void
+Fetch::setNodeController(NodeController* node_controller) {
+    assert(nodeController == NULL);
+    nodeController = node_controller;
+}
+
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5

@@ -11,8 +11,9 @@
 #include "mem/port.hh"
 #include "params/CapstoneO3NodeController.hh"
 #include "base/trace.hh"
+#include "base/circular_queue.hh"
 #include "arch/riscvcapstone/cap_track.hh"
-#include "arch/riscvcapstone/o3/dyn_inst.hh"
+#include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
 #include "base/statistics.hh"
 
 //#define CAPSTONE_NODE_BASE_ADDR 0x100000000000ULL
@@ -282,7 +283,9 @@ class NodeController : public ClockedObject {
         void sendPacketToMem(PacketPtr pkt, bool atomic);
         void handleCommon(NodeControllerCommandPtr cmd);
 
-        std::vector<NodeControllerCommandPtr> storeBuffer; // buffer that stores uncommitted changes
+        //std::vector<NodeControllerCommandPtr> storeBuffer; // buffer that stores uncommitted changes
+        CircularQueue<NodeControllerCommandPtr> storeQueue;
+        CircularQueue<NodeControllerCommandPtr> loadQueue;
 
     public:
         NodeController(const CapstoneO3NodeControllerParams& p);
@@ -339,6 +342,8 @@ class NodeController : public ClockedObject {
 
         void commitStores(InstSeqNum& ins_seq); // mark stores whose corresponding instructions were committed within this current cycle
         void writebackStores(); // try writing back stores that can be written back
+
+        bool tryInsert(DynInstPtr inst);
 };
 
 } // end of namespace gem5::RiscvcapstoneISA

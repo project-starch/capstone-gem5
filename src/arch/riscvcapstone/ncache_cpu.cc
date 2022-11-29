@@ -42,7 +42,6 @@
 #include "arch/riscvcapstone/ncache_cpu.hh"
 #include "arch/riscvcapstone/faults.hh"
 #include "arch/riscvcapstone/regs/int.hh"
-#include "arch/riscvcapstone/o3/cpu.hh"
 #include "arch/generic/decoder.hh"
 #include "base/compiler.hh"
 #include "config/the_isa.hh"
@@ -205,12 +204,13 @@ TimingSimpleNCacheCPU::takeOverFrom(BaseCPU *oldCPU)
 {
     BaseSimpleCPU::takeOverFrom(oldCPU);
 
-    auto *old_o3 = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU*>(oldCPU);
+    //auto *old_o3 = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU*>(oldCPU);
+
     auto *old_cpu_with_node_port =
         dynamic_cast<BaseSimpleCPUWithNodeController*>(oldCPU);
-    if(old_o3 != NULL) {
-        ncache_port.takeOverFrom(&old_o3->getNodePort());
-    } else if(old_cpu_with_node_port != NULL) {
+    //if(old_o3 != NULL) {
+        //ncache_port.takeOverFrom(&old_o3->getNodePort());
+    if(old_cpu_with_node_port != NULL) {
         ncache_port.takeOverFrom(&old_cpu_with_node_port->getNodePort());
     } else {
         panic("incompatible CPU types for switching!");

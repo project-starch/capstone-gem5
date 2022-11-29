@@ -668,26 +668,30 @@ bool NodeControllerRevoke::readOnly() const {
 void
 NodeController::commitStores(InstSeqNum& ins_seq) {
     // brute force
-    for(NodeControllerCommandPtr cmd : storeBuffer) {
-        if(cmd->insn != nullptr && cmd->insn->seqNum <= ins_seq) {
-            // if older than the youngest committed instruction
-            // mark as can writeback
-            DPRINTF(NodeController, "commit store for %llu", cmd->insn->seqNum);
-            cmd->canWB = true;
-        }
-    }
+    //for(NodeControllerCommandPtr cmd : storeBuffer) {
+        //if(cmd->insn != nullptr && cmd->insn->seqNum <= ins_seq) {
+            //// if older than the youngest committed instruction
+            //// mark as can writeback
+            //DPRINTF(NodeController, "commit store for %llu", cmd->insn->seqNum);
+            //cmd->canWB = true;
+        //}
+    //}
 }
 
 void
 NodeController::writebackStores() {
-    for(NodeControllerCommandPtr cmd : storeBuffer) {
-        if(cmd->canWB) {
-            // then just writeback
-            // send it to cache
-        }
-    }
+    //for(NodeControllerCommandPtr cmd : storeBuffer) {
+        //if(cmd->canWB) {
+            //// then just writeback
+            //// send it to cache
+        //}
+    //}
 }
 
+bool
+NodeController::tryInsert(DynInstPtr inst) {
+    return true;
+}
 
 } // end of namespace gem5::RiscvcapstoneISA
 

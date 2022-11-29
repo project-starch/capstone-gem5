@@ -116,7 +116,7 @@ CPU::CPU(const CapstoneBaseO3CPUParams &params)
       system(params.system),
       lastRunningCycle(curCycle()),
       cpuStats(this),
-      node_controller(params.node_controller),
+      nodeController(params.node_controller),
       ncache_pkt(NULL),
       ncache_port(this)
 {
@@ -180,6 +180,11 @@ CPU::CPU(const CapstoneBaseO3CPUParams &params)
     commit.setIEWStage(&iew);
     rename.setIEWStage(&iew);
     rename.setCommitStage(&commit);
+
+    // Capstone-related
+    iew.setNodeController(nodeController);
+    fetch.setNodeController(nodeController);
+    commit.setNodeController(nodeController);
 
     ThreadID active_threads;
     if (FullSystem) {
