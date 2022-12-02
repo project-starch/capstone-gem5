@@ -43,5 +43,8 @@
 // Pseudo operations
 ##include "m5ops.isa"
 
+// Revoke
+##include "revoke.isa"
+
 // Include the unknown
 ##include "unknown.isa"

@@ -49,6 +49,15 @@ namespace gem5
 
 namespace RiscvcapstoneISA
 {
+std::string
+RevokeClass::generateDisassembly(Addr pc,
+                                const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << mnemonic << ' ' << registerName(destRegIdx(0)) << ", " <<
+        registerName(srcRegIdx(0));
+    return ss.str();
+}
 
 std::string
 RegOp::generateDisassembly(Addr pc, const loader::SymbolTable *symtab) const
