@@ -45,6 +45,9 @@ namespace gem5
 
 namespace RiscvcapstoneISA
 {
+    namespace o3 {
+        class NodeCommand;
+    }
 
 struct InstStateMachine {
     virtual void setup(ExecContext* xc) = 0;
@@ -146,6 +149,10 @@ class RiscvStaticInst : public StaticInst
 
     virtual Addr getAddr(ExecContext *, Trace::InstRecord *) const {
         return 0;
+    }
+
+    virtual o3::NodeCommand* getNodeCommand() {
+        return nullptr;
     }
 };
 

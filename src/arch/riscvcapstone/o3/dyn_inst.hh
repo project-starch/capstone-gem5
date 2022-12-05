@@ -1183,6 +1183,12 @@ class DynInst : public ExecContext, public RefCounted
         assert(rvStaticInst != nullptr);
         return rvStaticInst->getStateMachine(this);
     }
+
+    o3::NodeCommandPtr getNodeCommand() {
+        auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
+        assert(rvStaticInst != nullptr);
+        return rvStaticInst->getNodeCommand();
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3

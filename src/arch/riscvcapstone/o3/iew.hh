@@ -50,6 +50,7 @@
 #include "arch/riscvcapstone/o3/inst_queue.hh"
 #include "arch/riscvcapstone/o3/limits.hh"
 #include "arch/riscvcapstone/o3/lsq.hh"
+#include "arch/riscvcapstone/o3/ncq.hh"
 #include "arch/riscvcapstone/o3/scoreboard.hh"
 #include "cpu/timebuf.hh"
 #include "debug/IEW.hh"
@@ -357,6 +358,9 @@ class IEW
 
     /** Load / store queue. */
     LSQ ldstQueue;
+
+    /** Node command queue */
+    NCQ ncQueue;
 
     /** Pointer to the functional unit pool. */
     FUPool *fuPool;

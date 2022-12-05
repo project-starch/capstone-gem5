@@ -117,16 +117,16 @@ system.mem_ctrl.dram.device_size = '2048MiB'
 system.mem_ctrl.port = system.membus.mem_side_ports
 
 if is_capstone:
-    system.ncache = NCache()
     if args.cpu == 'o3':
         pass
         #system.node_controller = CapstoneO3NodeController()
     else:
+        system.ncache = NCache()
         system.node_controller = NodeController()
         system.cpu.ncache_port = system.node_controller.cpu_side
-    system.cpu.node_controller = system.node_controller
-    system.node_controller.mem_side = system.ncache.cpu_side
-    system.ncache.mem_side = system.membus.cpu_side_ports
+        system.cpu.node_controller = system.node_controller
+        system.node_controller.mem_side = system.ncache.cpu_side
+        system.ncache.mem_side = system.membus.cpu_side_ports
 
 
 system.workload = SEWorkload.init_compatible(binary)

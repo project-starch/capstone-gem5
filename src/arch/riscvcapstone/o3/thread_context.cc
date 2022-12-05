@@ -40,6 +40,7 @@
  */
 
 #include "arch/riscvcapstone/o3/thread_context.hh"
+#include "arch/riscvcapstone/o3/dyn_inst.hh"
 
 #include "arch/vecregs.hh"
 #include "config/the_isa.hh"

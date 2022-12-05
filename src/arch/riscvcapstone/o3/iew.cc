@@ -70,6 +70,7 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
       cpu(_cpu),
       instQueue(_cpu, this, params),
       ldstQueue(_cpu, this, params),
+      ncQueue(params.ncqSize),
       fuPool(params.fuPool),
       commitToIEWDelay(params.commitToIEWDelay),
       renameToIEWDelay(params.renameToIEWDelay),
@@ -987,6 +988,10 @@ IEW::dispatchInsts(ThreadID tid)
 
 
         // Otherwise issue the instruction just fine.
+
+
+        ncQueue.insertInstruction(inst);
+
         if (inst->isAtomic()) {
             DPRINTF(IEW, "[tid:%i] Issue: Memory instruction "
                     "encountered, adding to LSQ.\n", tid);
@@ -1447,6 +1452,7 @@ IEW::tick()
     updatedQueues = false;
 
     ldstQueue.tick();
+    ncQueue.tick();
 
     sortInsts();
 

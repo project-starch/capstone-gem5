@@ -41,6 +41,8 @@
 #include "arch/riscvcapstone/o3/thread_state.hh"
 
 #include "arch/riscvcapstone/o3/cpu.hh"
+#include "arch/riscvcapstone/o3/dyn_inst.hh"
+
 
 namespace gem5
 {
