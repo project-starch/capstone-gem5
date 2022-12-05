@@ -32,7 +32,7 @@ Import('*')
 
 #if env['CONF']['TARGET_ISA'] != 'null':
 SimObject('CapstoneFUPool.py', sim_objects=['CapstoneFUPool'], tags='riscvcapstone isa')
-SimObject('CapstoneO3NodeController.py', sim_objects=['CapstoneO3NodeController'], tags='riscvcapstone isa')
+#SimObject('CapstoneO3NodeController.py', sim_objects=['CapstoneO3NodeController'], tags='riscvcapstone isa')
 SimObject('CapstoneFuncUnitConfig.py', sim_objects=[], tags='riscvcapstone isa')
 SimObject('CapstoneBaseO3CPU.py', sim_objects=['CapstoneBaseO3CPU'], enums=[
     'CapstoneSMTFetchPolicy', 'CapstoneSMTQueuePolicy', 'CapstoneCommitPolicy'], tags='riscvcapstone isa')
@@ -57,7 +57,9 @@ Source('scoreboard.cc', tags='riscvcapstone isa')
 Source('store_set.cc', tags='riscvcapstone isa')
 Source('thread_context.cc', tags='riscvcapstone isa')
 Source('thread_state.cc', tags='riscvcapstone isa')
-Source('node_controller.cc', tags='riscvcapstone isa')
+#Source('node_controller.cc', tags='riscvcapstone isa')
+Source('refcount_buffer.cc', tags='riscvcapstone isa')
+Source('node_commands.cc', tags='riscvcapstone isa')
 
 #DebugFlag('CommitRate')
 #DebugFlag('IEW')

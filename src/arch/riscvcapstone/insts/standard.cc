@@ -236,5 +236,11 @@ FreeStateMachine::atomicExec(ExecContext* xc) {
 }
 
 
+//NodeControllerCommandPtr
+//FreeStateMachine::getNodeControllerReadCmd(ExecContext* xc) {
+    
+//}
+
+
 } // namespace RiscvcapstoneISA
 } // namespace gem5

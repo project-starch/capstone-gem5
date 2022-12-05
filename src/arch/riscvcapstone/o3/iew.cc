@@ -52,7 +52,6 @@
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/fu_pool.hh"
 #include "arch/riscvcapstone/o3/limits.hh"
-#include "arch/riscvcapstone/o3/node_controller.hh"
 #include "cpu/timebuf.hh"
 #include "debug/Activity.hh"
 #include "debug/Drain.hh"
@@ -81,8 +80,7 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
       wbCycle(0),
       wbWidth(params.wbWidth),
       numThreads(params.numThreads),
-      iewStats(cpu),
-      nodeController(NULL)
+      iewStats(cpu)
 {
     if (dispatchWidth > MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -1063,7 +1061,7 @@ IEW::dispatchInsts(ThreadID tid)
             add_to_iq = false;
         } else {
             if(inst->isSyscall()) {
-                nodeController->tryInsert(inst);
+                //nodeController->tryInsert(inst);
 
                 ++iewStats.syscallInsts;
             }
@@ -1629,12 +1627,6 @@ IEW::checkMisprediction(const DynInstPtr& inst)
             }
         }
     }
-}
-
-void
-IEW::setNodeController(NodeController* node_controller) {
-    assert(nodeController == NULL);
-    nodeController = node_controller;
 }
 
 } // namespace RiscvcapstoneISA::o3

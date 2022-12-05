@@ -51,6 +51,11 @@ struct InstStateMachine {
     virtual bool finished(ExecContext* xc) const = 0;
     virtual Fault transit(ExecContext* xc, PacketPtr pkt) = 0;
     virtual Tick atomicExec(ExecContext* xc) = 0;
+
+
+    // o3
+    //virtual NodeControllerCommandPtr getNodeControllerReadCmd() = 0;
+    //virtual NodeControllerCommandPtr getNodeControllerWriteCmd() = 0;
 };
 
 
@@ -68,6 +73,14 @@ struct DummyInstStateMachine : InstStateMachine {
     Tick atomicExec(ExecContext* xc) override {
         return 0;
     }
+
+    //NodeControllerCommandPtr getNodeControllerReadCmd() override {
+        //return nullptr;
+    //}
+
+    //NodeControllerCommandPtr getNodeControllerWriteCmd() override {
+        //return nullptr;
+    //}
 };
 
 typedef std::shared_ptr<InstStateMachine> InstStateMachinePtr;

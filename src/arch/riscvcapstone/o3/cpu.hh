@@ -644,7 +644,6 @@ class CPU : public BaseCPU
     };
 
     NCachePort ncache_port;
-    NodeController* nodeController;
 
   public:
     // hardware transactional memory
@@ -663,9 +662,6 @@ class CPU : public BaseCPU
         return ncache_port;
     }
 
-    NodeController* getNodeController() {
-        return nodeController;
-    }
 };
 
 } // namespace RiscvcapstoneISA::o3

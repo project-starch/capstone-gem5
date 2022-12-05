@@ -95,6 +95,8 @@ struct MallocStateMachine : InstStateMachine {
     bool finished(ExecContext* xc) const override;
     Fault transit(ExecContext* xc, PacketPtr pkt) override;
     Tick atomicExec(ExecContext* xc) override;
+    //NodeControllerCommandPtr getNodeControllerReadCmd() override;
+    //NodeControllerCommandPtr getNodeControllerWriteCmd() override;
 };
 
 struct FreeStateMachine : InstStateMachine {
@@ -111,6 +113,8 @@ struct FreeStateMachine : InstStateMachine {
     bool finished(ExecContext* xc) const override;
     Fault transit(ExecContext* xc, PacketPtr pkt) override;
     Tick atomicExec(ExecContext* xc) override;
+    //NodeControllerCommandPtr getNodeControllerReadCmd() override;
+    //NodeControllerCommandPtr getNodeControllerWriteCmd() override;
 };
 
 class EcallOp : public RiscvStaticInst {

@@ -1617,7 +1617,8 @@ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
 
     storeQueue[store_idx].setRequest(request);
     unsigned size = request->_size;
-    storeQueue[store_idx].size() = size;
+    storeQueue[store_idx].size() = size; // so before this the size of the request is 0
+                                         // this should be what makes read() skip bypass from reordered stores whose data is not yet available
     bool store_no_data =
         request->mainReq()->getFlags() & Request::STORE_NO_DATA;
     storeQueue[store_idx].isAllZeros() = store_no_data;

@@ -1537,11 +1537,5 @@ Commit::oldestReady()
     }
 }
 
-void
-Commit::setNodeController(NodeController* node_controller) {
-    assert(nodeController == NULL);
-    nodeController = node_controller;
-}
-
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5

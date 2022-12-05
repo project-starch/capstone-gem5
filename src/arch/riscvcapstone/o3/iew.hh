@@ -51,7 +51,6 @@
 #include "arch/riscvcapstone/o3/limits.hh"
 #include "arch/riscvcapstone/o3/lsq.hh"
 #include "arch/riscvcapstone/o3/scoreboard.hh"
-#include "arch/riscvcapstone/o3/node_controller.hh"
 #include "cpu/timebuf.hh"
 #include "debug/IEW.hh"
 #include "sim/probe/probe.hh"
@@ -156,8 +155,6 @@ class IEW
 
     /** Sets pointer to the scoreboard. */
     void setScoreboard(Scoreboard *sb_ptr);
-
-    void setNodeController(NodeController *node_controller);
 
     /** Perform sanity checks after a drain. */
     void drainSanityCheck() const;
@@ -496,9 +493,6 @@ class IEW
         statistics::Formula wbFanout;
     } iewStats;
 
-
-    /** Capstone-related */
-    NodeController* nodeController;
 };
 
 } // namespace RiscvcapstoneISA::o3
