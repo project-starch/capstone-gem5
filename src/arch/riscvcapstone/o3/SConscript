@@ -61,6 +61,7 @@ Source('thread_state.cc', tags='riscvcapstone isa')
 Source('refcount_buffer.cc', tags='riscvcapstone isa')
 Source('node_commands.cc', tags='riscvcapstone isa')
 Source('ncq.cc', tags='riscvcapstone isa')
+Source('ncq_unit.cc', tags='riscvcapstone isa')
 
 #DebugFlag('CommitRate')
 #DebugFlag('IEW')

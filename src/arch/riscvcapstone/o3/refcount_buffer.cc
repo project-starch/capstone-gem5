@@ -1,3 +1,4 @@
+#include "base/types.hh"
 #include "arch/riscvcapstone/o3/refcount_buffer.hh"
 
 

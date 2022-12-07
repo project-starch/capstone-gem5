@@ -1,10 +1,12 @@
 #ifndef __CAPSTONE_NODE_COMMAND_QUEUE_H_
 #define __CAPSTONE_NODE_COMMAND_QUEUE_H_
 
-
-#include "base/circular_queue.hh"
+#include <vector>
+#include "base/types.hh"
+#include "arch/riscvcapstone/o3/limits.hh"
 #include "arch/riscvcapstone/o3/node_commands.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
+#include "arch/riscvcapstone/o3/ncq_unit.hh"
 
 namespace gem5 {
 namespace RiscvcapstoneISA {
@@ -13,11 +15,21 @@ namespace o3 {
     // TODO: also needs to be one per thread
 class NCQ {
     private:
-        CircularQueue<NodeCommandPtr> cmdQueue;
+        std::vector<NCQUnit> threads;
+        int queueSize;
+        int threadNum;
+
     public:
-        NCQ(int size): cmdQueue(size) {}
-        void insertInstruction(DynInstPtr inst);
+        NCQ(int queue_size, int thread_num);
+        void insertInstruction(const DynInstPtr& inst);
         void tick();
+
+        bool isFull(ThreadID thread_id) {
+            assert(thread_id >= 0 && thread_id < threadNum);
+            return threads[thread_id].isFull();
+        }
+
+        Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
 };
 
 }

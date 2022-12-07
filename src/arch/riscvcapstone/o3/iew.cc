@@ -70,7 +70,7 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
       cpu(_cpu),
       instQueue(_cpu, this, params),
       ldstQueue(_cpu, this, params),
-      ncQueue(params.ncqSize),
+      ncQueue(params.ncqSize, params.numThreads),
       fuPool(params.fuPool),
       commitToIEWDelay(params.commitToIEWDelay),
       renameToIEWDelay(params.renameToIEWDelay),
@@ -973,6 +973,14 @@ IEW::dispatchInsts(ThreadID tid)
             break;
         }
 
+        // Check NSQ
+        if(inst->isNodeOp() && ncQueue.isFull(tid)) {
+            DPRINTF(IEW, "[tid:%i] Issue: NCQ has become full.\n", tid);
+            block(tid);
+            toRename->iewUnblock[tid] = false;
+            break;
+        }
+
         // hardware transactional memory
         // CPU needs to track transactional state in program order.
         const int numHtmStarts = ldstQueue.numHtmStarts(tid);
@@ -990,7 +998,9 @@ IEW::dispatchInsts(ThreadID tid)
         // Otherwise issue the instruction just fine.
 
 
-        ncQueue.insertInstruction(inst);
+        if(inst->isNodeOp()) {
+            ncQueue.insertInstruction(inst);
+        }
 
         if (inst->isAtomic()) {
             DPRINTF(IEW, "[tid:%i] Issue: Memory instruction "
@@ -1453,6 +1463,11 @@ IEW::tick()
 
     ldstQueue.tick();
     ncQueue.tick();
+    for(auto threads = activeThreads->begin(); threads != activeThreads->end();
+            ++ threads) {
+        printf("Threads %i\n", *threads);
+        assert(!ncQueue.isFull(*threads));
+    }
 
     sortInsts();
 

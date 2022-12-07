@@ -662,6 +662,10 @@ class CPU : public BaseCPU
         return ncache_port;
     }
 
+    // Capstone
+    Fault pushNodeCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {
+        return iew.ncQueue.pushCommand(inst, cmd);
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3
