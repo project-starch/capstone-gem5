@@ -90,6 +90,7 @@ output exec {{
 #include "arch/riscvcapstone/faults.hh"
 #include "arch/riscvcapstone/fp_inst.hh"
 #include "arch/riscvcapstone/mmu.hh"
+#include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/reg_abi.hh"
 #include "arch/riscvcapstone/regs/float.hh"
 #include "arch/riscvcapstone/regs/misc.hh"

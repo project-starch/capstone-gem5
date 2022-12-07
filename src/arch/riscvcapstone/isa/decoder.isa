@@ -372,6 +372,14 @@ decode QUADRANT default Unknown::unknown() {
         }
     }
     0x3: decode OPCODE {
+        0x1d: decode FUNCT3 {
+            format Revoke {
+                0x01: revoke ({{
+                    Rs1;
+                    Rd;
+                }});
+            }
+        }
         0x00: decode FUNCT3 {
             format Load {
                 0x0: lb({{
