@@ -43,6 +43,8 @@ class NCQUnit {
         void insertInstruction(const DynInstPtr& inst);
         void tick();
         bool isFull();
+    
+        typedef typename CircularQueue<NCQEntry>::iterator NCQIterator;
 };
 
 }

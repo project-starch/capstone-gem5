@@ -20,6 +20,9 @@ NCQUnit::insertInstruction(const DynInstPtr& inst) {
     ncQueue.advance_tail();
     ncQueue.back() = NCQEntry(inst);
     assert(!ncQueue.empty());
+
+    inst->ncqIdx = ncQueue.tail();
+    inst->ncqIt = ncQueue.end() - 1;
 }
 
 void
@@ -32,6 +35,12 @@ NCQUnit::tick() {
 
 Fault
 NCQUnit::pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {
+    assert(inst->ncqIdx != -1); // inst has been inserted to this queue
+    NCQEntry& ncq_entry = *(inst->ncqIt);
+    assert(ncq_entry.inst->seqNum == inst->seqNum); // indeed the same inst in the entry
+
+    ncq_entry.cmd = cmd;
+
     return NoFault;
 }
 

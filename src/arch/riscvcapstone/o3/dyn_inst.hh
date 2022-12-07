@@ -357,6 +357,10 @@ class DynInst : public ExecContext, public RefCounted
     ssize_t sqIdx = -1;
     typename LSQUnit::SQIterator sqIt;
 
+    /** Node command queue index. */
+    ssize_t ncqIdx = -1;
+    typename NCQUnit::NCQIterator ncqIt;
+
 
     /////////////////////// TLB Miss //////////////////////
     /**
