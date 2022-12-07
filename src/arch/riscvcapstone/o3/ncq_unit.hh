@@ -31,18 +31,18 @@ struct NCQEntry {
  * */
 class NCQUnit {
     private:
+
         CircularQueue<NCQEntry> ncQueue;
+        int threadId;
         int queueSize;
 
     public:
-        NCQUnit(int queue_size);
+        NCQUnit(ThreadID thread_id, int queue_size);
+        //NCQUnit(const NCQUnit&) = delete;
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
         void insertInstruction(const DynInstPtr& inst);
         void tick();
-
-        bool isFull() {
-            return ncQueue.full();
-        }
+        bool isFull();
 };
 
 }

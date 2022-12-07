@@ -14,7 +14,7 @@ NCQ::NCQ(int queue_size, int thread_num) :
     
     threads.reserve(thread_num);
     for(int i = 0; i < thread_num; i ++) {
-        threads.emplace_back(queue_size);
+        threads.emplace_back(static_cast<ThreadID>(i), queue_size);
     }
 }
 
@@ -26,7 +26,7 @@ NCQ::insertInstruction(const DynInstPtr& inst) {
 
 void
 NCQ::tick() {
-    for(auto t : threads)
+    for(auto& t : threads)
         t.tick();
 }
 
@@ -38,6 +38,11 @@ NCQ::pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {
     return threads[inst->threadNumber].pushCommand(inst, cmd);
 }
 
+bool
+NCQ::isFull(ThreadID thread_id) {
+    assert(thread_id >= 0 && thread_id < threadNum);
+    return threads[thread_id].isFull();
+}
 
 }
 }

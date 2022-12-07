@@ -7,7 +7,8 @@ namespace RiscvcapstoneISA {
 namespace o3 {
 
 
-NCQUnit::NCQUnit(int queue_size) :
+NCQUnit::NCQUnit(ThreadID thread_id, int queue_size) :
+    threadId(thread_id),
     ncQueue(queue_size),
     queueSize(queue_size)
 {
@@ -32,6 +33,11 @@ NCQUnit::tick() {
 Fault
 NCQUnit::pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {
     return NoFault;
+}
+
+bool
+NCQUnit::isFull() {
+    return ncQueue.full();
 }
 
 }

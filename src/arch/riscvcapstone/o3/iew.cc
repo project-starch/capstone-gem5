@@ -1465,7 +1465,6 @@ IEW::tick()
     ncQueue.tick();
     for(auto threads = activeThreads->begin(); threads != activeThreads->end();
             ++ threads) {
-        printf("Threads %i\n", *threads);
         assert(!ncQueue.isFull(*threads));
     }
 

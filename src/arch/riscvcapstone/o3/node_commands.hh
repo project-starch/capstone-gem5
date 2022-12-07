@@ -1,6 +1,7 @@
 #ifndef __CAPSTONE_NODE_COMMANDS_H_
 #define __CAPSTONE_NODE_COMMANDS_H_
 
+#include <memory>
 #include "arch/riscvcapstone/types.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
 #include "arch/riscvcapstone/o3/node.hh"
@@ -8,6 +9,9 @@
 namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
+
+class NodeCommandCondition;
+class LSQRequest;
 
 /**
  * base class for all commands to node controller
@@ -17,10 +21,12 @@ struct NodeCommand {
         ALLOCATE,
         QUERY,
         RC_UPDATE,
-        REVOKE
+        REVOKE,
+        DROP
     } Type;
     DynInstPtr inst;
     bool canWB;
+    std::unique_ptr<NodeCommandCondition> condition;
     // the returned data and size
     NodeCommand() : inst(NULL), canWB(false) {}
     NodeCommand(DynInstPtr inst) : inst(inst), canWB(false) {}
@@ -109,7 +115,18 @@ struct NodeAllocate : NodeCommand {
         unsigned int parentDepth;
 };
 
+struct NodeDrop : NodeCommand {
+    bool readOnly() const override;
+    Type getType() const override;
+};
+
 typedef NodeCommand* NodeCommandPtr;
+
+class NodeCommandCondition {
+    public:
+        virtual LSQRequest* getRequest() = 0;
+        virtual bool satisfied() = 0;
+};
 
 }
 }

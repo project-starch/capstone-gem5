@@ -24,10 +24,7 @@ class NCQ {
         void insertInstruction(const DynInstPtr& inst);
         void tick();
 
-        bool isFull(ThreadID thread_id) {
-            assert(thread_id >= 0 && thread_id < threadNum);
-            return threads[thread_id].isFull();
-        }
+        bool isFull(ThreadID thread_id);
 
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
 };
