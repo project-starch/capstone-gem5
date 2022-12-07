@@ -70,7 +70,7 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
       cpu(_cpu),
       instQueue(_cpu, this, params),
       ldstQueue(_cpu, this, params),
-      ncQueue(params.ncqSize, params.numThreads),
+      ncQueue(_cpu, params.ncqSize, params.numThreads),
       fuPool(params.fuPool),
       commitToIEWDelay(params.commitToIEWDelay),
       renameToIEWDelay(params.renameToIEWDelay),
@@ -1215,6 +1215,8 @@ IEW::executeInsts()
         // Execute instruction.
         // Note that if the instruction faults, it will be handled
         // at the commit stage.
+        
+        bool executed = false;
         if (inst->isMemRef()) {
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
@@ -1271,8 +1273,7 @@ IEW::executeInsts()
                     // along to commit without the instruction completing.
                     // Send this instruction to commit, also make sure iew
                     // stage realizes there is activity.
-                    inst->setExecuted();
-                    instToCommit(inst);
+                    executed = true;
                     activityThisCycle();
                 }
 
@@ -1294,8 +1295,17 @@ IEW::executeInsts()
                     inst->forwardOldRegs();
             }
 
-            inst->setExecuted();
+            executed = true;
+        }
 
+        // TODO: we might consider removing isNodeOp altogether considering 
+        // how prevalent it is that an instruction needs to issue node commands
+        if(inst->isNodeOp()) {
+            ncQueue.executeNodeOp(inst);
+        }
+
+        if(executed) {
+            inst->setExecuted();
             instToCommit(inst);
         }
 
@@ -1463,6 +1473,7 @@ IEW::tick()
 
     ldstQueue.tick();
     ncQueue.tick();
+    // FIXME: only for testing
     for(auto threads = activeThreads->begin(); threads != activeThreads->end();
             ++ threads) {
         assert(!ncQueue.isFull(*threads));

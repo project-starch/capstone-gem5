@@ -115,6 +115,8 @@ class DynInst : public ExecContext, public RefCounted
     /** Executes the instruction.*/
     Fault execute();
 
+    Fault initiateNodeAcc();
+
     /** Initiates the access.  Only valid for memory operations. */
     Fault initiateAcc();
 
@@ -1185,11 +1187,6 @@ class DynInst : public ExecContext, public RefCounted
         return rvStaticInst->getStateMachine(this);
     }
 
-    o3::NodeCommandPtr getNodeCommand() {
-        auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
-        assert(rvStaticInst != nullptr);
-        return rvStaticInst->getNodeCommand();
-    }
 };
 
 } // namespace RiscvcapstoneISA::o3

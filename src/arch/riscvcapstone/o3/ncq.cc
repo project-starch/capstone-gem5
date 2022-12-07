@@ -8,7 +8,8 @@ namespace RiscvcapstoneISA {
 namespace o3 {
 
 
-NCQ::NCQ(int queue_size, int thread_num) : 
+NCQ::NCQ(CPU* cpu, int queue_size, int thread_num) : 
+    cpu(cpu),
     queueSize(queue_size),
     threadNum(thread_num) {
     
@@ -30,8 +31,6 @@ NCQ::tick() {
         t.tick();
 }
 
-
-
 Fault
 NCQ::pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {
     assert(inst->threadNumber >= 0 && inst->threadNumber < threadNum);
@@ -42,6 +41,12 @@ bool
 NCQ::isFull(ThreadID thread_id) {
     assert(thread_id >= 0 && thread_id < threadNum);
     return threads[thread_id].isFull();
+}
+
+Fault
+NCQ::executeNodeOp(const DynInstPtr& inst) {
+    Fault fault = inst->initiateNodeAcc();
+    return NoFault;
 }
 
 }

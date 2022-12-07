@@ -659,7 +659,6 @@ envs = {
     'debug': env.Clone(ENV_LABEL='debug', OBJSUFFIX='.do'),
     'opt': env.Clone(ENV_LABEL='opt', OBJSUFFIX='.o'),
     'fast': env.Clone(ENV_LABEL='fast', OBJSUFFIX='.fo'),
-    'dyn': env.Clone(ENV_LABEL='dyn', OBJSUFFIX='.so'),
 }
 
 envs['debug'].Append(CPPDEFINES=['DEBUG', 'TRACING_ON=1'])
@@ -681,9 +680,6 @@ if env['GCC']:
     for target in ['opt', 'fast']:
         envs[target].Append(CCFLAGS=['-O3', '${LTO_CCFLAGS}'])
         envs[target].Append(LINKFLAGS=['-O3', '${LTO_LINKFLAGS}'])
-
-    envs['dyn'].Append(CCFLAGS=['-shared'])
-    envs['dyn'].Append(LINKFLAGS=['-shared'])
 
 elif env['CLANG']:
     envs['debug'].Append(CCFLAGS=['-g', '-O0'])

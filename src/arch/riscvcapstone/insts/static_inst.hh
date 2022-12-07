@@ -47,6 +47,7 @@ namespace RiscvcapstoneISA
 {
     namespace o3 {
         class NodeCommand;
+        class CPU;
     }
 
 struct InstStateMachine {
@@ -151,8 +152,13 @@ class RiscvStaticInst : public StaticInst
         return 0;
     }
 
-    virtual o3::NodeCommand* getNodeCommand() {
-        return nullptr;
+    virtual Fault initiateNodeAcc(ExecContext* xc, o3::CPU* cpu, Trace::InstRecord *traceData) {
+        return NoFault;
+    }
+
+    virtual Fault completeNodeAcc(ExecContext* xc, o3::CPU* cpu, o3::NodeCommand* cmd, 
+            Trace::InstRecord *traceData) {
+        return NoFault;
     }
 };
 

@@ -353,6 +353,21 @@ DynInst::execute()
 }
 
 Fault
+DynInst::initiateNodeAcc() {
+    auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
+    assert(rvStaticInst != nullptr);
+
+    bool no_squash_from_TC = thread->noSquashFromTC;
+    thread->noSquashFromTC = true;
+
+    Fault fault = rvStaticInst->initiateNodeAcc(this, cpu, traceData);
+
+    thread->noSquashFromTC = no_squash_from_TC;
+
+    return fault;
+}
+
+Fault
 DynInst::initiateAcc()
 {
     // @todo: Pretty convoluted way to avoid squashing from happening

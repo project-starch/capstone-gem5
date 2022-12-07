@@ -12,21 +12,26 @@ namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
+class CPU;
+
     // TODO: also needs to be one per thread
 class NCQ {
     private:
+        CPU* cpu;
         std::vector<NCQUnit> threads;
         int queueSize;
         int threadNum;
 
     public:
-        NCQ(int queue_size, int thread_num);
+        NCQ(CPU* cpu, int queue_size, int thread_num);
         void insertInstruction(const DynInstPtr& inst);
         void tick();
 
         bool isFull(ThreadID thread_id);
 
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
+
+        Fault executeNodeOp(const DynInstPtr& inst);
 };
 
 }
