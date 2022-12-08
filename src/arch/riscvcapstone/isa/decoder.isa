@@ -376,7 +376,6 @@ decode QUADRANT default Unknown::unknown() {
             format Revoke {
                 0x01: revoke ({{
                     Rs1;
-                    Rd;
                 }});
             }
         }
