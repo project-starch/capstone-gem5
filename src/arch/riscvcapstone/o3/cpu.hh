@@ -572,6 +572,11 @@ class CPU : public BaseCPU
         return iew.ldstQueue.getDataPort();
     }
 
+    Port &
+    getNodePort() {
+        return iew.ncQueue.getNodePort();
+    }
+
     struct CPUStats : public statistics::Group
     {
         CPUStats(CPU *cpu);
@@ -617,50 +622,14 @@ class CPU : public BaseCPU
         statistics::Scalar miscRegfileWrites;
     } cpuStats;
 
-  private:
-    class NCachePort: public RequestPort {
-        private:
-            struct NCacheRespTickEvent : public Event {
-                CPU* cpu;
-                PacketPtr pkt;
-                NCacheRespTickEvent(CPU* cpu) :
-                    cpu(cpu) {}
-                void schedule(PacketPtr pkt, Cycles cycles = Cycles(0));
-                void process() override;
-            };
-
-            CPU* cpu;
-            NCacheRespTickEvent tickEvent;
-            EventFunctionWrapper retryEvent;
-        public:
-            NCachePort(CPU* cpu):
-                RequestPort(cpu->name() + ".ncache_port", cpu),
-                cpu(cpu),
-                tickEvent(cpu),
-                retryEvent([this] { DPRINTF(CapstoneNCache, "NCache send retry resp\n"); sendRetryResp(); }, name()) {}
-        protected:
-            bool recvTimingResp(PacketPtr pkt) override;
-            void recvReqRetry() override;
-    };
-
-    NCachePort ncache_port;
-
   public:
     // hardware transactional memory
     void htmSendAbortSignal(ThreadID tid, uint64_t htm_uid,
                             HtmFailureFaultCause cause) override;
-
-    // node cache for capstone
-    PacketPtr ncache_pkt;
-
     void handleNCacheResp(PacketPtr pkt);
 
 
     Port& getPort(const std::string& name, PortID idx) override;
-
-    NCachePort& getNodePort() {
-        return ncache_port;
-    }
 
     // Capstone
     Fault pushNodeCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {

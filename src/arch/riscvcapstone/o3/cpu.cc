@@ -115,9 +115,7 @@ CPU::CPU(const CapstoneBaseO3CPUParams &params)
       globalSeqNum(1),
       system(params.system),
       lastRunningCycle(curCycle()),
-      cpuStats(this),
-      ncache_pkt(NULL),
-      ncache_port(this)
+      cpuStats(this)
 {
     fatal_if(FullSystem && params.numThreads > 1,
             "SMT is not supported in O3 in full system mode currently.");
@@ -1001,14 +999,15 @@ CPU::takeOverFrom(BaseCPU *oldCPU)
 
     assert(!tickEvent.scheduled());
 
+    // FIXME: do something about ncache port
     auto *oldO3CPU = dynamic_cast<CPU *>(oldCPU);
     auto *old_cpu_with_node_port =
         dynamic_cast<BaseSimpleCPUWithNodeController*>(oldCPU);
     if (oldO3CPU) { // FIXME: get a new interface to combine these two cases
         globalSeqNum = oldO3CPU->globalSeqNum;
-        ncache_port.takeOverFrom(&oldO3CPU->ncache_port);
+        //ncache_port.takeOverFrom(&oldO3CPU->ncache_port);
     } else if(old_cpu_with_node_port) {
-        ncache_port.takeOverFrom(&old_cpu_with_node_port->getNodePort());
+        //ncache_port.takeOverFrom(&old_cpu_with_node_port->getNodePort());
     } else{
         panic("incompatible CPU types for switching!");
     }
@@ -1577,40 +1576,8 @@ CPU::htmSendAbortSignal(ThreadID tid, uint64_t htm_uid,
 Port&
 CPU::getPort(const std::string& name, PortID idx) {
     if(name == "ncache_port")
-        return ncache_port;
+        return getNodePort();
     return BaseCPU::getPort(name, idx);
-}
-
-void CPU::NCachePort::NCacheRespTickEvent::schedule(
-        PacketPtr pkt,
-        Cycles cycles) {
-    DPRINTF(CapstoneNCache, "NCache response tick event scheduled\n");
-    this->pkt = pkt;
-    cpu->schedule(this, cpu->clockEdge(cycles));
-}
-
-void CPU::NCachePort::NCacheRespTickEvent::process() {
-    cpu->handleNCacheResp(pkt);
-}
-
-bool CPU::NCachePort::recvTimingResp(PacketPtr pkt) {
-    DPRINTF(CapstoneNCache, "NCache response received\n");
-    if(tickEvent.scheduled()){
-        DPRINTF(CapstoneNCache, "NCache resp tick event already scheduled\n");
-        if(!retryEvent.scheduled())
-            cpu->schedule(&retryEvent, cpu->clockEdge(Cycles(1)));
-        return false;
-    }
-    tickEvent.schedule(pkt); // handle the data at the next CPU cycle
-    return true;
-}
-
-void CPU::NCachePort::recvReqRetry() {
-    assert(cpu->ncache_pkt != NULL);
-    
-    if(sendTimingReq(cpu->ncache_pkt)) {
-        cpu->ncache_pkt = NULL;
-    }
 }
 
 void

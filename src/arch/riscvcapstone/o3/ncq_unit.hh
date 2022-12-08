@@ -15,6 +15,8 @@ namespace o3 {
 
 struct NCQEntry {
     DynInstPtr inst;
+    // TODO: might consider maintaining different types of commands in
+    // different queues later
     std::vector<NodeCommandPtr> commands;
 
     bool canWB;

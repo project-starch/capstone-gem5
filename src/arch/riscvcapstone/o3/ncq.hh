@@ -5,6 +5,7 @@
 #include <list>
 #include "base/types.hh"
 #include "cpu/inst_seq.hh"
+#include "mem/port.hh"
 #include "arch/riscvcapstone/o3/limits.hh"
 #include "arch/riscvcapstone/o3/node_commands.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
@@ -18,12 +19,34 @@ class CPU;
 
     // TODO: also needs to be one per thread
 class NCQ {
+    public:
+        class NcachePort : public RequestPort {
+            private:
+                NCQ* ncq;
+                CPU* cpu;
+                
+                PacketPtr blockedPacket;
+                bool blocked;
+            public:
+                NcachePort(NCQ* ncq, CPU* cpu);
+
+                bool trySendPacket(PacketPtr pkt);
+            protected:
+                bool recvTimingResp(PacketPtr pkt) override;
+                void recvReqRetry() override;
+        };
+
+
     private:
         CPU* cpu;
         std::vector<NCQUnit> threads;
         int queueSize;
         int threadNum;
         std::list<ThreadID>* activeThreads;
+
+        int ncachePortSize;
+        int ncachePortUsed;
+        NcachePort ncachePort;
 
     public:
         NCQ(CPU* cpu, int queue_size, int thread_num);
@@ -42,6 +65,10 @@ class NCQ {
         
         void setActiveThreads(std::list<ThreadID>* active_threads) {
             activeThreads = active_threads;
+        }
+
+        Port& getNodePort() {
+            return ncachePort;
         }
     
 };
