@@ -1,6 +1,8 @@
 #ifndef __CAPSTONE_NCQ_UNIT_H_
 #define __CAPSTONE_NCQ_UNIT_H_
 
+#include <vector>
+#include "cpu/inst_seq.hh"
 #include "base/types.hh"
 #include "base/circular_queue.hh"
 #include "arch/riscvcapstone/o3/node_commands.hh"
@@ -13,7 +15,7 @@ namespace o3 {
 
 struct NCQEntry {
     DynInstPtr inst;
-    NodeCommandPtr cmd;
+    std::vector<NodeCommandPtr> commands;
 
     bool canWB;
     
@@ -21,7 +23,6 @@ struct NCQEntry {
 
     NCQEntry(const DynInstPtr& inst) :
         inst(inst),
-        cmd(nullptr),
         canWB(false) {}
 };
 
@@ -37,14 +38,19 @@ class NCQUnit {
         int queueSize;
 
     public:
+        typedef typename CircularQueue<NCQEntry>::iterator NCQIterator;
+
         NCQUnit(ThreadID thread_id, int queue_size);
         //NCQUnit(const NCQUnit&) = delete;
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
         void insertInstruction(const DynInstPtr& inst);
+        // commit all instructions before specified seq number
+        void commitBefore(InstSeqNum seq_num);
+        void writebackCommands();
+        void completeCommand(NCQIterator cmd_it);
         void tick();
         bool isFull();
     
-        typedef typename CircularQueue<NCQEntry>::iterator NCQIterator;
 };
 
 }

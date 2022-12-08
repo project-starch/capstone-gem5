@@ -346,6 +346,7 @@ IEW::setActiveThreads(std::list<ThreadID> *at_ptr)
 
     ldstQueue.setActiveThreads(at_ptr);
     instQueue.setActiveThreads(at_ptr);
+    ncQueue.setActiveThreads(at_ptr);
 }
 
 void
@@ -1543,6 +1544,8 @@ IEW::tick()
             ldstQueue.commitStores(fromCommit->commitInfo[tid].doneSeqNum,tid);
 
             ldstQueue.commitLoads(fromCommit->commitInfo[tid].doneSeqNum,tid);
+
+            ncQueue.commitBefore(fromCommit->commitInfo[tid].doneSeqNum,tid);
 
             updateLSQNextCycle = true;
             instQueue.commit(fromCommit->commitInfo[tid].doneSeqNum,tid);

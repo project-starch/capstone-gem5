@@ -39,7 +39,7 @@ NCQUnit::pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {
     NCQEntry& ncq_entry = *(inst->ncqIt);
     assert(ncq_entry.inst->seqNum == inst->seqNum); // indeed the same inst in the entry
 
-    ncq_entry.cmd = cmd;
+    ncq_entry.commands.push_back(cmd);
 
     return NoFault;
 }
@@ -48,6 +48,28 @@ bool
 NCQUnit::isFull() {
     return ncQueue.full();
 }
+
+void
+NCQUnit::commitBefore(InstSeqNum seq_num) {
+    for(NCQIterator it = ncQueue.begin(); 
+            it != ncQueue.end() && it->inst->seqNum <= seq_num;
+            ++ it) {
+        it->canWB = true;
+    }
+    // TODO
+}
+
+void
+NCQUnit::writebackCommands(){
+    // TODO
+}
+
+
+void
+NCQUnit::completeCommand(NCQIterator cmd_it){
+    // TODO
+}
+
 
 }
 }

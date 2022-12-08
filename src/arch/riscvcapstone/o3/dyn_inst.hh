@@ -591,7 +591,13 @@ class DynInst : public ExecContext, public RefCounted
     bool isHtmStop() const { return staticInst->isHtmStop(); }
     bool isHtmCancel() const { return staticInst->isHtmCancel(); }
     bool isHtmCmd() const { return staticInst->isHtmCmd(); }
-    bool isNodeOp() const { return true; /* FIXME placeholder */ }
+    bool isNodeOp() const { 
+        auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
+        if(rvStaticInst == nullptr) {
+            return false;
+        }
+        return rvStaticInst->isNodeOp;
+    /* FIXME placeholder */ }
 
     uint64_t
     getHtmTransactionUid() const override
