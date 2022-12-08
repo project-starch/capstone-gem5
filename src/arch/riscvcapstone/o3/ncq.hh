@@ -1,6 +1,7 @@
 #ifndef __CAPSTONE_NODE_COMMAND_QUEUE_H_
 #define __CAPSTONE_NODE_COMMAND_QUEUE_H_
 
+#include <unordered_map>
 #include <vector>
 #include <list>
 #include "base/types.hh"
@@ -24,13 +25,25 @@ class NCQ {
             private:
                 NCQ* ncq;
                 CPU* cpu;
+
+                int portSize; // number of available ports
+                int portUsed;
                 
                 PacketPtr blockedPacket;
                 bool blocked;
             public:
-                NcachePort(NCQ* ncq, CPU* cpu);
+                NcachePort(NCQ* ncq, CPU* cpu,
+                        int size);
 
+                void tick();
                 bool trySendPacket(PacketPtr pkt);
+                bool isBlocked() const { return blocked; }
+                bool portAvailable() const { 
+                    portUsed < portSize;
+                }
+                bool canSend() const {
+                    return portAvailable() && !blocked;
+                }
             protected:
                 bool recvTimingResp(PacketPtr pkt) override;
                 void recvReqRetry() override;
@@ -44,8 +57,8 @@ class NCQ {
         int threadNum;
         std::list<ThreadID>* activeThreads;
 
-        int ncachePortSize;
-        int ncachePortUsed;
+        std::unordered_map<PacketId, ThreadID> packetIssuerThreads;
+
         NcachePort ncachePort;
 
     public:
@@ -70,7 +83,15 @@ class NCQ {
         Port& getNodePort() {
             return ncachePort;
         }
-    
+
+        void cacheUnblocked();
+
+        bool canSend() const {
+            return ncachePort.canSend();
+        }
+
+        bool trySendPacket(PacketPtr pkt, ThreadID thread_id);
+        bool handleCacheResp(PacketPtr pkt);
 };
 
 }

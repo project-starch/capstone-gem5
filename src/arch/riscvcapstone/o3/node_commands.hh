@@ -2,6 +2,7 @@
 #define __CAPSTONE_NODE_COMMANDS_H_
 
 #include <memory>
+#include "cpu/thread_context.hh"
 #include "arch/riscvcapstone/types.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
 #include "arch/riscvcapstone/o3/node.hh"
@@ -12,18 +13,29 @@ namespace o3 {
 
 class NodeCommandCondition;
 class LSQRequest;
+class NCQ;
 
 /**
  * base class for all commands to node controller
  * */
 struct NodeCommand {
     typedef enum {
-        ALLOCATE,
-        QUERY,
-        RC_UPDATE,
-        REVOKE,
-        DROP
+        REVOKE = 0,
+        DROP = 1,
+        ALLOCATE = 2,
+        QUERY = 3,
+        RC_UPDATE = 4
     } Type;
+
+    typedef enum {
+        NOT_STARTED,
+        AWAIT_CACHE, // waiting for cache response
+        TO_RESUME, // ready to resume
+        COMPLETED
+    } Status;
+
+    Status status;
+
     DynInstPtr inst;
     bool canWB;
     std::unique_ptr<NodeCommandCondition> condition;
@@ -31,7 +43,9 @@ struct NodeCommand {
     NodeCommand() : inst(NULL), canWB(false) {}
     NodeCommand(DynInstPtr inst) : inst(inst), canWB(false) {}
     virtual Type getType() const = 0;
-    virtual bool readOnly() const = 0;
+    virtual bool beforeCommit() const = 0; // if this command can be executed before commit
+    virtual PacketPtr transition() = 0;
+    virtual void handleResp(PacketPtr pkt) = 0;
 };
 
 struct NodeQuery : NodeCommand {
@@ -42,8 +56,14 @@ struct NodeQuery : NodeCommand {
     NodeQuery(DynInstPtr inst, NodeID node_id) : 
         NodeCommand(inst),
         nodeId(node_id) {}
-    Type getType() const override;
-    bool readOnly() const override;
+    Type getType() const override {
+        return NodeCommand::QUERY;
+    }
+    bool beforeCommit() const override {
+        return true;
+    }
+    PacketPtr transition() override;
+    void handleResp(PacketPtr pkt) override;
     ~NodeQuery();
 };
 
@@ -55,8 +75,14 @@ struct NodeRevoke : NodeCommand {
     NodeRevoke(DynInstPtr inst, NodeID node_id) : 
         NodeCommand(inst),
         nodeId(node_id) {}
-    Type getType() const override;
-    bool readOnly() const override;
+    Type getType() const override {
+        return NodeCommand::REVOKE;
+    }
+    bool beforeCommit() const override {
+        return false;
+    }
+    PacketPtr transition() override;
+    void handleResp(PacketPtr pkt) override;
     ~NodeRevoke() {}
     private:
         enum {
@@ -79,8 +105,14 @@ struct NodeRcUpdate : NodeCommand {
     NodeRcUpdate(DynInstPtr inst, NodeID node_id, int delta):
         NodeCommand(inst),
         nodeId(node_id), delta(delta) {}
-    bool readOnly() const override;
-    Type getType() const override;
+    Type getType() const override {
+        return NodeCommand::RC_UPDATE;
+    }
+    bool beforeCommit() const override {
+        return false;
+    }
+    PacketPtr transition() override;
+    void handleResp(PacketPtr pkt) override;
     ~NodeRcUpdate() {}
     private:
         enum {
@@ -98,8 +130,14 @@ struct NodeAllocate : NodeCommand {
     NodeAllocate(DynInstPtr inst, NodeID parent_id):
         NodeCommand(inst),
         parentId(parent_id) {}
-    bool readOnly() const override;
-    Type getType() const override;
+    Type getType() const override {
+        return NodeCommand::ALLOCATE;
+    }
+    bool beforeCommit() const override {
+        return false;
+    }
+    PacketPtr transition() override;
+    void handleResp(PacketPtr pkt) override;
     ~NodeAllocate() {}
     private:
         enum { 
@@ -116,7 +154,6 @@ struct NodeAllocate : NodeCommand {
 };
 
 struct NodeDrop : NodeCommand {
-    bool readOnly() const override;
     Type getType() const override;
 };
 

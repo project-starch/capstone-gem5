@@ -2,16 +2,19 @@
 #define __CAPSTONE_NCQ_UNIT_H_
 
 #include <vector>
+#include <unordered_map>
 #include "cpu/inst_seq.hh"
 #include "base/types.hh"
 #include "base/circular_queue.hh"
-#include "arch/riscvcapstone/o3/node_commands.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
+#include "arch/riscvcapstone/o3/node_commands.hh"
+#include "arch/riscvcapstone/o3/node_commands_order.hh"
 
 namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
+class NCQ;
 
 struct NCQEntry {
     DynInstPtr inst;
@@ -20,12 +23,19 @@ struct NCQEntry {
     std::vector<NodeCommandPtr> commands;
 
     bool canWB;
+    int completedCommands;
     
     NCQEntry() {}
 
     NCQEntry(const DynInstPtr& inst) :
         inst(inst),
-        canWB(false) {}
+        canWB(false),
+        completedCommands(0) {}
+
+    // all commands have been finished
+    bool finished() const {
+        return completedCommands == commands.size();
+    }
 };
 
 /**
@@ -39,10 +49,17 @@ class NCQUnit {
         int threadId;
         int queueSize;
 
+        NCQ* ncq;
+
+        NodeCommandsOrdering ncOrder;
+
+        std::unordered_map<PacketId, NodeCommandPtr> packetIssuers;
+
     public:
         typedef typename CircularQueue<NCQEntry>::iterator NCQIterator;
+        typedef typename std::vector<NodeCommandPtr>::iterator NodeCommandIterator;
 
-        NCQUnit(ThreadID thread_id, int queue_size);
+        NCQUnit(ThreadID thread_id, int queue_size, NCQ* ncq);
         //NCQUnit(const NCQUnit&) = delete;
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
         void insertInstruction(const DynInstPtr& inst);
@@ -53,6 +70,7 @@ class NCQUnit {
         void tick();
         bool isFull();
     
+        bool handleCacheResp(PacketPtr pkt);
 };
 
 }

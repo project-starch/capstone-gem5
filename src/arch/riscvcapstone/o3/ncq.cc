@@ -1,6 +1,7 @@
 #include "arch/riscvcapstone/o3/ncq.hh"
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/cpu.hh"
+#include "debug/NCQ.hh"
 
 namespace gem5 {
 namespace RiscvcapstoneISA {
@@ -13,13 +14,11 @@ NCQ::NCQ(CPU* cpu, int queue_size, int thread_num) :
     queueSize(queue_size),
     threadNum(thread_num),
     activeThreads(nullptr),
-    ncachePortSize(8), // TODO: do not hardcode
-    ncachePortUsed(0),
-    ncachePort(this, cpu) {
+    ncachePort(this, cpu, 8) {
     
     threads.reserve(thread_num);
     for(int i = 0; i < thread_num; i ++) {
-        threads.emplace_back(static_cast<ThreadID>(i), queue_size);
+        threads.emplace_back(static_cast<ThreadID>(i), queue_size, this);
     }
 }
 
@@ -31,7 +30,7 @@ NCQ::insertInstruction(const DynInstPtr& inst) {
 
 void
 NCQ::tick() {
-    ncachePortUsed = 0;
+    ncachePort.tick();
     for(auto& t : threads)
         t.tick();
 }
@@ -74,34 +73,70 @@ NCQ::writebackCommands() {
     }
 }
 
+void
+NCQ::cacheUnblocked() {
+    DPRINTF(NCQ, "Node cache unblocked\n");
+}
+
+
+bool
+NCQ::trySendPacket(PacketPtr pkt, ThreadID thread_id) {
+    assert(thread_id >= 0 && thread_id < threadNum);
+    bool res = ncachePort.trySendPacket(pkt);
+
+    assert(packetIssuerThreads.find(pkt->id) == packetIssuerThreads.end());
+    packetIssuerThreads[pkt->id] = thread_id;
+
+    return res;
+}
+
+bool
+NCQ::handleCacheResp(PacketPtr pkt) {
+    auto it = packetIssuerThreads.find(pkt->id);
+    assert(it != packetIssuerThreads.end());
+    ThreadID issuer_thread = it->second;
+    assert(issuer_thread >= 0 && issuer_thread < threadNum);
+    packetIssuerThreads.erase(it);
+
+    // deliver to the NCQ unit of the issuer thread
+    return threads[issuer_thread].handleCacheResp(pkt);
+}
 
 /** Ncache Port */
-NCQ::NcachePort::NcachePort(NCQ* ncq, CPU* cpu) :
+NCQ::NcachePort::NcachePort(NCQ* ncq, CPU* cpu, int size) :
     RequestPort(cpu->name() + ".ncache_port", cpu),
-    ncq(ncq), cpu(cpu), blockedPacket(nullptr), blocked(false) {
+    ncq(ncq), cpu(cpu),
+    portSize(size), portUsed(0),
+    blockedPacket(nullptr), blocked(false) {
 }
 
 bool
 NCQ::NcachePort::recvTimingResp(PacketPtr pkt) {
-    // TODO:
-    return true;
+    return ncq->handleCacheResp(pkt); 
 }
 
 void
 NCQ::NcachePort::recvReqRetry() {
     assert(blocked);
     blocked = false;
+    ncq->cacheUnblocked();
     trySendPacket(blockedPacket);
 }
 
 bool
 NCQ::NcachePort::trySendPacket(PacketPtr pkt) {
-    assert(!blocked);
+    assert(canSend());
+    ++ portUsed;
     if(!sendTimingReq(pkt)) {
         blockedPacket = pkt;
         return false;
     }
     return true;
+}
+
+void
+NCQ::NcachePort::tick() {
+    portUsed = 0;
 }
 
 }

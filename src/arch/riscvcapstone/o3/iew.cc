@@ -565,7 +565,7 @@ IEW::blockMemInst(const DynInstPtr& inst)
 void
 IEW::cacheUnblocked()
 {
-    instQueue.cacheUnblocked();
+    instQueue.cacheUnblocked(); // FIXME: this might be affected by ncq
 }
 
 void
