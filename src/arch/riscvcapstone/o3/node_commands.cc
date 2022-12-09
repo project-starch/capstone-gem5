@@ -12,6 +12,37 @@ namespace o3 {
 
 const Addr NODE_MEM_BASE_ADDR = 0x7d0000000ULL;
 
+inline Addr node_addr(NodeID node_id) {
+    return (Addr)(NODE_MEM_BASE_ADDR + ((Addr)node_id * (sizeof(Node))));
+}
+
+static PacketPtr
+create_load_node(RequestorID requestor_id, NodeID node_id) {
+    Addr addr = node_addr(node_id);
+    RequestPtr req = std::make_shared<Request>();
+    req->requestorId(requestor_id);
+    req->setPaddr(addr);
+    PacketPtr pkt = Packet::createRead(req);
+    pkt->setSize(sizeof(Node)); // FIXME: do we need to specify the size here?
+    pkt->allocate();
+
+    return pkt;
+}
+
+static PacketPtr 
+create_store_node(RequestorID requestor_id, NodeID node_id, const Node& node) {
+    Addr addr = node_addr(node_id);
+    RequestPtr req = std::make_shared<Request>();
+    req->requestorId(requestor_id);
+    req->setPaddr(addr);
+    PacketPtr pkt = Packet::createWrite(req);
+    pkt->setSize(sizeof(Node));
+    pkt->allocate();
+    memcpy(pkt->getPtr<void>(), &node, sizeof(Node));
+
+    return pkt;
+}
+
 PacketPtr
 NodeAllocate::transition() {
     return nullptr;
@@ -44,11 +75,20 @@ NodeRcUpdate::handleResp(PacketPtr pkt) {
 
 PacketPtr
 NodeQuery::transition() {
-    return nullptr;
+    assert(status == NOT_STARTED);
+    status = AWAIT_CACHE;
+    return create_load_node(inst->requestorId(), nodeId);
 }
 
 void
 NodeQuery::handleResp(PacketPtr pkt) {
+    status = COMPLETED;
+    // TODO check validity and determine vaildityError
+}
+
+bool
+NodeQuery::error() {
+    return validityError;
 }
 
 /** 
@@ -69,6 +109,7 @@ LockedNodeCommand::createAcquirePacket() {
             1, [](uint32_t* a, uint32_t b) { *a = b; }
         )
     );
+    req->setPaddr(NODE_MEM_BASE_ADDR);
 
     PacketPtr pkt = Packet::createWrite(req);
 
@@ -89,6 +130,7 @@ LockedNodeCommand::createReleasePacket() {
         inst->pcState().instAddr(),
         inst->contextId()
     );
+    req->setPaddr(NODE_MEM_BASE_ADDR);
 
     PacketPtr pkt = Packet::createWrite(req);
 

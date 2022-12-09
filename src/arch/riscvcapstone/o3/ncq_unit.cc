@@ -167,11 +167,10 @@ NCQUnit::passedQuery(const DynInstPtr& inst) const {
             ++ it) {
         NodeCommandPtr& node_command = *it;
         if(node_command->beforeCommit() &&
-                node_command->status != NodeCommand::COMPLETED) {
+                (node_command->status != NodeCommand::COMPLETED ||
+                 node_command->error())) {
             return false;
         }
-        // TODO: for now we only check whether the command
-        // is completed. We need to check the validity later
     }
     return true;
 }

@@ -47,6 +47,9 @@ struct NodeCommand {
     virtual bool beforeCommit() const = 0; // if this command can be executed before commit
     virtual PacketPtr transition() = 0;
     virtual void handleResp(PacketPtr pkt) = 0;
+    virtual bool error() {
+        return false;
+    }
 };
 
 
@@ -88,6 +91,8 @@ struct LockedNodeCommand : NodeCommand {
 struct NodeQuery : NodeCommand {
     NodeID nodeId;
     Node* data = NULL;
+    bool validityError = false;
+    
     NodeQuery() {}
     NodeQuery(NodeID node_id) : nodeId(node_id) {}
     NodeQuery(DynInstPtr inst, NodeID node_id) : 
@@ -101,6 +106,7 @@ struct NodeQuery : NodeCommand {
     }
     PacketPtr transition() override;
     void handleResp(PacketPtr pkt) override;
+    bool error() override;
     ~NodeQuery() {}
 };
 
