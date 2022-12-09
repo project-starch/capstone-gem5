@@ -155,6 +155,27 @@ NCQUnit::handleCacheResp(PacketPtr pkt) {
     return true;
 }
 
+bool
+NCQUnit::passedQuery(const DynInstPtr& inst) const {
+    assert(inst->threadNumber == threadId);
+    if(!inst->isNodeOp()) // no associated command
+        return true;
+    assert(inst->ncqIdx != -1);
+    auto& commands = inst->ncqIt->commands;
+    for(auto it = commands.begin();
+            it != commands.end();
+            ++ it) {
+        NodeCommandPtr& node_command = *it;
+        if(node_command->beforeCommit() &&
+                node_command->status != NodeCommand::COMPLETED) {
+            return false;
+        }
+        // TODO: for now we only check whether the command
+        // is completed. We need to check the validity later
+    }
+    return true;
+}
+
 
 }
 }

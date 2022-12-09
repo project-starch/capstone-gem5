@@ -139,6 +139,13 @@ NCQ::NcachePort::tick() {
     portUsed = 0;
 }
 
+bool
+NCQ::passedQuery(const DynInstPtr& inst) const {
+    const ThreadID& thread_id = inst->threadNumber;
+    assert(thread_id >= 0 && thread_id < threadNum);
+    return threads[thread_id].passedQuery(inst);
+}
+
 }
 }
 }

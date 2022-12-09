@@ -1190,6 +1190,12 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         return false;
     }
 
+    // Check if the associated node queries, if any, have been completed and passed
+    // the validity check
+    if(!cpu->passedQuery(head_inst)) {
+        return false;
+    }
+
     // Check if the instruction caused a fault.  If so, trap.
     Fault inst_fault = head_inst->getFault();
 

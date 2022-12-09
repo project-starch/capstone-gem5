@@ -71,6 +71,7 @@ class NCQUnit {
         bool isFull();
     
         bool handleCacheResp(PacketPtr pkt);
+        bool passedQuery(const DynInstPtr& inst) const;
 };
 
 }

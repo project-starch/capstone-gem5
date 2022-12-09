@@ -635,6 +635,10 @@ class CPU : public BaseCPU
     Fault pushNodeCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {
         return iew.ncQueue.pushCommand(inst, cmd);
     }
+
+    bool passedQuery(const DynInstPtr& inst) const {
+        return iew.ncQueue.passedQuery(inst);
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3

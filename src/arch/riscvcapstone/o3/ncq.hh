@@ -92,6 +92,8 @@ class NCQ {
 
         bool trySendPacket(PacketPtr pkt, ThreadID thread_id);
         bool handleCacheResp(PacketPtr pkt);
+
+        bool passedQuery(const DynInstPtr& inst) const;
 };
 
 }
