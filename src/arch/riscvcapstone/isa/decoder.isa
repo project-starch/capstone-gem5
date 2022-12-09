@@ -378,6 +378,11 @@ decode QUADRANT default Unknown::unknown() {
                     Rs1;
                 }});
             }
+            format Calls {
+                0x02: call ({{
+                    Rs1, Rd;
+                }});
+            }
         }
         0x00: decode FUNCT3 {
             format Load {

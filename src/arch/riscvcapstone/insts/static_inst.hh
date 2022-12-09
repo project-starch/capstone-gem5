@@ -32,6 +32,7 @@
 
 #include <string>
 
+#include "arch/riscvcapstone/node_controller.hh"
 #include "arch/riscvcapstone/pcstate.hh"
 #include "arch/riscvcapstone/types.hh"
 #include "base/types.hh"

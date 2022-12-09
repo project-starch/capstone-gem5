@@ -46,5 +46,8 @@
 // Revoke
 ##include "revoke.isa"
 
+// Calls
+##include "calls.isa"
+
 // Include the unknown
 ##include "unknown.isa"

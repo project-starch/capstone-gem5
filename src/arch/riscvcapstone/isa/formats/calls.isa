@@ -29,29 +29,29 @@
 
 ////////////////////////////////////////////////////////////////////
 //
-// Revoke operation instruction
+// Calls operation instructions : call, return, retseal
 //
-def format Revoke(code, *opt_flags) {{
-    regs = ['srcRegIdx(0)']
-    iop = InstObjParams(name, Name, 'RevokeClass',
+def format Calls(code, *opt_flags) {{
+    regs = ['srcRegIdx(0)', 'srcRegIdx(1)']
+    iop = InstObjParams(name, Name, 'CallsClass',
            {'code': code, 'regs': ','.join(regs)},
             opt_flags)
-    header_output = RevokeDeclare.subst(iop)
-    decoder_output = RevokeConstructor.subst(iop)
+    header_output = CallsDeclare.subst(iop)
+    decoder_output = CallsConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (RevokeExecute.subst(iop)
-                  + RevokeInitiateAcc.subst(iop)
-                  + RevokeCompleteAcc.subst(iop))
+    exec_output = (CallsExecute.subst(iop)
+                  + CallsInitiateAcc.subst(iop)
+                  + CallsCompleteAcc.subst(iop))
 }};
 
-def template RevokeDeclare {{
+def template CallsDeclare {{
     /**
      * Static instruction class for "%(mnemonic)s".
      */
     class %(class_name)s : public %(base_class)s
     {
         private:
-            RegId srcRegIdxArr[1]; RegId destRegIdxArr[0];
+            RegId srcRegIdxArr[2]; RegId destRegIdxArr[0];
 
         public:
         /// Constructor.
@@ -66,7 +66,7 @@ def template RevokeDeclare {{
     };
 }};
 
-def template RevokeConstructor {{
+def template CallsConstructor {{
     %(class_name)s::%(class_name)s(ExtMachInst machInst):
         %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
     {
@@ -78,12 +78,14 @@ def template RevokeConstructor {{
 
     setSrcRegIdx(_numSrcRegs++,
                  ((RS1) == 0) ? RegId() : RegId(IntRegClass, RS1));
+    setSrcRegIdx(_numSrcRegs++,
+                 ((RD) == 0) ? RegId() : RegId(IntRegClass, RD));
     flags[IsInteger] = true;
     isNodeOp = true;
     }
 }};
 
-def template RevokeExecute {{
+def template CallsExecute {{
     Fault
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
@@ -96,23 +98,47 @@ def template RevokeExecute {{
             gem5::RiscvcapstoneISA::o3::DynInst *ptr =
                     dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
             Rs1 = ptr->cpuId();
-            DPRINTFN("In revoke! cpuId = %d\n", Rs1);
+            DPRINTFN("In calls! cpuId = %d\n", Rs1);
         }
 
         return NoFault;
     }
 }};
 
-def template RevokeInitiateAcc {{
+def template CallsInitiateAcc {{
     Fault
     %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
         Trace::InstRecord *traceData) const
     {
+        const RegId regId = srcRegIdx(1);
+        const RegIndex regIdx = regId.index();
+
+        ThreadContext *tcBase = xc->tcBase();
+        int threadId = tcBase->threadId();
+
+        gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
+                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
+
+        gem5::RiscvcapstoneISA::CapLoc regLoc =
+                    gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
+
+        /* TODO: Add actual method to retrieve node ID from the capability */
+        gem5::RiscvcapstoneISA::NodeID nodeId = 0;
+
+        gem5::RiscvcapstoneISA::o3::NodeQuery qry =
+                    gem5::RiscvcapstoneISA::o3::NodeQuery(dyn_inst, nodeId);
+
+        gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
+
+        auto o3cpu = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU *>(cpu);
+
+        o3cpu->pushNodeCommand(dyn_inst, cmd);
+
         return NoFault;
     }
 }};
 
-def template RevokeCompleteAcc {{
+def template CallsCompleteAcc {{
     Fault
     %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
         gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,

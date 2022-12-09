@@ -64,7 +64,7 @@ struct NodeQuery : NodeCommand {
     }
     PacketPtr transition() override;
     void handleResp(PacketPtr pkt) override;
-    ~NodeQuery();
+    ~NodeQuery() {};
 };
 
 
