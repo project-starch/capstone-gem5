@@ -2,6 +2,7 @@
 #include "arch/riscvcapstone/o3/ncq_unit.hh"
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/ncq.hh"
+#include "arch/riscvcapstone/o3/lsq.hh"
 
 
 namespace gem5 {
@@ -60,7 +61,6 @@ NCQUnit::commitBefore(InstSeqNum seq_num) {
             ++ it) {
         it->canWB = true;
     }
-    // TODO
 }
 
 void
@@ -68,7 +68,7 @@ NCQUnit::writebackCommands(){
     // not doing lots of reordering right now
     for(NCQIterator it = ncQueue.begin();
             it != ncQueue.end() && ncq->canSend(); ++ it) {
-        if(!it->inst->isExecuted() || it->finished())
+        if(!it->inst->isExecuted() || it->completed())
             // not doing anything for instructions not yet executed
             continue;
         std::vector<NodeCommandPtr>& commands = it->commands;
@@ -82,9 +82,41 @@ NCQUnit::writebackCommands(){
                 continue;
 
             if(nc_ptr->status == NodeCommand::NOT_STARTED) {
-                // TODO: deal with conditions
+                auto& cond_ptr = nc_ptr->condition;
+                auto saved_req = it->inst->savedRequest;
+                if(cond_ptr && saved_req &&
+                        (!saved_req->isComplete() || !cond_ptr->satisfied(saved_req))){
+                    // cannot process if the request has not completed or 
+                    // the condition is not satisfied
+                    continue;
+                }
             }
 
+            // check for dependencies
+            // the naive way. Bruteforce
+            bool dep_ready = true;
+            for(NCQIterator it_o = ncQueue.begin();
+                    dep_ready;
+                    ++ it_o) {
+                for(NodeCommandIterator nc_it_o; 
+                        nc_it_o != it_o->commands.end() && (it_o != it ||
+                            nc_it_o != nc_it); 
+                        ++ nc_it_o) {
+                    NodeCommandPtr nc_ptr_o = *nc_it_o;
+                    if(nc_ptr_o->status != NodeCommand::COMPLETED && 
+                            !ncOrder.reorderAllowed(nc_ptr_o, nc_ptr)){
+                        dep_ready = false;
+                        break;
+                    }
+                }
+                if(it_o == it)
+                    break;
+            }
+            
+            if(!dep_ready)
+                continue;
+
+            // the command can be executed
             // one state transition in the state machine
             PacketPtr pkt = nc_ptr->transition();
             if(pkt) {
@@ -93,6 +125,8 @@ NCQUnit::writebackCommands(){
                 // to deliver the packet back once the response if received
                 assert(packetIssuers.find(pkt->id) == packetIssuers.end());
                 packetIssuers[pkt->id] = nc_ptr;
+            } else if(nc_ptr->status == NodeCommand::COMPLETED) {
+                completeCommand(nc_ptr);
             }
         }
 
@@ -101,8 +135,9 @@ NCQUnit::writebackCommands(){
 
 
 void
-NCQUnit::completeCommand(NCQIterator cmd_it){
-    // TODO
+NCQUnit::completeCommand(NodeCommandPtr node_command){
+    node_command->inst->completeNodeAcc(node_command);
+    ++ node_command->inst->ncqIt->completedCommands;
 }
 
 bool
@@ -113,6 +148,9 @@ NCQUnit::handleCacheResp(PacketPtr pkt) {
     assert(node_cmd);
     packetIssuers.erase(it);
     node_cmd->handleResp(pkt);
+    if(node_cmd->status == NodeCommand::COMPLETED) {
+        completeCommand(node_cmd);
+    }
 
     return true;
 }

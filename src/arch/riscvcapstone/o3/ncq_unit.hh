@@ -33,7 +33,7 @@ struct NCQEntry {
         completedCommands(0) {}
 
     // all commands have been finished
-    bool finished() const {
+    bool completed() const {
         return completedCommands == commands.size();
     }
 };
@@ -66,7 +66,7 @@ class NCQUnit {
         // commit all instructions before specified seq number
         void commitBefore(InstSeqNum seq_num);
         void writebackCommands();
-        void completeCommand(NCQIterator cmd_it);
+        void completeCommand(NodeCommandPtr cmd_it);
         void tick();
         bool isFull();
     

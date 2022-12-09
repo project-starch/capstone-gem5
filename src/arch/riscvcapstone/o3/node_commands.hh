@@ -6,13 +6,13 @@
 #include "arch/riscvcapstone/types.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
 #include "arch/riscvcapstone/o3/node.hh"
+#include "arch/riscvcapstone/o3/lsq.hh"
 
 namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
 class NodeCommandCondition;
-class LSQRequest;
 class NCQ;
 
 /**
@@ -161,8 +161,8 @@ typedef NodeCommand* NodeCommandPtr;
 
 class NodeCommandCondition {
     public:
-        virtual LSQRequest* getRequest() = 0;
-        virtual bool satisfied() = 0;
+        virtual LSQ::LSQRequest* getRequest() = 0; // TODO: perhaps to remove
+        virtual bool satisfied(LSQ::LSQRequest* req) = 0;
 };
 
 }

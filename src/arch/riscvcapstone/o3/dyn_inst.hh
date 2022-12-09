@@ -117,6 +117,8 @@ class DynInst : public ExecContext, public RefCounted
 
     Fault initiateNodeAcc();
 
+    Fault completeNodeAcc(NodeCommandPtr node_command);
+
     /** Initiates the access.  Only valid for memory operations. */
     Fault initiateAcc();
 
