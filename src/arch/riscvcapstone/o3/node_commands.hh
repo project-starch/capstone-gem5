@@ -2,6 +2,7 @@
 #define __CAPSTONE_NODE_COMMANDS_H_
 
 #include <memory>
+#include <utility>
 #include "cpu/thread_context.hh"
 #include "arch/riscvcapstone/types.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
@@ -40,12 +41,44 @@ struct NodeCommand {
     bool canWB;
     std::unique_ptr<NodeCommandCondition> condition;
     // the returned data and size
-    NodeCommand() : inst(NULL), canWB(false) {}
+    NodeCommand() : status(NOT_STARTED), inst(NULL), canWB(false) {}
     NodeCommand(DynInstPtr inst) : inst(inst), canWB(false) {}
     virtual Type getType() const = 0;
     virtual bool beforeCommit() const = 0; // if this command can be executed before commit
     virtual PacketPtr transition() = 0;
     virtual void handleResp(PacketPtr pkt) = 0;
+};
+
+
+/**
+ * Node command that requires locking
+ * */
+struct LockedNodeCommand : NodeCommand {
+    std::unique_ptr<NodeCommand> rawCommand;
+
+    typedef enum {
+        BEFORE_ACQUIRE,
+        ACQUIRED,
+        RELEASED 
+    } LockState;
+
+    LockState lockState;
+
+    LockedNodeCommand(std::unique_ptr<NodeCommand> raw_command) :
+        rawCommand(std::move(raw_command))
+    {
+    }
+
+    Type getType() const override {
+        return rawCommand->getType();
+    }
+
+    bool beforeCommit() const override {
+        return rawCommand->beforeCommit();
+    }
+
+    PacketPtr transition() override;
+    void handleResp(PacketPtr pkt) override;
 };
 
 struct NodeQuery : NodeCommand {
