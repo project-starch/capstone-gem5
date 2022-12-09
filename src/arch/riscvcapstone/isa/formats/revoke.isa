@@ -94,10 +94,10 @@ def template RevokeExecute {{
         Rs1 = xc->getRegOperand(this, 0);
 
         {
-            gem5::RiscvcapstoneISA::o3::DynInst *ptr =
-                    dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
-            Rs1 = ptr->cpuId();
-            DPRINTFN("In revoke! cpuId = %d\n", Rs1);
+            //gem5::RiscvcapstoneISA::o3::DynInst *ptr =
+            //        dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
+            //Rs1 = ptr->cpuId();
+            DPRINTFN("In revoke! Rs1 = %d\n", Rs1);
         }
 
         return NoFault;

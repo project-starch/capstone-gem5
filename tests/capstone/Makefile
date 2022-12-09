@@ -11,15 +11,20 @@ libinterp.a: interp_malloc.o
 hello: interp_malloc.o hello.o
 	$(CC) -Wl,--wrap=malloc -Wl,--wrap=free -static -o hello interp_malloc.o hello.o
 
+revoke: interp_malloc.o revoke.o
+	$(CC) -Wl,--wrap=malloc -Wl,--wrap=free -static -o revoke interp_malloc.o revoke.o
+
 interp_malloc.o: interp_malloc.c
 	$(CC) -o interp_malloc.o  -c interp_malloc.c
 
 hello.o: hello.c
 	$(CC) -o hello.o  -c hello.c
 
+revoke.o: revoke.c
+	$(CC) -o revoke.o  -c revoke.c
 
 .PHONY: clean all
 
 clean:
-	rm -rf hello interp_malloc.o hello.o libinterp.a
+	rm -rf hello interp_malloc.o hello.o libinterp.a revoke revoke.o
 
