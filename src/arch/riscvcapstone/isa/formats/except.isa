@@ -29,62 +29,27 @@
 
 ////////////////////////////////////////////////////////////////////
 //
-// Revoke operation instruction
+// Exception operation instruction : except
 //
-def format Revoke(code, *opt_flags) {{
+def format Exception(code, *opt_flags) {{
     regs = ['srcRegIdx(0)']
+    # TODO: Except is deriving from RevokeClass for now
+    # for convenience - both take a single reg operand
+    # Also using revoke templates
+    # Maybe could rename revoke classes/templates 
+    # to something more generic
     iop = InstObjParams(name, Name, 'RevokeClass',
            {'code': code, 'regs': ','.join(regs)},
             opt_flags)
     header_output = RevokeDeclare.subst(iop)
     decoder_output = RevokeConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (RevokeExecute.subst(iop)
-                  + RevokeInitiateAcc.subst(iop)
-                  + RevokeCompleteAcc.subst(iop))
+    exec_output = (ExceptExecute.subst(iop)
+                  + ExceptInitiateAcc.subst(iop)
+                  + ExceptCompleteAcc.subst(iop))
 }};
 
-def template RevokeDeclare {{
-    /**
-     * Static instruction class for "%(mnemonic)s".
-     */
-    class %(class_name)s : public %(base_class)s
-    {
-        private:
-            RegId srcRegIdxArr[1]; RegId destRegIdxArr[0];
-
-        public:
-        /// Constructor.
-        %(class_name)s(ExtMachInst machInst);
-
-        Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateNodeAcc(ExecContext *, BaseCPU *,
-                              Trace::InstRecord *) const override;
-        Fault completeNodeAcc(ExecContext *, BaseCPU *,
-                              gem5::RiscvcapstoneISA::o3::NodeCommand *,
-                              Trace::InstRecord *) const override;
-    };
-}};
-
-def template RevokeConstructor {{
-    %(class_name)s::%(class_name)s(ExtMachInst machInst):
-        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
-    {
-    setRegIdxArrays(
-        reinterpret_cast<RegIdArrayPtr>(
-            &std::remove_pointer_t<decltype(this)>::srcRegIdxArr),
-        reinterpret_cast<RegIdArrayPtr>(
-            &std::remove_pointer_t<decltype(this)>::destRegIdxArr));
-
-    setSrcRegIdx(_numSrcRegs++,
-                 ((RS1) == 0) ? RegId() : RegId(IntRegClass, RS1));
-
-    flags[IsInteger] = true;
-    isNodeOp = true;
-    }
-}};
-
-def template RevokeExecute {{
+def template ExceptExecute {{
     Fault
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
@@ -97,23 +62,52 @@ def template RevokeExecute {{
             gem5::RiscvcapstoneISA::o3::DynInst *ptr =
                     dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
             Rs1 = ptr->cpuId();
-            DPRINTFN("In revoke! cpuId = %d\n", Rs1);
+            DPRINTFN("In Except! cpuId = %d\n", Rs1);
         }
 
         return NoFault;
     }
 }};
 
-def template RevokeInitiateAcc {{
+def template ExceptInitiateAcc {{
     Fault
     %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
         Trace::InstRecord *traceData) const
     {
+        const RegId regId = srcRegIdx(0);
+        const RegIndex regIdx = regId.index();
+
+        ThreadContext *tcBase = xc->tcBase();
+        int threadId = tcBase->threadId();
+
+        gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
+                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
+
+        gem5::RiscvcapstoneISA::CapLoc regLoc =
+                    gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
+
+        /* TODO: Add actual method to retrieve node ID from the capability */
+        gem5::RiscvcapstoneISA::NodeID nodeId = 0;
+
+        gem5::RiscvcapstoneISA::o3::NodeQuery qry =
+                    gem5::RiscvcapstoneISA::o3::NodeQuery(dyn_inst, nodeId);
+
+        gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
+
+        auto o3cpu = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU *>(cpu);
+
+        o3cpu->pushNodeCommand(dyn_inst, cmd);
+
+        //TODO: Actually switch the domain
+        //Call and Except body same until now
+        //Maybe switch domain in completeAcc instead
+        //and have same initiateAcc for except and call?
+
         return NoFault;
     }
 }};
 
-def template RevokeCompleteAcc {{
+def template ExceptCompleteAcc {{
     Fault
     %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
         gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,

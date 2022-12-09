@@ -54,8 +54,7 @@ RevokeClass::generateDisassembly(Addr pc,
                                 const loader::SymbolTable *symtab) const
 {
     std::stringstream ss;
-    ss << mnemonic << ' ' << registerName(destRegIdx(0)) << ", " <<
-        registerName(srcRegIdx(0));
+    ss << mnemonic << ' ' << registerName(srcRegIdx(0));
     return ss.str();
 }
 

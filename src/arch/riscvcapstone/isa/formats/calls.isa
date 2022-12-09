@@ -134,6 +134,8 @@ def template CallsInitiateAcc {{
 
         o3cpu->pushNodeCommand(dyn_inst, cmd);
 
+        //TODO: Actually switch the domain and pass Rs1 to it
+
         return NoFault;
     }
 }};
