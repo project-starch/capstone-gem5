@@ -58,8 +58,7 @@ LockedNodeCommand::transition() {
     PacketPtr pkt = nullptr;
 
     if(lockState == BEFORE_ACQUIRE) {
-        assert(rawCommand->status == NOT_STARTED &&
-                status == NOT_STARTED);
+        assert(rawCommand->status == NOT_STARTED);
         // TODO: construct a packet for atomic rw node 0
     } else if(lockState == ACQUIRED) {
         assert(status != NOT_STARTED);
@@ -90,7 +89,7 @@ LockedNodeCommand::handleResp(PacketPtr pkt) {
     } else if(lockState == ACQUIRED) {
         if(rawCommand->status == COMPLETED) {
             // the lock has been released
-            lockState == RELEASED;
+            lockState = RELEASED;
             completed = true;
         } else {
             rawCommand->handleResp(pkt);
