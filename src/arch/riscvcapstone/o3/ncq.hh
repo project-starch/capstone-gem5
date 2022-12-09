@@ -39,7 +39,7 @@ class NCQ {
                 bool trySendPacket(PacketPtr pkt);
                 bool isBlocked() const { return blocked; }
                 bool portAvailable() const { 
-                    portUsed < portSize;
+                    return portUsed < portSize;
                 }
                 bool canSend() const {
                     return portAvailable() && !blocked;

@@ -1,11 +1,16 @@
+#include "base/types.hh"
+#include "base/flags.hh"
+#include "base/amo.hh"
 #include "arch/riscvcapstone/o3/node_commands.hh"
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
+#include "arch/riscvcapstone/insts/amo.hh"
 #include "node_commands.hh"
 
 namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
+const Addr NODE_MEM_BASE_ADDR = 0x7d0000000ULL;
 
 PacketPtr
 NodeAllocate::transition() {
@@ -50,6 +55,50 @@ NodeQuery::handleResp(PacketPtr pkt) {
  *
  * Locked command
  * */
+// TODO: actually fence is necessary
+PacketPtr
+LockedNodeCommand::createAcquirePacket() {
+    RequestPtr req = std::make_shared<Request>(
+        NODE_MEM_BASE_ADDR,
+        sizeof(int),
+        Flags<Request::FlagsType>(), // no flags needed
+        inst->requestorId(),
+        inst->pcState().instAddr(),
+        inst->contextId(),
+        std::make_unique<AtomicGenericOp<uint32_t> >(
+            1, [](uint32_t* a, uint32_t b) { *a = b; }
+        )
+    );
+
+    PacketPtr pkt = Packet::createWrite(req);
+
+    pkt->setSize(sizeof(int));
+    pkt->allocate();
+    *(pkt->getPtr<int>()) = 1;
+
+    return pkt;
+}
+
+PacketPtr
+LockedNodeCommand::createReleasePacket() {
+    RequestPtr req = std::make_shared<Request>(
+        NODE_MEM_BASE_ADDR,
+        4,
+        Flags<Request::FlagsType>(), // no flags needed
+        inst->requestorId(),
+        inst->pcState().instAddr(),
+        inst->contextId()
+    );
+
+    PacketPtr pkt = Packet::createWrite(req);
+
+    pkt->setSize(sizeof(int));
+    pkt->allocate();
+    *(pkt->getPtr<int>()) = 0;
+
+    return pkt;
+}
+
 PacketPtr
 LockedNodeCommand::transition() {
     assert(lockState != RELEASED && status != COMPLETED &&
@@ -59,11 +108,12 @@ LockedNodeCommand::transition() {
 
     if(lockState == BEFORE_ACQUIRE) {
         assert(rawCommand->status == NOT_STARTED);
-        // TODO: construct a packet for atomic rw node 0
+        pkt = createAcquirePacket();
+        // construct a packet for atomic rw node 0
     } else if(lockState == ACQUIRED) {
         assert(status != NOT_STARTED);
         if(rawCommand->status == COMPLETED) {
-            // TODO: release the lock
+            pkt = createReleasePacket();
         } else {
             pkt = rawCommand->transition();
         }
@@ -79,13 +129,14 @@ LockedNodeCommand::transition() {
 void
 LockedNodeCommand::handleResp(PacketPtr pkt) {
     assert(status == AWAIT_CACHE && rawCommand->status == AWAIT_CACHE);
+    assert(pkt && pkt->isResponse());
     bool completed = false;
     if(lockState == BEFORE_ACQUIRE) {
-        // TODO: check if the lock acquire is successful
-        bool lock_acquired = false;
-        if(lock_acquired) {
+        if(*(pkt->getPtr<int>()) == 0) {
             lockState = ACQUIRED;
         }
+
+        // otherwise, the lock was unavailable
     } else if(lockState == ACQUIRED) {
         if(rawCommand->status == COMPLETED) {
             // the lock has been released
@@ -100,6 +151,8 @@ LockedNodeCommand::handleResp(PacketPtr pkt) {
     } else {
         status = TO_RESUME;
     }
+
+    delete pkt;
 }
 
 }

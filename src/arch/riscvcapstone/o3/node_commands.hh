@@ -79,6 +79,10 @@ struct LockedNodeCommand : NodeCommand {
 
     PacketPtr transition() override;
     void handleResp(PacketPtr pkt) override;
+
+    private:
+        PacketPtr createAcquirePacket();
+        PacketPtr createReleasePacket();
 };
 
 struct NodeQuery : NodeCommand {
