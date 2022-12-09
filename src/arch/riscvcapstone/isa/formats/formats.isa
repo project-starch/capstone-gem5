@@ -49,5 +49,8 @@
 // Calls
 ##include "calls.isa"
 
+// Except
+##include "except.isa"
+
 // Include the unknown
 ##include "unknown.isa"

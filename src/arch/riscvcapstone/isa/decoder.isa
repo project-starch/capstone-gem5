@@ -383,6 +383,15 @@ decode QUADRANT default Unknown::unknown() {
                     Rs1, Rd;
                 }});
             }
+            format ROp {
+                0x06: jmp ({{
+                    NPC = Rs1;
+                }}, IsUncondControl);
+                0x07: jnz ({{
+                    if(Rs1 != 0)
+                        NPC = Rd;
+                }}, IsCondControl);
+            }
         }
         0x00: decode FUNCT3 {
             format Load {
