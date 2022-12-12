@@ -118,7 +118,9 @@ system.mem_ctrl.port = system.membus.mem_side_ports
 
 if is_capstone:
     if args.cpu == 'o3':
-        pass
+        system.ncache = NCache()
+        system.cpu.ncache_port = system.ncache.cpu_side
+        system.ncache.mem_side = system.membus.cpu_side_ports
         #system.node_controller = CapstoneO3NodeController()
     else:
         system.ncache = NCache()
