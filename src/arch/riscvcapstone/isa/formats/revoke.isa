@@ -109,7 +109,10 @@ def template RevokeInitiateAcc {{
     %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
         Trace::InstRecord *traceData) const
     {
-        return NoFault;
+        using namespace gem5::RiscvcapstoneISA::o3;
+        auto dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
+        return dyn_inst->initiateNodeCommand(new LockedNodeCommand(std::make_unique<NodeRevoke>()));
     }
 }};
 

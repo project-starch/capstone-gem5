@@ -478,5 +478,13 @@ DynInst::initiateMemAMO(Addr addr, unsigned size, Request::Flags flags,
             std::move(amo_op), std::vector<bool>(size, true));
 }
 
+class NodeCommand;
+
+Fault
+DynInst::initiateNodeCommand(NodeCommand* cmd) {
+    return cpu->pushNodeCommand(dynamic_cast<DynInstPtr::PtrType>(this),
+            cmd);
+}
+
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5

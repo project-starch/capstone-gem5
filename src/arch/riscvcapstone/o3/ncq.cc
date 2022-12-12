@@ -38,6 +38,7 @@ NCQ::tick() {
 Fault
 NCQ::pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {
     assert(inst->threadNumber >= 0 && inst->threadNumber < threadNum);
+    DPRINTF(NCQ, "Push command to NCQ\n");
     return threads[inst->threadNumber].pushCommand(inst, cmd);
 }
 

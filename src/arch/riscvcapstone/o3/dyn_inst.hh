@@ -415,6 +415,8 @@ class DynInst : public ExecContext, public RefCounted
     Fault initiateMemAMO(Addr addr, unsigned size, Request::Flags flags,
                          AtomicOpFunctorPtr amo_op) override;
 
+    Fault initiateNodeCommand(NodeCommandPtr cmd);
+
     /** True if the DTB address translation has started. */
     bool translationStarted() const { return instFlags[TranslationStarted]; }
     void translationStarted(bool f) { instFlags[TranslationStarted] = f; }
