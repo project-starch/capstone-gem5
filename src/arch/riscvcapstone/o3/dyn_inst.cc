@@ -482,6 +482,7 @@ class NodeCommand;
 
 Fault
 DynInst::initiateNodeCommand(NodeCommand* cmd) {
+    cmd->inst = dynamic_cast<DynInstPtr::PtrType>(this);
     return cpu->pushNodeCommand(dynamic_cast<DynInstPtr::PtrType>(this),
             cmd);
 }

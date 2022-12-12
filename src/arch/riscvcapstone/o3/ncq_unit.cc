@@ -3,6 +3,7 @@
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/ncq.hh"
 #include "arch/riscvcapstone/o3/lsq.hh"
+#include "debug/NCQ.hh"
 
 
 namespace gem5 {
@@ -24,18 +25,18 @@ NCQUnit::insertInstruction(const DynInstPtr& inst) {
     assert(!ncQueue.full());
     ncQueue.advance_tail();
     ncQueue.back() = NCQEntry(inst);
-    assert(!ncQueue.empty());
 
     inst->ncqIdx = ncQueue.tail();
     inst->ncqIt = ncQueue.end() - 1;
+
+    assert(!ncQueue.empty());
+    assert(ncQueue.size() != 0);
+    DPRINTF(NCQ, "Pushed instruction %u to %u of NCQ thread %u\n",
+            inst->seqNum, inst->ncqIdx, threadId);
 }
 
 void
 NCQUnit::tick() {
-    // for testing
-    if(!ncQueue.empty())
-        ncQueue.pop_front();
-    assert(!ncQueue.full());
 }
 
 Fault
@@ -56,9 +57,13 @@ NCQUnit::isFull() {
 
 void
 NCQUnit::commitBefore(InstSeqNum seq_num) {
+    DPRINTF(NCQ, "Committing instructions before %u in thread %u NCQ" 
+            " (containing %u instructions)\n",
+            seq_num, threadId, ncQueue.size());
     for(NCQIterator it = ncQueue.begin(); 
             it != ncQueue.end() && it->inst->seqNum <= seq_num;
             ++ it) {
+        DPRINTF(NCQ, "Marking commands as canWB\n");
         it->canWB = true;
     }
 }
@@ -92,17 +97,20 @@ NCQUnit::writebackCommands(){
                 }
             }
 
+            DPRINTF(NCQ, "Checking command dependencies\n");
+
             // check for dependencies
             // the naive way. Bruteforce
             bool dep_ready = true;
             for(NCQIterator it_o = ncQueue.begin();
-                    dep_ready;
+                    dep_ready && it_o != ncQueue.end();
                     ++ it_o) {
-                for(NodeCommandIterator nc_it_o; 
+                for(NodeCommandIterator nc_it_o = it_o->commands.begin(); 
                         nc_it_o != it_o->commands.end() && (it_o != it ||
                             nc_it_o != nc_it); 
                         ++ nc_it_o) {
                     NodeCommandPtr nc_ptr_o = *nc_it_o;
+                    assert(nc_ptr_o);
                     if(nc_ptr_o->status != NodeCommand::COMPLETED && 
                             !ncOrder.reorderAllowed(nc_ptr_o, nc_ptr)){
                         dep_ready = false;
@@ -115,6 +123,8 @@ NCQUnit::writebackCommands(){
             
             if(!dep_ready)
                 continue;
+
+            DPRINTF(NCQ, "Command ready to execute\n");
 
             // the command can be executed
             // one state transition in the state machine

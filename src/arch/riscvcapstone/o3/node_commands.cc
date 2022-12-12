@@ -113,7 +113,7 @@ LockedNodeCommand::createAcquirePacket() {
 
     PacketPtr pkt = Packet::createWrite(req);
 
-    pkt->setSize(sizeof(int));
+    // pkt->setSize(sizeof(int));
     pkt->allocate();
     *(pkt->getPtr<int>()) = 1;
 
@@ -134,7 +134,7 @@ LockedNodeCommand::createReleasePacket() {
 
     PacketPtr pkt = Packet::createWrite(req);
 
-    pkt->setSize(sizeof(int));
+    //pkt->setSize(sizeof(int));
     pkt->allocate();
     *(pkt->getPtr<int>()) = 0;
 

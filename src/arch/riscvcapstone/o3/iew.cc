@@ -57,6 +57,7 @@
 #include "debug/Drain.hh"
 #include "debug/IEW.hh"
 #include "debug/O3PipeView.hh"
+#include "debug/NCQ.hh"
 #include "params/CapstoneBaseO3CPU.hh"
 
 namespace gem5
@@ -977,6 +978,7 @@ IEW::dispatchInsts(ThreadID tid)
         // Check NSQ
         if(inst->isNodeOp() && ncQueue.isFull(tid)) {
             DPRINTF(IEW, "[tid:%i] Issue: NCQ has become full.\n", tid);
+            DPRINTF(NCQ, "[tid:%i] NCQ has become full.\n", tid);
             block(tid);
             toRename->iewUnblock[tid] = false;
             break;
@@ -1524,6 +1526,9 @@ IEW::tick()
 
     // Writeback any stores using any leftover bandwidth.
     ldstQueue.writebackStores();
+
+    // Writeback any node commands using any leftover bandwidth.
+    ncQueue.writebackCommands();
 
     // Check the committed load/store signals to see if there's a load
     // or store to commit.  Also check if it's being told to execute a

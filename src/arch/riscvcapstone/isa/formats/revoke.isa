@@ -110,9 +110,15 @@ def template RevokeInitiateAcc {{
         Trace::InstRecord *traceData) const
     {
         using namespace gem5::RiscvcapstoneISA::o3;
+
+        uint64_t Rs1;
+        Rs1 = xc->getRegOperand(this, 0);
+
         auto dyn_inst = dynamic_cast<DynInst*>(xc);
         assert(dyn_inst);
-        return dyn_inst->initiateNodeCommand(new LockedNodeCommand(std::make_unique<NodeRevoke>()));
+        return dyn_inst->initiateNodeCommand(new LockedNodeCommand(
+                    std::make_unique<NodeRevoke>(static_cast<NodeID>(Rs1))
+        ));
     }
 }};
 

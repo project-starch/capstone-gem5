@@ -57,6 +57,8 @@ NCQ::executeNodeOp(const DynInstPtr& inst) {
 void
 NCQ::commitBefore(InstSeqNum seq_num, ThreadID thread_id) {
     assert(thread_id >= 0 && thread_id < threadNum);
+    DPRINTF(NCQ, "Committing all instructions before %u in NCQ on thread %u\n",
+            seq_num, thread_id);
     threads[thread_id].commitBefore(seq_num);
 }
 
