@@ -1,0 +1,244 @@
+// -*- mode:c++ -*-
+
+//Revoke
+def template TestRevokeExecute {{
+    Fault
+    %(class_name)s::execute(
+        ExecContext *xc, Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
+
+def template TestRevokeInitiateAcc {{
+    Fault
+    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        Trace::InstRecord *traceData) const
+    {
+        const RegId regId = srcRegIdx(0);
+        const RegIndex regIdx = regId.index();
+
+        ThreadContext *tcBase = xc->tcBase();
+        int threadId = tcBase->threadId();
+
+        gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
+                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
+
+        gem5::RiscvcapstoneISA::CapLoc regLoc =
+                    gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
+
+        /* TODO: Add actual method to retrieve node ID from the capability */
+        gem5::RiscvcapstoneISA::NodeID nodeId = 0;
+
+        gem5::RiscvcapstoneISA::o3::NodeRevoke qry =
+                    gem5::RiscvcapstoneISA::o3::NodeRevoke(dyn_inst, nodeId);
+
+        gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
+
+        auto o3cpu = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU *>(cpu);
+
+        o3cpu->pushNodeCommand(dyn_inst, cmd);
+
+        return NoFault;
+    }
+}};
+
+def template TestRevokeCompleteAcc {{
+    Fault
+    %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
+        Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
+
+//Query
+def template TestQueryExecute {{
+    Fault
+    %(class_name)s::execute(
+        ExecContext *xc, Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
+
+def template TestQueryInitiateAcc {{
+    Fault
+    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        Trace::InstRecord *traceData) const
+    {
+        const RegId regId = srcRegIdx(0);
+        const RegIndex regIdx = regId.index();
+
+        ThreadContext *tcBase = xc->tcBase();
+        int threadId = tcBase->threadId();
+
+        gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
+                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
+
+        gem5::RiscvcapstoneISA::CapLoc regLoc =
+                    gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
+
+        /* TODO: Add actual method to retrieve node ID from the capability */
+        gem5::RiscvcapstoneISA::NodeID nodeId = 0;
+
+        gem5::RiscvcapstoneISA::o3::NodeQuery qry =
+                    gem5::RiscvcapstoneISA::o3::NodeQuery(dyn_inst, nodeId);
+
+        gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
+
+        auto o3cpu = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU *>(cpu);
+
+        o3cpu->pushNodeCommand(dyn_inst, cmd);
+        return NoFault;
+    }
+}};
+
+def template TestQueryCompleteAcc {{
+    Fault
+    %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
+        Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
+
+//RcUpdate
+def template TestRcUpdateExecute {{
+    Fault
+    %(class_name)s::execute(
+        ExecContext *xc, Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
+
+def template TestRcUpdateInitiateAcc {{
+    Fault
+    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        Trace::InstRecord *traceData) const
+    {
+        const RegId regId = srcRegIdx(0);
+        const RegIndex regIdx = regId.index();
+
+        ThreadContext *tcBase = xc->tcBase();
+        int threadId = tcBase->threadId();
+
+        gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
+                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
+
+        gem5::RiscvcapstoneISA::CapLoc regLoc =
+                    gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
+
+        /* TODO: Add actual method to retrieve node ID from the capability */
+        gem5::RiscvcapstoneISA::NodeID nodeId = 0;
+
+        int delta = 1;
+
+        gem5::RiscvcapstoneISA::o3::NodeRcUpdate qry =
+                    gem5::RiscvcapstoneISA::o3::NodeRcUpdate(dyn_inst, nodeId, delta);
+
+        gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
+
+        auto o3cpu = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU *>(cpu);
+
+        o3cpu->pushNodeCommand(dyn_inst, cmd);
+
+        return NoFault;
+    }
+}};
+
+def template TestRcUpdateCompleteAcc {{
+    Fault
+    %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
+        Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
+
+//Alloc
+def template TestAllocExecute {{
+    Fault
+    %(class_name)s::execute(
+        ExecContext *xc, Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
+
+def template TestAllocInitiateAcc {{
+    Fault
+    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        Trace::InstRecord *traceData) const
+    {
+        const RegId regId = srcRegIdx(0);
+        const RegIndex regIdx = regId.index();
+
+        ThreadContext *tcBase = xc->tcBase();
+        int threadId = tcBase->threadId();
+
+        gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
+                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
+
+        gem5::RiscvcapstoneISA::CapLoc regLoc =
+                    gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
+
+        /* TODO: Add actual method to retrieve node ID from the capability */
+        gem5::RiscvcapstoneISA::NodeID parentId = 0;
+
+        gem5::RiscvcapstoneISA::o3::NodeAllocate qry =
+                    gem5::RiscvcapstoneISA::o3::NodeAllocate(dyn_inst, parentId);
+
+        gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
+
+        auto o3cpu = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU *>(cpu);
+
+        o3cpu->pushNodeCommand(dyn_inst, cmd);
+
+        return NoFault;
+    }
+}};
+
+def template TestAllocCompleteAcc {{
+    Fault
+    %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
+        Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
+
+//Drop
+def template TestDropExecute {{
+    Fault
+    %(class_name)s::execute(
+        ExecContext *xc, Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
+
+def template TestDropInitiateAcc {{
+    Fault
+    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        Trace::InstRecord *traceData) const
+    {
+        //TODO: Add code once Jason updates code for the class
+        return NoFault;
+    }
+}};
+
+def template TestDropCompleteAcc {{
+    Fault
+    %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
+        Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
