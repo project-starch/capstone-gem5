@@ -54,6 +54,9 @@ typedef uint32_t MachInst;
 typedef uint64_t ExtMachInst;
 typedef uint64_t NodeID;
 
+const NodeID NODE_ID_INVALID = (NodeID)(-1ULL & ((1ULL << 31) - 1));
+
+
 } // namespace RiscvcapstoneISA
 } // namespace gem5
 

@@ -32,6 +32,15 @@ struct Node {
     bool isValid() {
         return state == VALID;
     }
+
+    void invalidate() {
+        state = INVALID;
+    }
+
+    void free() {
+        assert(state == INVALID); // only invalid nodes can be freed
+        state = FREED;
+    }
 };
 
 static_assert(sizeof(Node) == (CAPSTONE_NODE_SIZE >> 3));

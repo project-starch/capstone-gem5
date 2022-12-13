@@ -7,7 +7,7 @@ namespace RiscvcapstoneISA {
 namespace o3 {
 
 void
-NodeController::freeNode(Node& node, NodeID node_id) {
+NodeController::freeNode(Node& node, const NodeID& node_id) {
     //DPRINTF(CapstoneNodeOps, "free node with id %lu\n", node_id);
     node.next = freeHead;
     freeHead = node_id;

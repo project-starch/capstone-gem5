@@ -17,7 +17,10 @@ class NodeController {
         NodeID treeRoot; // root of the revocation tree
         NodeID freeHead; // head of the free list
     public:
-        void freeNode(Node& node, NodeID node_id);
+        void freeNode(Node& node, const NodeID& node_id);
+        void setRoot(const NodeID& node_id) {
+            treeRoot = node_id;
+        }
 };
 
 }

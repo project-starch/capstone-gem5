@@ -26,8 +26,6 @@ const size_t CAPSTONE_NODE_SIZE = 128;
 
 class NodeController;
 
-const NodeID NODE_ID_INVALID = (NodeID)(-1ULL & ((1ULL << 31) - 1));
-
 /**
  * base class for all commands to node controller
  * */

@@ -357,6 +357,89 @@ LockedNodeCommand::handleResp(PacketPtr pkt) {
     delete pkt;
 }
 
+PacketPtr
+NodeDrop::transition() {
+    PacketPtr pkt = nullptr;
+    switch(state) {
+        case NCDrop_LOAD:
+            pkt = createLoadNode(nodeId); // load the node to drop
+            break;
+        case NCDrop_STORE:
+            pkt = createStoreNode(nodeId, savedNode);
+            break;
+        case NCDrop_LOAD_LEFT:
+            pkt = createLoadNode(prevNodeId);
+            break;
+        case NCDrop_STORE_LEFT:
+            pkt = createStoreNode(prevNodeId, savedNode);
+            break;
+        case NCDrop_LOAD_RIGHT:
+            pkt = createLoadNode(nextNodeId);
+            break;
+        case NCDrop_STORE_RIGHT:
+            pkt = createStoreNode(nextNodeId, savedNode);
+            break;
+        default:
+            panic("Unrecognised state in drop!");
+    }
+    if(pkt) {
+        status = AWAIT_CACHE;
+    }
+    return pkt;
+}
+
+void
+NodeDrop::handleResp(PacketPtr pkt) {
+    switch(state) {
+        case NCDrop_LOAD:
+            savedNode = pkt->getRaw<Node>();
+            assert(savedNode.isValid()); // TODO: actually need to handle this case
+            prevNodeId = savedNode.prev;
+            nextNodeId = savedNode.next;
+            savedNode.invalidate();
+
+            state = NCDrop_STORE;
+            break;
+        case NCDrop_STORE:
+            if(prevNodeId == NODE_ID_INVALID &&
+                nextNodeId == NODE_ID_INVALID) {
+                inst->getNodeController().setRoot(nodeId);
+                status = COMPLETED;
+            } else if(prevNodeId == NODE_ID_INVALID) {
+                inst->getNodeController().setRoot(nodeId);
+                state = NCDrop_LOAD_RIGHT;
+            } else {
+                // if prev node exists
+                state = NCDrop_LOAD_LEFT;
+            }
+            break;
+        case NCDrop_LOAD_LEFT:
+            savedNode = pkt->getRaw<Node>();
+            savedNode.next = nextNodeId;
+
+            state = NCDrop_STORE_LEFT;
+            break;
+        case NCDrop_STORE_LEFT:
+            if(nextNodeId == NODE_ID_INVALID) {
+                status = COMPLETED;
+            } else {
+                state = NCDrop_LOAD_RIGHT;
+            }
+            break;
+        case NCDrop_LOAD_RIGHT:
+            savedNode = pkt->getRaw<Node>();
+            savedNode.prev = prevNodeId;
+
+            state = NCDrop_STORE_RIGHT;
+            break;
+        case NCDrop_STORE_RIGHT:
+            status = COMPLETED;
+            break;
+        default:
+            panic("Unrecognised state in drop!");
+    }
+}
+
 }
 }
 }

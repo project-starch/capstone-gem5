@@ -213,7 +213,30 @@ struct NodeAllocate : NodeCommand {
 };
 
 struct NodeDrop : NodeCommand {
-    Type getType() const override;
+    NodeID nodeId;
+
+    NodeDrop() {}
+    NodeDrop(NodeID node_id): nodeId(node_id) {}
+
+    PacketPtr transition() override;
+    void handleResp(PacketPtr pkt) override;
+    Type getType() const override {
+        return NodeCommand::DROP;
+    }
+
+    private:
+        enum {
+            NCDrop_LOAD,
+            NCDrop_STORE,
+            NCDrop_LOAD_LEFT,
+            NCDrop_STORE_LEFT,
+            NCDrop_LOAD_RIGHT,
+            NCDrop_STORE_RIGHT,
+        } state;
+
+        Node savedNode;
+        NodeID prevNodeId;
+        NodeID nextNodeId;
 };
 
 typedef NodeCommand* NodeCommandPtr;
