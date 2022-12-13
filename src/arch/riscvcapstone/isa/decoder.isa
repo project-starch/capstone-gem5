@@ -372,6 +372,7 @@ decode QUADRANT default Unknown::unknown() {
         }
     }
     0x3: decode OPCODE {
+        //Capstone Ops
         0x1d: decode FUNCT3 {
             format Revoke {
                 0x1: revoke ({{
@@ -382,6 +383,7 @@ decode QUADRANT default Unknown::unknown() {
                 0x2: call ({{
                     Rs1, Rd;
                 }});
+                //TODO: Add rest of calls
             }
             format ROp {
                 0x6: jmp ({{
@@ -391,69 +393,79 @@ decode QUADRANT default Unknown::unknown() {
                     if(Rs1 != 0)
                         NPC = Rd;
                 }}, IsCondControl);
-                0x8: shrink ({{
+            }
+        }
+
+        0x1a: decode FUNCT3 {
+            format ROp {
+                0x0: shrink ({{
                     Rd; Rs1; Rs2;
                     //TODO: bounds maths here
                 }});
-                0x9: tighten ({{
+                0x1: tighten ({{
                     Rd; Rs1;
                     /* TODO: do we perform checks here if new bounds are actually 
                      * tighter than current bounds?
                      */
                     Rd = Rd | (Rs1 & (0x38 << 2));
                 }});
-                0xA: delin ({{
+                0x2: delin ({{
                     Rd;
                     //TODO: type change
                 }});
-                0xB: scc ({{
+                0x3: scc ({{
                     Rd; Rs1;
                     uint64_t temp = Rd >> 64;
                     temp = temp << 64 | Rs1;
                     Rd = temp;
                 }});
-                0xC: init ({{
+                0x4: init ({{
                     Rd;
                     //TODO: change type
                     //set cursor to lower bound
                 }});
-                0xD: seal ({{
+                0x5: seal ({{
                     Rd;
                     //TODO: change type
                 }});
-                0xE: add2 ({{
+                0x6: add2 ({{
                     Rd = Rd + Rs1;
                 }});
-                0xF: lt ({{
+                0x7: lt ({{
                     Rd = (Rs1 < Rs2);
                 }});
             }
+        }
+
+        0x17: decode FUNCT3 {
             format QueryTest {
-                0x10: query ({{
+                0x0: query ({{
                     Rs1;
                 }});
             }
             format DropTest {
-                0x11: drop ({{
+                0x1: drop ({{
                     Rs1;
                 }});
             }
             format RcUpdateTest {
-                0x12: rcup ({{
+                0x2: rcup ({{
                     Rs1;
                 }});
             }
             format AllocTest {
-                0x13: alloc ({{
+                0x3: alloc ({{
                     Rs1;
                 }});
             }
             format RevokeTest {
-                0x14: revoket ({{
+                0x4: revoket ({{
                     Rs1;
                 }});
             }
         }
+        //End Capstone Ops
+
         0x00: decode FUNCT3 {
             format Load {
                 0x0: lb({{
