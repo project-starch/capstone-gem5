@@ -398,10 +398,15 @@ decode QUADRANT default Unknown::unknown() {
 
         0x1a: decode FUNCT3 {
             format ROp {
-                0x0: shrink ({{
-                    Rd; Rs1; Rs2;
-                    //TODO: bounds maths here
-                }});
+                0x0: decode FUNCT7 {
+                    0x0: shrink ({{
+                        Rd; Rs1; Rs2;
+                        //TODO: bounds maths here
+                    }});
+                    0x1: lt ({{
+                        Rd = (Rs1 < Rs2);
+                    }});
+                }
                 0x1: tighten ({{
                     Rd; Rs1;
                     /* TODO: do we perform checks here if new bounds are actually 
@@ -430,9 +435,6 @@ decode QUADRANT default Unknown::unknown() {
                 }});
                 0x6: add2 ({{
                     Rd = Rd + Rs1;
-                }});
-                0x7: lt ({{
-                    Rd = (Rs1 < Rs2);
                 }});
             }
         }
