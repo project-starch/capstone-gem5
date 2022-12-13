@@ -1,8 +1,11 @@
 #include "base/types.hh"
 #include "base/flags.hh"
+#include "mem/packet.hh"
+#include "mem/packet_access.hh"
 #include "base/amo.hh"
 #include "arch/riscvcapstone/o3/node_commands.hh"
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
+#include "arch/riscvcapstone/o3/node.hh"
 #include "arch/riscvcapstone/insts/amo.hh"
 #include "node_commands.hh"
 
@@ -17,7 +20,7 @@ inline Addr node_addr(NodeID node_id) {
 }
 
 static PacketPtr
-create_load_node(RequestorID requestor_id, NodeID node_id) {
+create_load_node(RequestorID requestor_id, const NodeID& node_id) {
     Addr addr = node_addr(node_id);
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestor_id);
@@ -30,7 +33,8 @@ create_load_node(RequestorID requestor_id, NodeID node_id) {
 }
 
 static PacketPtr 
-create_store_node(RequestorID requestor_id, NodeID node_id, const Node& node) {
+create_store_node(RequestorID requestor_id, const NodeID& node_id,
+        const Node& node) {
     Addr addr = node_addr(node_id);
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestor_id);
@@ -44,6 +48,16 @@ create_store_node(RequestorID requestor_id, NodeID node_id, const Node& node) {
 }
 
 PacketPtr
+NodeCommand::createStoreNode(const NodeID& node_id, const Node& node) {
+    return create_store_node(inst->requestorId(), node_id, node);
+}
+
+PacketPtr
+NodeCommand::createLoadNode(const NodeID& node_id) {
+    return create_load_node(inst->requestorId(), node_id);
+}
+
+PacketPtr
 NodeAllocate::transition() {
     return nullptr;
 }
@@ -53,31 +67,13 @@ NodeAllocate::handleResp(PacketPtr pkt) {
 }
 
 
-PacketPtr
-NodeRevoke::transition() {
-    return nullptr;
-}
-
-void
-NodeRevoke::handleResp(PacketPtr pkt) {
-}
-
-
-PacketPtr
-NodeRcUpdate::transition() {
-    return nullptr;
-}
-
-void
-NodeRcUpdate::handleResp(PacketPtr pkt) {
-}
 
 
 PacketPtr
 NodeQuery::transition() {
     assert(status == NOT_STARTED);
     status = AWAIT_CACHE;
-    return create_load_node(inst->requestorId(), nodeId);
+    return createLoadNode(nodeId);
 }
 
 void
@@ -90,6 +86,172 @@ bool
 NodeQuery::error() {
     return validityError;
 }
+
+void
+NodeRevoke::handleResp(PacketPtr pkt) {
+#if(0)
+    assert(status == AWAIT_CACHE);
+    switch(state) {
+        case NCRevoke_LOAD_ROOT:
+            savedNode = *(pkt->getPtr<Node>());
+            //savedNode = pkt->getRaw<Node>();
+            rootDepth = savedNode.depth;
+            curNodeId = savedNode.next;
+            prevNodeId = savedNode.prev;
+            savedNode.state = 0; // invalidate
+            if(savedNode.counter == 0){
+                // the node can be immediately freed
+                //controller.freeNode(savedNode, nodeId);
+            }
+
+            state = NCRevoke_STORE;
+            break;
+        case NCRevoke_LOAD:
+            savedNode = pkt->getRaw<Node>();
+            if(savedNode.depth > rootDepth) {
+                // still in the subtree
+                savedNode.state = 0;
+                old_node_id = curNodeId;
+                curNodeId = savedNode.next;
+                if(savedNode.counter == 0){
+                    // immediately frees the node
+                    //controller.freeNode(savedNode, old_node_id);
+                }
+                //pkt = create_store_node(inst->requestorId(), old_node_id, savedNode);
+
+                state = NCRevoke_STORE;
+            } else{
+                // outside subtree
+                // current node is the right node
+                // need to update its prevNodeId
+                savedNode.prev = prevNodeId;
+                //pkt = create_store_node(inst->requestorId(), curNodeId, savedNode);
+                state = NCRevoke_STORE_RIGHT;
+            }
+            break;
+        case NCRevoke_LOAD_LEFT:
+            savedNode = pkt->getRaw<Node>();
+            savedNode.next = curNodeId;
+            state = NCRevoke_STORE_LEFT;
+            break;
+        case NCRevoke_STORE_LEFT:
+            break;
+        case NCRevoke_STORE:
+            if(curNodeId == NODE_ID_INVALID) {
+                if(prevNodeId == NODE_ID_INVALID) {
+                    // the tree is empty
+                    //controller.tree_root = NODE_ID_INVALID;
+                    //current_pkt->makeResponse();
+                    //current_pkt->deleteData();
+                }
+                // need to change prev->next
+                //pkt = create_load_node(inst->requestorId(), prevNodeId);
+                state = NCRevoke_LOAD_LEFT;
+            } else{
+                //pkt = create_load_node(inst->requestorId(), curNodeId);
+                state = NCRevoke_LOAD;
+            }
+            break;
+    }
+#endif
+}
+
+PacketPtr
+NodeRevoke::transition() {
+#if(0)
+    NodeID old_node_id;
+    PacketPtr pkt = nullptr;
+    switch(state) {
+        case NCRevoke_LOAD_ROOT:
+            pkt = create_store_node(inst->requestorId(), nodeId, node);
+            state = NCRevoke_STORE;
+
+            break;
+        case NCRevoke_LOAD:
+            node = pkt->getRaw<Node>();
+            break;
+        case NCRevoke_STORE_RIGHT:
+            if(prevNodeId == NODE_ID_INVALID) {
+                //controller.tree_root = curNodeId;
+                //current_pkt->makeResponse();
+                //current_pkt->deleteData();
+            } else{
+                pkt = create_load_node(inst->requestorId(), prevNodeId);
+                state = NCRevoke_LOAD_LEFT;
+            }
+            break;
+        case NCRevoke_LOAD_LEFT:
+            pkt = create_store_node(inst->requestorId(), prevNodeId, node);
+            break;
+        case NCRevoke_STORE_LEFT:
+            //current_pkt->makeResponse();
+            //current_pkt->deleteData();
+            break;
+        case NCRevoke_STORE:
+            break;
+        default:
+            panic("incorrect state for node revocation operation!");
+    }
+    if(pkt){
+        status = AWAIT_CACHE;
+    }
+    return pkt;
+#else
+    return nullptr;
+#endif
+}
+
+void
+NodeRcUpdate::handleResp(PacketPtr pkt) {
+    switch(state) {
+        case NCRcUpdate_LOAD:
+            savedNode = pkt->getRaw<Node>();
+            savedNode.counter += delta;
+            if(savedNode.counter == 0 && savedNode.state == 0) {
+                // add node to free list
+                //controller.freeNode(savedNode, nodeId);
+
+                // TODO: maintain the free list
+                //node.next = free_head;
+                //free_head = node_id;
+            }
+
+            // note that we do not need to do anything 
+            // with prev and next because they are invalid notes
+            state = NCRcUpdate_STORE;
+            status = TO_RESUME;
+            break;
+        case NCRcUpdate_STORE:
+            status = COMPLETED;
+            break;
+        default:
+            panic("unrecognised state in RcUpdate!");
+    }
+}
+
+
+// when rc reaches 0
+// if the node if invalid: add the node to the free list
+// if the node is valid: no need to do anything
+PacketPtr
+NodeRcUpdate::transition() {
+    PacketPtr pkt = nullptr;
+    switch(state) {
+        case NCRcUpdate_LOAD:
+            pkt = createLoadNode(nodeId);
+            break;
+        case NCRcUpdate_STORE:
+            pkt = createStoreNode(nodeId, savedNode);
+            break;
+        default:
+            panic("unrecognised state in RcUpdate!");
+    }
+    if(pkt) {
+        status = AWAIT_CACHE;
+    }
+    return pkt;
+}
+
 
 /** 
  *

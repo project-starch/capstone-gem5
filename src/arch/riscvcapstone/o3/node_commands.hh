@@ -50,6 +50,13 @@ struct NodeCommand {
     virtual bool error() {
         return false;
     }
+    virtual void setInst(DynInstPtr inst) {
+        this->inst = inst;
+    }
+
+    protected:
+        PacketPtr createStoreNode(const NodeID& node_id, const Node& node);
+        PacketPtr createLoadNode(const NodeID& node_id);
 };
 
 
@@ -82,6 +89,11 @@ struct LockedNodeCommand : NodeCommand {
 
     PacketPtr transition() override;
     void handleResp(PacketPtr pkt) override;
+
+    void setInst(DynInstPtr inst) override {
+        NodeCommand::setInst(inst);
+        rawCommand->setInst(inst);
+    }
 
     private:
         PacketPtr createAcquirePacket();
@@ -138,16 +150,18 @@ struct NodeRevoke : NodeCommand {
         NodeID curNodeId;
         unsigned int rootDepth;
         NodeID prevNodeId;
+        
+        Node savedNode;
 };
 
 struct NodeRcUpdate : NodeCommand {
     NodeID nodeId;
     int delta;
-    NodeRcUpdate() {}
-    NodeRcUpdate(NodeID node_id, int delta): nodeId(node_id), delta(delta) {}
+    NodeRcUpdate() : state(NCRcUpdate_LOAD) {}
+    NodeRcUpdate(NodeID node_id, int delta): nodeId(node_id), delta(delta), state(NCRcUpdate_LOAD) {}
     NodeRcUpdate(DynInstPtr inst, NodeID node_id, int delta):
         NodeCommand(inst),
-        nodeId(node_id), delta(delta) {}
+        nodeId(node_id), delta(delta), state(NCRcUpdate_LOAD) {}
     Type getType() const override {
         return NodeCommand::RC_UPDATE;
     }
@@ -162,6 +176,8 @@ struct NodeRcUpdate : NodeCommand {
             NCRcUpdate_LOAD,
             NCRcUpdate_STORE,
         } state;
+        
+        Node savedNode;
 };
 
 struct NodeAllocate : NodeCommand {
