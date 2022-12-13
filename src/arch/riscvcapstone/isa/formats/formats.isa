@@ -52,5 +52,9 @@
 // Except
 ##include "except.isa"
 
+// Test Formats
+##include "testformats.isa"
+##include "testtemplates.isa"
+
 // Include the unknown
 ##include "unknown.isa"
