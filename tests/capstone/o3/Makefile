@@ -11,7 +11,7 @@ test: exit.o test.o
 exit.o: exit.S
 	$(GCC) -c -o exit.o exit.S
 	
-test.o: test.S
+test.o: test.S asm_insn.h
 	$(GCC) -c -o test.o test.S
 
 clean:

@@ -1,21 +1,21 @@
-#define REVOKE(r)        .insn i 0x77, 0x1, x0, r, 0
+#define REVOKE(reg)        .insn r 0x5B, 0x1, 0x0, x0, reg, x0
 
-#define CALL(rd,rs1)      .insn i 0x77, 0x2, rd, rs1, 0
-#define JMP(r)           .insn i 0x77, 0x6, x0, r, 0
-#define JNZ(rd,rs1)         .insn i 0x77, 0x7, rd, rs1, 0
+#define CALL(rd,rs1)      .insn r 0x5B, 0x1, 0x1, rd, rs1, x0
+#define JMP(reg)           .insn r 0x5B, 0x1, 0x2, x0, reg, x0
+#define JNZ(rd,rs1)         .insn r 0x5B, 0x1, 0x3, rd, rs1, x0
 
-#define SHRINK(rd,rs1,rs2)    .insn r 0x6B, 0x0, 0x0, rd, rs1, rs2
-#define LT(rd,rs1,rs2)        .insn r 0x6B, 0x0, 0x1, rd, rs1, rs2
-#define TIGHTEN(rd,rs1)     .insn i 0x6B, 0x1, rd, rs1, 0
-#define DELIN(r)         .insn i 0x6B, 0x2, r, x0, 0
-#define SCC(rd,rs1)         .insn i 0x6B, 0x3, rd, rs1, 0
-#define INIT(r)          .insn i 0x6B, 0x4, r, x0, 0
-#define SEAL(r)           .insn i 0x6B, 0x5, r, x0, 0
-#define ADD2(rd,rs1)        .insn i 0x6B, 0x6, rd, rs1, 0
+#define SHRINK(rd,rs1,rs2)    .insn r 0x5B, 0x1, 0x4, rd, rs1, rs2
+#define LT(rd,rs1,rs2)        .insn r 0x5B, 0x1, 0x5, rd, rs1, rs2
+#define TIGHTEN(rd,rs1)     .insn r 0x5B, 0x1, 0x6, rd, rs1, x0
+#define DELIN(reg)         .insn r 0x5B, 0x1, 0x7, reg, x0, x0
+#define SCC(rd,rs1)         .insn r 0x5B, 0x1, 0x8, rd, rs1, x0
+#define INIT(reg)          .insn r 0x5B, 0x1, 0x9, reg, x0, x0
+#define SEAL(reg)           .insn r 0x5B, 0x1, 0xa, reg, x0, x0
+#define ADD2(rd,rs1)        .insn r 0x5B, 0x1, 0xb, rd, rs1, x0
 
-//Test instructions for node ops
-#define QUERY(r)         .insn i 0x5F, 0x0, x0, r, 0
-#define DROP(r)          .insn i 0x5F, 0x1, x0, r, 0
-#define RCUPDATE(r)      .insn i 0x5F, 0x2, x0, r, 0
-#define ALLOC(r)         .insn i 0x5F, 0x3, x0, r, 0
-#define REVOKET(r)       .insn i 0x5F, 0x4, x0, r, 0
+// Test instructions for node ops
+#define QUERY(reg)         .insn r 0x5B, 0x0, 0x0, x0, reg, x0
+#define DROP(reg)          .insn r 0x5B, 0x0, 0x1, x0, reg, x0
+#define RCUPDATE(reg)      .insn r 0x5B, 0x0, 0x2, x0, reg, x0
+#define ALLOC(reg)         .insn r 0x5B, 0x0, 0x3, x0, reg, x0
+#define REVOKET(reg)       .insn r 0x5B, 0x0, 0x4, x0, reg, x0

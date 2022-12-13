@@ -149,6 +149,13 @@ NCQ::passedQuery(const DynInstPtr& inst) const {
     return threads[thread_id].passedQuery(inst);
 }
 
+void
+NCQ::cleanupCommands() {
+    for(auto& thread : threads) {
+        thread.cleanupCommands();
+    }
+}
+
 }
 }
 }

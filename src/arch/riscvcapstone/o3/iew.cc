@@ -1530,6 +1530,8 @@ IEW::tick()
     // Writeback any node commands using any leftover bandwidth.
     ncQueue.writebackCommands();
 
+    ncQueue.cleanupCommands();
+
     // Check the committed load/store signals to see if there's a load
     // or store to commit.  Also check if it's being told to execute a
     // nonspeculative instruction.

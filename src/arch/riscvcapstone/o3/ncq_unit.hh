@@ -32,6 +32,12 @@ struct NCQEntry {
         canWB(false),
         completedCommands(0) {}
 
+    ~NCQEntry() {
+        for(auto& cmd : commands) {
+            delete cmd;
+        }
+    }
+
     // all commands have been finished
     bool completed() const {
         return completedCommands == commands.size();
@@ -72,6 +78,7 @@ class NCQUnit {
     
         bool handleCacheResp(PacketPtr pkt);
         bool passedQuery(const DynInstPtr& inst) const;
+        void cleanupCommands();
 };
 
 }

@@ -373,101 +373,94 @@ decode QUADRANT default Unknown::unknown() {
     }
     0x3: decode OPCODE {
         //Capstone Ops
-        0x1d: decode FUNCT3 {
-            format Revoke {
-                0x1: revoke ({{
-                    Rs1;
-                }});
-            }
-            format Calls {
-                0x2: call ({{
-                    Rs1, Rd;
-                }});
-                //TODO: Add rest of calls
-            }
-            format ROp {
-                0x6: jmp ({{
-                    NPC = Rs1;
-                }}, IsUncondControl);
-                0x7: jnz ({{
-                    if(Rs1 != 0)
-                        NPC = Rd;
-                }}, IsCondControl);
-            }
-        }
-
-        0x1a: decode FUNCT3 {
-            format ROp {
-                0x0: decode FUNCT7 {
-                    0x0: shrink ({{
+        0x16: decode FUNCT3 {
+            0x1: decode FUNCT7 {
+                format Revoke {
+                    0x0: revoke ({{
+                        Rs1;
+                    }});
+                }
+                format Calls {
+                    0x1: call ({{
+                        Rs1, Rd;
+                    }});
+                    //TODO: Add rest of calls
+                }
+                format ROp {
+                    0x2: jmp ({{
+                        NPC = Rs1;
+                    }}, IsUncondControl);
+                    0x3: jnz ({{
+                        if(Rs1 != 0)
+                            NPC = Rd;
+                    }}, IsCondControl);
+                    0x4: shrink ({{
                         Rd; Rs1; Rs2;
                         //TODO: bounds maths here
                     }});
-                    0x1: lt ({{
+                    0x5: lt ({{
                         Rd = (Rs1 < Rs2);
                     }});
+                    0x6: tighten ({{
+                        Rd; Rs1;
+                        /* TODO: do we perform checks here if new bounds are actually 
+                         * tighter than current bounds?
+                         */
+                        Rd = Rd | (Rs1 & (0x38 << 2));
+                    }});
+                    0x7: delin ({{
+                        Rd;
+                        //TODO: type change
+                    }});
+                    0x8: scc ({{
+                        Rd; Rs1;
+                        uint64_t temp = Rd >> 64;
+                        temp = temp << 64 | Rs1;
+                        Rd = temp;
+                    }});
+                    0x9: init ({{
+                        Rd;
+                        //TODO: change type
+                        //set cursor to lower bound
+                    }});
+                    0xa: seal ({{
+                        Rd;
+                        //TODO: change type
+                    }});
+                    0xb: add2 ({{
+                        Rd = Rd + Rs1;
+                    }});
                 }
-                0x1: tighten ({{
-                    Rd; Rs1;
-                    /* TODO: do we perform checks here if new bounds are actually 
-                     * tighter than current bounds?
-                     */
-                    Rd = Rd | (Rs1 & (0x38 << 2));
-                }});
-                0x2: delin ({{
-                    Rd;
-                    //TODO: type change
-                }});
-                0x3: scc ({{
-                    Rd; Rs1;
-                    uint64_t temp = Rd >> 64;
-                    temp = temp << 64 | Rs1;
-                    Rd = temp;
-                }});
-                0x4: init ({{
-                    Rd;
-                    //TODO: change type
-                    //set cursor to lower bound
-                }});
-                0x5: seal ({{
-                    Rd;
-                    //TODO: change type
-                }});
-                0x6: add2 ({{
-                    Rd = Rd + Rs1;
-                }});
             }
-        }
-
-        0x17: decode FUNCT3 {
-            format QueryTest {
-                0x0: query ({{
-                    Rs1;
-                }});
-            }
-            format DropTest {
-                0x1: drop ({{
-                    Rs1;
-                }});
-            }
-            format RcUpdateTest {
-                0x2: rcup ({{
-                    Rs1;
-                }});
-            }
-            format AllocTest {
-                0x3: alloc ({{
-                    Rs1;
-                }});
-            }
-            format RevokeTest {
-                0x4: revoket ({{
-                    Rs1;
-                }});
+            0x0: decode FUNCT7 {
+                format QueryTest {
+                    0x0: query ({{
+                        Rs1;
+                    }});
+                }
+                format DropTest {
+                    0x1: drop ({{
+                        Rs1;
+                    }});
+                }
+                format RcUpdateTest {
+                    0x2: rcup ({{
+                        Rs1;
+                    }});
+                }
+                format AllocTest {
+                    0x3: alloc ({{
+                        Rs1;
+                    }});
+                }
+                format RevokeTest {
+                    0x4: revoket ({{
+                        Rs1;
+                    }});
+                }
             }
         }
         //End Capstone Ops
-
         0x00: decode FUNCT3 {
             format Load {
                 0x0: lb({{

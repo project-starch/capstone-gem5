@@ -69,6 +69,18 @@ NCQUnit::commitBefore(InstSeqNum seq_num) {
 }
 
 void
+NCQUnit::cleanupCommands(){
+    while(!ncQueue.empty()) {
+        auto& front = ncQueue.front();
+        if(front.canWB && front.completed()) {
+            ncQueue.pop_front();
+        } else{
+            break;
+        }
+    }
+}
+
+void
 NCQUnit::writebackCommands(){
     // not doing lots of reordering right now
     for(NCQIterator it = ncQueue.begin();
@@ -77,10 +89,15 @@ NCQUnit::writebackCommands(){
             // not doing anything for instructions not yet executed
             continue;
         std::vector<NodeCommandPtr>& commands = it->commands;
+        DPRINTF(NCQ, "Instruction %u with %u commands\n", it->inst->seqNum, commands.size());
         for(NodeCommandIterator nc_it = commands.begin();
                 nc_it != commands.end() && ncq->canSend();
                 ++ nc_it) {
             NodeCommandPtr nc_ptr = *nc_it;
+            assert(nc_ptr);
+            DPRINTF(NCQ, "Command status = %u, before commit = %u\n",
+                    static_cast<unsigned int>(nc_ptr->status),
+                    nc_ptr->beforeCommit());
             if(nc_ptr->status == NodeCommand::COMPLETED || 
                 nc_ptr->status == NodeCommand::AWAIT_CACHE ||
                 (!nc_ptr->beforeCommit() && !it->canWB))
@@ -91,6 +108,7 @@ NCQUnit::writebackCommands(){
                 auto saved_req = it->inst->savedRequest;
                 if(cond_ptr && saved_req &&
                         (!saved_req->isComplete() || !cond_ptr->satisfied(saved_req))){
+                    DPRINTF(NCQ, "Command bypassed as condition is not satisfied\n");
                     // cannot process if the request has not completed or 
                     // the condition is not satisfied
                     continue;
@@ -131,6 +149,7 @@ NCQUnit::writebackCommands(){
             PacketPtr pkt = nc_ptr->transition();
             if(pkt) {
                 ncq->trySendPacket(pkt, threadId);
+                DPRINTF(NCQ, "Packet sent for command\n");
                 // record which command the packet originates from
                 // to deliver the packet back once the response if received
                 assert(packetIssuers.find(pkt->id) == packetIssuers.end());
@@ -146,6 +165,7 @@ NCQUnit::writebackCommands(){
 
 void
 NCQUnit::completeCommand(NodeCommandPtr node_command){
+    DPRINTF(NCQ, "Command for instruction %u completed\n", node_command->inst->seqNum);
     node_command->inst->completeNodeAcc(node_command);
     ++ node_command->inst->ncqIt->completedCommands;
 }

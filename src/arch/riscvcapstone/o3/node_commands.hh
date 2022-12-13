@@ -50,7 +50,7 @@ struct NodeCommand {
     virtual bool error() {
         return false;
     }
-    virtual void setInst(DynInstPtr inst) {
+    virtual void setInst(const DynInstPtr& inst) {
         this->inst = inst;
     }
 
@@ -90,7 +90,7 @@ struct LockedNodeCommand : NodeCommand {
     PacketPtr transition() override;
     void handleResp(PacketPtr pkt) override;
 
-    void setInst(DynInstPtr inst) override {
+    void setInst(const DynInstPtr& inst) override {
         NodeCommand::setInst(inst);
         rawCommand->setInst(inst);
     }

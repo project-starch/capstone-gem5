@@ -86,7 +86,8 @@ NodeQuery::handleResp(PacketPtr pkt) {
 
 bool
 NodeQuery::error() {
-    return validityError;
+    return false; // TODO: ignore errors for now
+    //return validityError;
 }
 
 void
@@ -398,6 +399,7 @@ NodeDrop::handleResp(PacketPtr pkt) {
             nextNodeId = savedNode.next;
             savedNode.invalidate();
 
+            status = TO_RESUME;
             state = NCDrop_STORE;
             break;
         case NCDrop_STORE:
@@ -408,9 +410,11 @@ NodeDrop::handleResp(PacketPtr pkt) {
             } else if(prevNodeId == NODE_ID_INVALID) {
                 inst->getNodeController().setRoot(nodeId);
                 state = NCDrop_LOAD_RIGHT;
+                status = TO_RESUME;
             } else {
                 // if prev node exists
                 state = NCDrop_LOAD_LEFT;
+                status = TO_RESUME;
             }
             break;
         case NCDrop_LOAD_LEFT:
@@ -418,12 +422,14 @@ NodeDrop::handleResp(PacketPtr pkt) {
             savedNode.next = nextNodeId;
 
             state = NCDrop_STORE_LEFT;
+            status = TO_RESUME;
             break;
         case NCDrop_STORE_LEFT:
             if(nextNodeId == NODE_ID_INVALID) {
                 status = COMPLETED;
             } else {
                 state = NCDrop_LOAD_RIGHT;
+                status = TO_RESUME;
             }
             break;
         case NCDrop_LOAD_RIGHT:
@@ -431,6 +437,7 @@ NodeDrop::handleResp(PacketPtr pkt) {
             savedNode.prev = prevNodeId;
 
             state = NCDrop_STORE_RIGHT;
+            status = TO_RESUME;
             break;
         case NCDrop_STORE_RIGHT:
             status = COMPLETED;
