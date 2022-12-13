@@ -5,6 +5,7 @@ namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
+const size_t CAPSTONE_NODE_SIZE = 128;
 
 /*
     revocation node structure
@@ -15,12 +16,25 @@ namespace o3 {
     Depth (31 bits)
 */
 struct Node {
+    typedef enum {
+        FREED = 0,
+        VALID = 1,
+        INVALID = 2,
+        RESERVED = 3,
+    } NodeState;
+
     NodeID prev: 31;
     NodeID next: 31;
-    unsigned char state: 2;
+    NodeState state: 2;
     unsigned long long counter: 33;
     unsigned int depth: 31;
+
+    bool isValid() {
+        return state == VALID;
+    }
 };
+
+static_assert(sizeof(Node) == (CAPSTONE_NODE_SIZE >> 3));
 
 }
 }

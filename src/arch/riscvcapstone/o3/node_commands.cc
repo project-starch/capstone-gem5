@@ -7,7 +7,6 @@
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/node.hh"
 #include "arch/riscvcapstone/insts/amo.hh"
-#include "node_commands.hh"
 
 namespace gem5 {
 namespace RiscvcapstoneISA {
@@ -79,7 +78,10 @@ NodeQuery::transition() {
 void
 NodeQuery::handleResp(PacketPtr pkt) {
     status = COMPLETED;
-    // TODO check validity and determine vaildityError
+
+    // check validity of the node
+    Node node = pkt->getRaw<Node>();
+    validityError = !node.isValid();
 }
 
 bool
@@ -209,11 +211,7 @@ NodeRcUpdate::handleResp(PacketPtr pkt) {
             savedNode.counter += delta;
             if(savedNode.counter == 0 && savedNode.state == 0) {
                 // add node to free list
-                //controller.freeNode(savedNode, nodeId);
-
-                // TODO: maintain the free list
-                //node.next = free_head;
-                //free_head = node_id;
+                inst->getNodeController().freeNode(savedNode, nodeId);
             }
 
             // note that we do not need to do anything 

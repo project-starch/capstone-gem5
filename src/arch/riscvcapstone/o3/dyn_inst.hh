@@ -59,6 +59,7 @@
 #include "arch/riscvcapstone/o3/cpu.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
 #include "arch/riscvcapstone/o3/lsq_unit.hh"
+#include "arch/riscvcapstone/o3/node_controller.hh"
 #include "cpu/op_class.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/static_inst.hh"
@@ -1199,6 +1200,11 @@ class DynInst : public ExecContext, public RefCounted
         auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
         assert(rvStaticInst != nullptr);
         return rvStaticInst->getStateMachine(this);
+    }
+
+
+    NodeController& getNodeController() {
+        return cpu->nodeController;
     }
 
 };

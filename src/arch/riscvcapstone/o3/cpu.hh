@@ -64,6 +64,7 @@
 #include "arch/riscvcapstone/o3/rob.hh"
 #include "arch/riscvcapstone/o3/scoreboard.hh"
 #include "arch/riscvcapstone/o3/thread_state.hh"
+#include "arch/riscvcapstone/o3/node_controller.hh"
 #include "cpu/activity.hh"
 #include "cpu/base.hh"
 #include "cpu/simple_thread.hh"
@@ -623,6 +624,8 @@ class CPU : public BaseCPU
     } cpuStats;
 
   public:
+    NodeController nodeController;
+
     // hardware transactional memory
     void htmSendAbortSignal(ThreadID tid, uint64_t htm_uid,
                             HtmFailureFaultCause cause) override;
