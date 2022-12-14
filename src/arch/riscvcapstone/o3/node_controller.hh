@@ -9,6 +9,7 @@ namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
+const int CAPSTONE_NODE_N = 1<<24;
 
 // this does nothing more than maintaining some on-chip states
 // related to the revocation tree
@@ -16,11 +17,20 @@ class NodeController {
     private:
         NodeID treeRoot; // root of the revocation tree
         NodeID freeHead; // head of the free list
+        int freeNodeInited; 
+
     public:
+        NodeController() : treeRoot(NODE_ID_INVALID),
+            freeHead(NODE_ID_INVALID), 
+            freeNodeInited(1) {} // node 0 is reserved for the lock
         void freeNode(Node& node, const NodeID& node_id);
         void setRoot(const NodeID& node_id) {
             treeRoot = node_id;
         }
+        NodeID getRoot() const {
+            return treeRoot;
+        }
+        NodeID tryAllocate(bool& from_free_list); // allocate from free list or uninited pool
 };
 
 }

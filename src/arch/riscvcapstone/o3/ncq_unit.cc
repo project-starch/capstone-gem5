@@ -89,7 +89,8 @@ NCQUnit::writebackCommands(){
             // not doing anything for instructions not yet executed
             continue;
         std::vector<NodeCommandPtr>& commands = it->commands;
-        DPRINTF(NCQ, "Instruction %u with %u commands\n", it->inst->seqNum, commands.size());
+        DPRINTF(NCQ, "Instruction %u with %u commands (completed = %u)\n", it->inst->seqNum, commands.size(), 
+                it->completedCommands);
         for(NodeCommandIterator nc_it = commands.begin();
                 nc_it != commands.end() && ncq->canSend();
                 ++ nc_it) {
@@ -142,7 +143,8 @@ NCQUnit::writebackCommands(){
             if(!dep_ready)
                 continue;
 
-            DPRINTF(NCQ, "Command ready to execute\n");
+            DPRINTF(NCQ, "Command ready to execute (instruction %u)\n",
+                    it->inst->seqNum);
 
             // the command can be executed
             // one state transition in the state machine
@@ -177,7 +179,10 @@ NCQUnit::handleCacheResp(PacketPtr pkt) {
     NodeCommandPtr node_cmd = it->second;
     assert(node_cmd);
     packetIssuers.erase(it);
+    DPRINTF(NCQ, "Node cache response received for instruction %u, cmd beforeCommit = %u\n",
+            it->second->inst->seqNum, it->second->beforeCommit());
     node_cmd->handleResp(pkt);
+    DPRINTF(NCQ, "Command handler new status = %u\n", static_cast<unsigned int>(node_cmd->status));
     if(node_cmd->status == NodeCommand::COMPLETED) {
         completeCommand(node_cmd);
     }

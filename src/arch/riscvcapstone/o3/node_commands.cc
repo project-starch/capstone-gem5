@@ -7,6 +7,7 @@
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/node.hh"
 #include "arch/riscvcapstone/insts/amo.hh"
+#include "debug/NodeCmd.hh"
 
 namespace gem5 {
 namespace RiscvcapstoneISA {
@@ -58,14 +59,111 @@ NodeCommand::createLoadNode(const NodeID& node_id) {
 
 PacketPtr
 NodeAllocate::transition() {
-    return nullptr;
+    DPRINTF(NodeCmd, "Node allocate transition for instruction %u\n",
+            inst->seqNum); 
+
+    PacketPtr pkt = nullptr;
+
+    NodeController& nodeController = inst->getNodeController();
+    switch(state) {
+        case NCAllocate_LOAD_PARENT:
+            toAllocate = nodeController.tryAllocate(fromFreeList);
+            if(toAllocate == NODE_ID_INVALID) {
+                // TODO: should attempt to reclaim nodes here instead
+                panic("No free nodes left!");
+            }
+            DPRINTF(NodeCmd, "Allocated node ID = %u, parentID = %lu,"
+                    " invalid = %lu\n", 
+                    toAllocate, parentId, NODE_ID_INVALID);
+            if(parentId == NODE_ID_INVALID) {
+                DPRINTF(NodeCmd, "Allocated node becomes new root\n");
+
+                // replace the root
+                nextNodeId = nodeController.getRoot();
+                parentDepth = 0;
+                nodeController.setRoot(toAllocate);
+                pkt = createLoadNode(toAllocate);
+
+                state = NCAllocate_LOAD; // no need to access the root
+            } else {
+                pkt = createLoadNode(parentId);
+            }
+            break;
+        case NCAllocate_STORE_PARENT:
+            pkt = createStoreNode(parentId, savedNode);
+            break;
+        case NCAllocate_LOAD:
+            pkt = createLoadNode(toAllocate);
+            break;
+        case NCAllocate_STORE:
+            pkt = createStoreNode(toAllocate, savedNode);
+            break;
+        case NCAllocate_LOAD_RIGHT:
+            pkt = createLoadNode(nextNodeId);
+            break;
+        case NCAllocate_STORE_RIGHT:
+            pkt = createStoreNode(nextNodeId, savedNode);
+            break;
+        default:
+            panic("Unrecognised state in node allocation!");
+    }
+
+    if(pkt) {
+        status = AWAIT_CACHE;
+    }
+    return pkt;
 }
 
 void
 NodeAllocate::handleResp(PacketPtr pkt) {
+    assert(status == AWAIT_CACHE);
+    switch(state) {
+        case NCAllocate_LOAD_PARENT:
+            savedNode = pkt->getRaw<Node>();
+            parentDepth = savedNode.depth;
+            nextNodeId = savedNode.next;
+            savedNode.next = toAllocate;
+
+            state = NCAllocate_STORE_PARENT;
+            status = TO_RESUME;
+            break;
+        case NCAllocate_STORE_PARENT:
+            state = NCAllocate_LOAD;
+            status = TO_RESUME;
+            break;
+        case NCAllocate_LOAD:
+            savedNode = pkt->getRaw<Node>();
+            savedNode.prev = parentId;
+            savedNode.depth = parentDepth + 1;
+            savedNode.next = nextNodeId;
+            savedNode.state = Node::VALID;
+            savedNode.counter = 0; // TODO: perhaps 1
+            
+            state = NCAllocate_STORE;
+            status = TO_RESUME;
+            break;
+        case NCAllocate_STORE:
+            if(nextNodeId == NODE_ID_INVALID) {
+                status = COMPLETED;
+            } else {
+                state = NCAllocate_LOAD_RIGHT;
+                status = TO_RESUME;
+            }
+            break;
+        case NCAllocate_LOAD_RIGHT:
+            savedNode = pkt->getRaw<Node>();
+            savedNode.prev = toAllocate;
+
+            state = NCAllocate_STORE_RIGHT;
+            status = TO_RESUME;
+            break;
+        case NCAllocate_STORE_RIGHT:
+            status = COMPLETED;
+            break;
+        default:
+            panic("Unrecognised state in node allocation!");
+    }
 }
-
-
 
 
 PacketPtr
@@ -331,7 +429,7 @@ LockedNodeCommand::transition() {
 
 void
 LockedNodeCommand::handleResp(PacketPtr pkt) {
-    assert(status == AWAIT_CACHE && rawCommand->status == AWAIT_CACHE);
+    assert(status == AWAIT_CACHE);
     assert(pkt && pkt->isResponse());
     bool completed = false;
     if(lockState == BEFORE_ACQUIRE) {

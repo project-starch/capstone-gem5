@@ -50,8 +50,8 @@ NCQ::isFull(ThreadID thread_id) {
 
 Fault
 NCQ::executeNodeOp(const DynInstPtr& inst) {
-    Fault fault = inst->initiateNodeAcc();
-    return NoFault;
+    DPRINTF(NCQ, "Executing node op insn %u\n", inst->seqNum);
+    return inst->initiateNodeAcc();
 }
 
 void

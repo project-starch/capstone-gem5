@@ -184,11 +184,11 @@ struct NodeAllocate : NodeCommand {
     NodeID data;
 
     NodeID parentId;
-    NodeAllocate() {}
-    NodeAllocate(NodeID parent_id): parentId(parent_id) {}
+    NodeAllocate() : state(NCAllocate_LOAD_PARENT) {}
+    NodeAllocate(NodeID parent_id): parentId(parent_id), state(NCAllocate_LOAD_PARENT) {}
     NodeAllocate(DynInstPtr inst, NodeID parent_id):
         NodeCommand(inst),
-        parentId(parent_id) {}
+        parentId(parent_id), state(NCAllocate_LOAD_PARENT) {}
     Type getType() const override {
         return NodeCommand::ALLOCATE;
     }
@@ -200,16 +200,17 @@ struct NodeAllocate : NodeCommand {
     ~NodeAllocate() {}
     private:
         enum { 
-            NCAllocate_LOAD,
-            NCAllocate_STORE,
             NCAllocate_LOAD_PARENT,
             NCAllocate_STORE_PARENT,
+            NCAllocate_LOAD,
+            NCAllocate_STORE,
             NCAllocate_LOAD_RIGHT,
             NCAllocate_STORE_RIGHT,
         } state;
         NodeID nextNodeId, nextFreeNodeId, toAllocate;
         bool fromFreeList;
         unsigned int parentDepth;
+        Node savedNode;
 };
 
 struct NodeDrop : NodeCommand {

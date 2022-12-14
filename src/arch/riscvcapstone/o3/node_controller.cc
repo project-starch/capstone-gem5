@@ -13,6 +13,19 @@ NodeController::freeNode(Node& node, const NodeID& node_id) {
     freeHead = node_id;
 }
 
+NodeID
+NodeController::tryAllocate(bool& from_free_list) {
+    if(freeHead != NODE_ID_INVALID) {
+        from_free_list = true;
+        return freeHead;
+    }
+    if(freeNodeInited >= CAPSTONE_NODE_N){
+        return NODE_ID_INVALID;
+    }
+    from_free_list = false;
+    return static_cast<NodeID>(freeNodeInited ++);
+}
+
 }
 }
 }
