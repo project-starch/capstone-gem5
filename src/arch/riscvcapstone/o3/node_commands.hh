@@ -125,11 +125,12 @@ struct NodeQuery : NodeCommand {
 
 struct NodeRevoke : NodeCommand {
     NodeID nodeId;
-    NodeRevoke() {}
-    NodeRevoke(NodeID node_id) : nodeId(node_id) {}
+    NodeRevoke() : state(NCRevoke_LOAD_ROOT) {}
+    NodeRevoke(NodeID node_id) : nodeId(node_id), state(NCRevoke_LOAD_ROOT) {}
     NodeRevoke(DynInstPtr inst, NodeID node_id) : 
         NodeCommand(inst),
-        nodeId(node_id) {}
+        nodeId(node_id), 
+        state(NCRevoke_LOAD_ROOT) {}
     Type getType() const override {
         return NodeCommand::REVOKE;
     }
@@ -145,13 +146,13 @@ struct NodeRevoke : NodeCommand {
             NCRevoke_LOAD,
             NCRevoke_STORE,
             NCRevoke_STORE_RIGHT,
-            NCRevoke_LOAD_LEFT, NCRevoke_STORE_LEFT,
+            NCRevoke_STORE_ROOT,
         } state;
         NodeID curNodeId;
         unsigned int rootDepth;
         NodeID prevNodeId;
         
-        Node savedNode;
+        Node savedNode, rootNode;
 };
 
 struct NodeRcUpdate : NodeCommand {

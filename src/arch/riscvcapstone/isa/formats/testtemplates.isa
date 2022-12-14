@@ -15,31 +15,13 @@ def template TestRevokeInitiateAcc {{
     %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
         Trace::InstRecord *traceData) const
     {
-        const RegId regId = srcRegIdx(0);
-        const RegIndex regIdx = regId.index();
+        using namespace gem5::RiscvcapstoneISA::o3;
 
-        ThreadContext *tcBase = xc->tcBase();
-        int threadId = tcBase->threadId();
-
-        gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
-                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
-
-        gem5::RiscvcapstoneISA::CapLoc regLoc =
-                    gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
-
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
         /* TODO: Add actual method to retrieve node ID from the capability */
-        gem5::RiscvcapstoneISA::NodeID nodeId = 0;
-
-        gem5::RiscvcapstoneISA::o3::NodeRevoke qry =
-                    gem5::RiscvcapstoneISA::o3::NodeRevoke(dyn_inst, nodeId);
-
-        gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
-
-        auto o3cpu = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU *>(cpu);
-
-        o3cpu->pushNodeCommand(dyn_inst, cmd);
-
-        return NoFault;
+        NodeID node_id = static_cast<NodeID>(xc->getRegOperand(this, 0));
+        return dyn_inst->initiateNodeCommand(new NodeRevoke(node_id));
     }
 }};
 
