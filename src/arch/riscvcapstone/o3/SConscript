@@ -63,6 +63,7 @@ Source('node_commands.cc', tags='riscvcapstone isa')
 Source('node_commands_order.cc', tags='riscvcapstone isa')
 Source('ncq.cc', tags='riscvcapstone isa')
 Source('ncq_unit.cc', tags='riscvcapstone isa')
+Source('cap.cc', tags='riscvcapstone isa')
 
 DebugFlag('NCQ', tags='riscvcapstone isa')
 DebugFlag('NodeCmd', tags='riscvcapstone isa')

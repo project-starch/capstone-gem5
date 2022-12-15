@@ -1,6 +1,8 @@
 #ifndef __CAPSTONE_NODE_H_
 #define __CAPSTONE_NODE_H_
 
+#include<cstddef>
+
 namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
@@ -41,7 +43,7 @@ struct Node {
         assert(state == INVALID); // only invalid nodes can be freed
         state = FREED;
     }
-};
+} __attribute__((packed));
 
 static_assert(sizeof(Node) == (CAPSTONE_NODE_SIZE >> 3));
 
