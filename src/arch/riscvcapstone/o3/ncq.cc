@@ -1,6 +1,7 @@
 #include "arch/riscvcapstone/o3/ncq.hh"
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/cpu.hh"
+#include "arch/riscvcapstone/o3/iew.hh"
 #include "debug/NCQ.hh"
 
 namespace gem5 {
@@ -9,8 +10,8 @@ namespace o3 {
 
 
 // TODO: we need to simulate the number of ports
-NCQ::NCQ(CPU* cpu, int queue_size, int thread_num) : 
-    cpu(cpu),
+NCQ::NCQ(CPU* cpu, IEW* iew, int queue_size, int thread_num) : 
+    cpu(cpu), iew(iew),
     queueSize(queue_size),
     threadNum(thread_num),
     activeThreads(nullptr),
@@ -18,7 +19,7 @@ NCQ::NCQ(CPU* cpu, int queue_size, int thread_num) :
     
     threads.reserve(thread_num);
     for(int i = 0; i < thread_num; i ++) {
-        threads.emplace_back(static_cast<ThreadID>(i), queue_size, this);
+        threads.emplace_back(static_cast<ThreadID>(i), queue_size, this, iew);
     }
 }
 

@@ -30,7 +30,7 @@ class NodeController {
         NodeID getRoot() const {
             return treeRoot;
         }
-        NodeID tryAllocate(bool& from_free_list); // allocate from free list or uninited pool
+        NodeID tryAllocate(); // allocate from free list or uninited pool
 };
 
 }

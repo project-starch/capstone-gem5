@@ -45,6 +45,7 @@
 
 #include "arch/riscvcapstone/o3/iew.hh"
 
+#include <fstream>
 #include <queue>
 
 #include "config/the_isa.hh"
@@ -71,7 +72,7 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
       cpu(_cpu),
       instQueue(_cpu, this, params),
       ldstQueue(_cpu, this, params),
-      ncQueue(_cpu, params.ncqSize, params.numThreads),
+      ncQueue(_cpu, this, params.ncqSize, params.numThreads),
       fuPool(params.fuPool),
       commitToIEWDelay(params.commitToIEWDelay),
       renameToIEWDelay(params.renameToIEWDelay),
@@ -1219,7 +1220,6 @@ IEW::executeInsts()
         // Note that if the instruction faults, it will be handled
         // at the commit stage.
         
-        bool executed = false;
         if (inst->isMemRef()) {
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
@@ -1276,7 +1276,8 @@ IEW::executeInsts()
                     // along to commit without the instruction completing.
                     // Send this instruction to commit, also make sure iew
                     // stage realizes there is activity.
-                    executed = true;
+                    inst->setExecuted();
+                    instToCommit(inst);
                     activityThisCycle();
                 }
 
@@ -1287,6 +1288,18 @@ IEW::executeInsts()
                 panic("Unexpected memory type!\n");
             }
 
+        } else if(inst->isNodeOp()) {
+            // TODO: we might consider removing isNodeOp altogether considering 
+            // how prevalent it is that an instruction needs to issue node commands
+            fault = ncQueue.executeNodeOp(inst);
+
+            inst->setNodeInitiated();
+
+            // instructions that require wb still need to wait
+            if(!inst->hasNodeWB()) {
+                inst->setExecuted();
+                instToCommit(inst);
+            }
         } else {
             // If the instruction has already faulted, then skip executing it.
             // Such case can happen when it faulted during ITLB translation.
@@ -1298,19 +1311,10 @@ IEW::executeInsts()
                     inst->forwardOldRegs();
             }
 
-            executed = true;
-        }
-
-        // TODO: we might consider removing isNodeOp altogether considering 
-        // how prevalent it is that an instruction needs to issue node commands
-        if(inst->isNodeOp()) {
-            ncQueue.executeNodeOp(inst);
-        }
-
-        if(executed) {
             inst->setExecuted();
             instToCommit(inst);
         }
+
 
         updateExeInstStats(inst);
 

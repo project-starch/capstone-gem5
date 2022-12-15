@@ -17,6 +17,7 @@ namespace RiscvcapstoneISA {
 namespace o3 {
 
 class CPU;
+class IEW;
 
     // TODO: also needs to be one per thread
 class NCQ {
@@ -52,6 +53,7 @@ class NCQ {
 
     private:
         CPU* cpu;
+        IEW* iew;
         std::vector<NCQUnit> threads;
         int queueSize;
         int threadNum;
@@ -62,7 +64,7 @@ class NCQ {
         NcachePort ncachePort;
 
     public:
-        NCQ(CPU* cpu, int queue_size, int thread_num);
+        NCQ(CPU* cpu, IEW* iew, int queue_size, int thread_num);
         void insertInstruction(const DynInstPtr& inst);
         void tick();
 

@@ -3,6 +3,7 @@
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/ncq.hh"
 #include "arch/riscvcapstone/o3/lsq.hh"
+#include "arch/riscvcapstone/o3/iew.hh"
 #include "debug/NCQ.hh"
 
 
@@ -12,11 +13,11 @@ namespace o3 {
 
 
 NCQUnit::NCQUnit(ThreadID thread_id, int queue_size,
-        NCQ* ncq) :
+        NCQ* ncq, IEW* iew) :
     threadId(thread_id),
     ncQueue(queue_size),
     queueSize(queue_size),
-    ncq(ncq)
+    ncq(ncq), iew(iew)
 {
 }
 
@@ -85,7 +86,7 @@ NCQUnit::writebackCommands(){
     // not doing lots of reordering right now
     for(NCQIterator it = ncQueue.begin();
             it != ncQueue.end() && ncq->canSend(); ++ it) {
-        if(!it->inst->isExecuted() || it->completed())
+        if(!it->inst->isNodeInitiated() || it->completed())
             // not doing anything for instructions not yet executed
             continue;
         std::vector<NodeCommandPtr>& commands = it->commands;
@@ -100,8 +101,8 @@ NCQUnit::writebackCommands(){
                     static_cast<unsigned int>(nc_ptr->status),
                     nc_ptr->beforeCommit());
             if(nc_ptr->status == NodeCommand::COMPLETED || 
-                nc_ptr->status == NodeCommand::AWAIT_CACHE ||
-                (!nc_ptr->beforeCommit() && !it->canWB))
+                nc_ptr->status == NodeCommand::AWAIT_CACHE)
+                //(!nc_ptr->beforeCommit() && !it->canWB))
                 continue;
 
             if(nc_ptr->status == NodeCommand::NOT_STARTED) {
@@ -167,9 +168,17 @@ NCQUnit::writebackCommands(){
 
 void
 NCQUnit::completeCommand(NodeCommandPtr node_command){
-    DPRINTF(NCQ, "Command for instruction %u completed\n", node_command->inst->seqNum);
-    node_command->inst->completeNodeAcc(node_command);
-    ++ node_command->inst->ncqIt->completedCommands;
+    DynInstPtr& inst = node_command->inst;
+    DPRINTF(NCQ, "Command for instruction %u completed\n", inst->seqNum);
+    inst->completeNodeAcc(node_command);
+    ++ inst->ncqIt->completedCommands;
+    if(inst->ncqIt->completed() &&
+            inst->hasNodeWB()) {
+        DPRINTF(NCQ, "Instruction %u can now be committed\n",
+                inst->seqNum);
+        inst->setExecuted();
+        iew->instToCommit(inst);
+    }
 }
 
 bool

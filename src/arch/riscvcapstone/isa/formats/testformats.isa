@@ -122,21 +122,22 @@ def template TestConstructor {{
     %(class_name)s::%(class_name)s(ExtMachInst machInst):
         %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
     {
-    setRegIdxArrays(
-        reinterpret_cast<RegIdArrayPtr>(
-            &std::remove_pointer_t<decltype(this)>::srcRegIdxArr),
-        reinterpret_cast<RegIdArrayPtr>(
-            &std::remove_pointer_t<decltype(this)>::destRegIdxArr));
+        setRegIdxArrays(
+            reinterpret_cast<RegIdArrayPtr>(
+                &std::remove_pointer_t<decltype(this)>::srcRegIdxArr),
+            reinterpret_cast<RegIdArrayPtr>(
+                &std::remove_pointer_t<decltype(this)>::destRegIdxArr));
 
-    setSrcRegIdx(_numSrcRegs++,
-                 ((RS1) == 0) ? RegId() : RegId(IntRegClass, RS1));
-    setSrcRegIdx(_numSrcRegs++,
-                 ((RS2) == 0) ? RegId() : RegId(IntRegClass, RS2));
+        setSrcRegIdx(_numSrcRegs++,
+                     ((RS1) == 0) ? RegId() : RegId(IntRegClass, RS1));
+        setSrcRegIdx(_numSrcRegs++,
+                     ((RS2) == 0) ? RegId() : RegId(IntRegClass, RS2));
 
-    setDestRegIdx(_numDestRegs++,
-                 ((RD) == 0) ? RegId() : RegId(IntRegClass, RD));
+        setDestRegIdx(_numDestRegs++,
+                     ((RD) == 0) ? RegId() : RegId(IntRegClass, RD));
 
-    flags[IsInteger] = true;
-    isNodeOp = true;
+        flags[IsInteger] = true;
+        isNodeOp = true;
+        //hasNodeWB = true;
     }
 }};

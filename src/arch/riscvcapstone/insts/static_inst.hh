@@ -104,6 +104,7 @@ class RiscvStaticInst : public StaticInst
 
   public:
     bool isNodeOp = false;
+    bool hasNodeWB = false;
       
     ExtMachInst machInst;
 

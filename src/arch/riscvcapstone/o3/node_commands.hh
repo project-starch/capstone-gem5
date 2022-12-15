@@ -187,10 +187,12 @@ struct NodeAllocate : NodeCommand {
 
     NodeID parentId;
     NodeAllocate() : state(NCAllocate_LOAD_PARENT) {}
-    NodeAllocate(NodeID parent_id): parentId(parent_id), state(NCAllocate_LOAD_PARENT) {}
-    NodeAllocate(DynInstPtr inst, NodeID parent_id):
+    NodeAllocate(NodeID parent_id, NodeID to_allocate_id): parentId(parent_id), toAllocate(to_allocate_id), 
+    state(NCAllocate_LOAD_PARENT) {}
+    NodeAllocate(DynInstPtr inst, NodeID parent_id, NodeID to_allocate_id):
         NodeCommand(inst),
-        parentId(parent_id), state(NCAllocate_LOAD_PARENT) {}
+        parentId(parent_id), toAllocate(to_allocate_id), 
+        state(NCAllocate_LOAD_PARENT) {}
     Type getType() const override {
         return NodeCommand::ALLOCATE;
     }
@@ -200,6 +202,9 @@ struct NodeAllocate : NodeCommand {
     PacketPtr transition() override;
     void handleResp(PacketPtr pkt) override;
     ~NodeAllocate() {}
+    NodeID getAllocatedID() {
+        return toAllocate;
+    }
     private:
         enum { 
             NCAllocate_LOAD_PARENT,
@@ -210,7 +215,6 @@ struct NodeAllocate : NodeCommand {
             NCAllocate_STORE_RIGHT,
         } state;
         NodeID nextNodeId, nextFreeNodeId, toAllocate;
-        bool fromFreeList;
         unsigned int parentDepth;
         Node savedNode;
 };

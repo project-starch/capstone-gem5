@@ -130,9 +130,15 @@ def template TestAllocInitiateAcc {{
 
         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
         assert(dyn_inst);
+        
+        auto& node_controller = dyn_inst->getNodeController();
+        NodeID to_allocate = node_controller.tryAllocate();
+
+        xc->setRegOperand(this, 0, to_allocate);
+
         /* TODO: Add actual method to retrieve node ID from the capability */
         NodeID node_id = static_cast<NodeID>(xc->getRegOperand(this, 0));
-        return dyn_inst->initiateNodeCommand(new NodeAllocate(node_id));
+        return dyn_inst->initiateNodeCommand(new NodeAllocate(node_id, to_allocate));
     }
 }};
 
@@ -142,6 +148,16 @@ def template TestAllocCompleteAcc {{
         gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
         Trace::InstRecord *traceData) const
     {
+        //using namespace gem5::RiscvcapstoneISA::o3;
+
+        //auto allocate_cmd = dynamic_cast<NodeAllocate*>(cmd);
+        //assert(allocate_cmd);
+
+        //DPRINTFN("Testalloc finished with alloc id = %u\n",
+                //static_cast<unsigned int>(allocate_cmd->getAllocatedID()));
+
+        //xc->setRegOperand(this, 0, allocate_cmd->getAllocatedID());
+
         return NoFault;
     }
 }};

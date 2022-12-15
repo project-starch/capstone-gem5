@@ -67,11 +67,12 @@ NodeAllocate::transition() {
     NodeController& node_controller = inst->getNodeController();
     switch(state) {
         case NCAllocate_LOAD_PARENT:
-            toAllocate = node_controller.tryAllocate(fromFreeList);
-            if(toAllocate == NODE_ID_INVALID) {
-                // TODO: should attempt to reclaim nodes here instead
-                panic("No free nodes left!");
-            }
+            assert(toAllocate != NODE_ID_INVALID);
+            // TODO: should attempt to reclaim nodes here instead
+            //toAllocate = node_controller.tryAllocate(fromFreeList);
+            //if(toAllocate == NODE_ID_INVALID) {
+                //panic("No free nodes left!");
+            //}
             DPRINTF(NodeCmd, "Allocated node ID = %u, parentID = %lu,"
                     " invalid = %lu\n", 
                     toAllocate, parentId, NODE_ID_INVALID);

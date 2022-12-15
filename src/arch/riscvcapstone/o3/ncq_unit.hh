@@ -15,6 +15,7 @@ namespace RiscvcapstoneISA {
 namespace o3 {
 
 class NCQ;
+class IEW;
 
 struct NCQEntry {
     DynInstPtr inst;
@@ -56,6 +57,7 @@ class NCQUnit {
         int queueSize;
 
         NCQ* ncq;
+        IEW* iew;
 
         NodeCommandsOrdering ncOrder;
 
@@ -65,7 +67,7 @@ class NCQUnit {
         typedef typename CircularQueue<NCQEntry>::iterator NCQIterator;
         typedef typename std::vector<NodeCommandPtr>::iterator NodeCommandIterator;
 
-        NCQUnit(ThreadID thread_id, int queue_size, NCQ* ncq);
+        NCQUnit(ThreadID thread_id, int queue_size, NCQ* ncq, IEW* iew);
         //NCQUnit(const NCQUnit&) = delete;
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
         void insertInstruction(const DynInstPtr& inst);

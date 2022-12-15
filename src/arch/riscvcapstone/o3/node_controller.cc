@@ -14,15 +14,15 @@ NodeController::freeNode(Node& node, const NodeID& node_id) {
 }
 
 NodeID
-NodeController::tryAllocate(bool& from_free_list) {
+NodeController::tryAllocate() {
     if(freeHead != NODE_ID_INVALID) {
-        from_free_list = true;
+        //from_free_list = true;
         return freeHead;
     }
     if(freeNodeInited >= CAPSTONE_NODE_N){
         return NODE_ID_INVALID;
     }
-    from_free_list = false;
+    //from_free_list = false;
     return static_cast<NodeID>(freeNodeInited ++);
 }
 

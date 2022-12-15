@@ -602,7 +602,15 @@ class DynInst : public ExecContext, public RefCounted
             return false;
         }
         return rvStaticInst->isNodeOp;
-    /* FIXME placeholder */ }
+    }
+
+    bool hasNodeWB() const { 
+        auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
+        if(rvStaticInst == nullptr) {
+            return false;
+        }
+        return rvStaticInst->hasNodeWB;
+    }
 
     uint64_t
     getHtmTransactionUid() const override
@@ -778,6 +786,10 @@ class DynInst : public ExecContext, public RefCounted
 
     /** Sets this instruction as executed. */
     void setExecuted() { status.set(Executed); }
+
+    void setNodeInitiated() { nodeInitiated = true; }
+
+    bool isNodeInitiated() { return nodeInitiated; }
 
     /** Returns whether or not this instruction has executed. */
     bool isExecuted() const { return status[Executed]; }
@@ -1000,6 +1012,8 @@ class DynInst : public ExecContext, public RefCounted
     // hardware transactional memory
     uint64_t htmUid = -1;
     uint64_t htmDepth = 0;
+    
+    bool nodeInitiated = false;
 
   public:
 #if TRACING_ON
