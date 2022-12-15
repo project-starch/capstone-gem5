@@ -9,7 +9,6 @@ _start:
     #REVOKE(a1)
     QUERY(a1)
     #RCUPDATE(a1,a2)
-    #QUERY(a1)
     
     j exit
 

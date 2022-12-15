@@ -133,6 +133,9 @@ def template TestConstructor {{
     setSrcRegIdx(_numSrcRegs++,
                  ((RS2) == 0) ? RegId() : RegId(IntRegClass, RS2));
 
+    setDestRegIdx(_numDestRegs++,
+                 ((RD) == 0) ? RegId() : RegId(IntRegClass, RD));
+
     flags[IsInteger] = true;
     isNodeOp = true;
     }

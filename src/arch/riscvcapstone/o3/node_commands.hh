@@ -43,6 +43,7 @@ struct NodeCommand {
     // the returned data and size
     NodeCommand() : status(NOT_STARTED), inst(NULL), canWB(false) {}
     NodeCommand(DynInstPtr inst) : inst(inst), canWB(false) {}
+    virtual ~NodeCommand() {}
     virtual Type getType() const = 0;
     virtual bool beforeCommit() const = 0; // if this command can be executed before commit
     virtual PacketPtr transition() = 0;

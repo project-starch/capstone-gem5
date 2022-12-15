@@ -6,6 +6,7 @@ namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
+#if(0)
 const bool NODE_COMMAND_ORDERING_MAP[5][5] = {
     {false, false, false, false, true},
     {false, false, false, false, true},
@@ -13,6 +14,15 @@ const bool NODE_COMMAND_ORDERING_MAP[5][5] = {
     {false, false, true, true, true},
     {true, true, true, true, true}
 };
+#else
+const bool NODE_COMMAND_ORDERING_MAP[5][5] = { // always in order
+    {false, false, false, false, false},
+    {false, false, false, false, false},
+    {false, false, false, false, false},
+    {false, false, false, false, false},
+    {false, false, false, false, false}
+};
+#endif
 
 bool
 NodeCommandsOrdering::reorderAllowed(

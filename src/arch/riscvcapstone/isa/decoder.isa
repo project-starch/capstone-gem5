@@ -435,27 +435,27 @@ decode QUADRANT default Unknown::unknown() {
             0x0: decode FUNCT7 {
                 format QueryTest {
                     0x0: query ({{
-                        Rs1; Rs2;
+                        Rs1; Rs2; Rd;
                     }});
                 }
                 format DropTest {
                     0x1: drop ({{
-                        Rs1; Rs2;
+                        Rs1; Rs2; Rd;
                     }});
                 }
                 format RcUpdateTest {
                     0x2: rcup ({{
-                        Rs1; Rs2;
+                        Rs1; Rs2; Rd;
                     }});
                 }
                 format AllocTest {
                     0x3: alloc ({{
-                        Rs1; Rs2;
+                        Rs1; Rs2; Rd;
                     }});
                 }
                 format RevokeTest {
                     0x4: revoket ({{
-                        Rs1; Rs2;
+                        Rs1; Rs2; Rd;
                     }});
                 }
             }
