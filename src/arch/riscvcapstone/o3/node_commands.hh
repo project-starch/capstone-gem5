@@ -149,9 +149,8 @@ struct NodeRevoke : NodeCommand {
             NCRevoke_STORE_RIGHT,
             NCRevoke_STORE_ROOT,
         } state;
-        NodeID curNodeId;
+        NodeID curNodeId, nextNodeId;
         unsigned int rootDepth;
-        NodeID prevNodeId;
         
         Node savedNode, rootNode;
 };

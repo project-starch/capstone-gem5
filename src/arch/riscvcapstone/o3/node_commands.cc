@@ -185,9 +185,13 @@ NodeQuery::handleResp(PacketPtr pkt) {
     validityError = !node.isValid();
 
     DPRINTF(NodeCmd, "Query validityError for instruction %u = %u"
-            " (state = %u)\n",
+            " (node %u state = %u depth = %u prev = %u next = %u)\n",
             inst->seqNum, validityError,
-            static_cast<unsigned int>(node.state));
+            static_cast<unsigned int>(nodeId),
+            static_cast<unsigned int>(node.state),
+            node.depth,
+            static_cast<unsigned int>(node.prev),
+            static_cast<unsigned int>(node.next));
 }
 
 bool
@@ -235,7 +239,6 @@ NodeRevoke::handleResp(PacketPtr pkt) {
             rootNode = pkt->getRaw<Node>();
             rootDepth = rootNode.depth;
             curNodeId = rootNode.next;
-            prevNodeId = rootNode.prev;
 
             if(curNodeId == NODE_ID_INVALID) { // subtree is empty
                 // nothing needs to be done
@@ -251,6 +254,7 @@ NodeRevoke::handleResp(PacketPtr pkt) {
             if(savedNode.depth > rootDepth) {
                 // still in the subtree
                 savedNode.state = Node::INVALID;
+                nextNodeId = savedNode.next;
                 if(savedNode.counter == 0){
                     // immediately frees the node
                     node_controller.freeNode(savedNode, curNodeId);
@@ -267,7 +271,7 @@ NodeRevoke::handleResp(PacketPtr pkt) {
             }
             break;
         case NCRevoke_STORE:
-            curNodeId = savedNode.next;
+            curNodeId = nextNodeId;
             if(curNodeId == NODE_ID_INVALID) {
                 state = NCRevoke_STORE_ROOT;
                 status = TO_RESUME;
