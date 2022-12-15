@@ -714,6 +714,7 @@ Build variables for {dir}:
         CacheDir(env['CONF']['M5_BUILD_CACHE'])
 
 
+    env.Append(CCFLAGS="-DTARGET_" + variant_dir)
     env.Append(CCFLAGS='$CCFLAGS_EXTRA')
     env.Append(LINKFLAGS='$LINKFLAGS_EXTRA')
 
