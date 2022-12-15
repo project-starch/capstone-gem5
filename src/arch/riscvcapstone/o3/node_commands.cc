@@ -442,6 +442,8 @@ LockedNodeCommand::handleResp(PacketPtr pkt) {
 
 PacketPtr
 NodeDrop::transition() {
+    DPRINTF(NodeCmd, "NodeDrop (nodeId = %u) transition (state = %u)\n",
+            nodeId, static_cast<unsigned int>(state));
     PacketPtr pkt = nullptr;
     switch(state) {
         case NCDrop_LOAD:
@@ -487,7 +489,8 @@ NodeDrop::handleResp(PacketPtr pkt) {
         case NCDrop_STORE:
             if(prevNodeId == NODE_ID_INVALID &&
                 nextNodeId == NODE_ID_INVALID) {
-                inst->getNodeController().setRoot(nodeId);
+                // the tree's only node is invalidated
+                inst->getNodeController().setRoot(NODE_ID_INVALID);
                 status = COMPLETED;
             } else if(prevNodeId == NODE_ID_INVALID) {
                 inst->getNodeController().setRoot(nodeId);

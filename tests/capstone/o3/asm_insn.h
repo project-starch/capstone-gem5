@@ -15,9 +15,9 @@
 
 // Test instructions for node ops
 #define QUERY(reg)         .insn r 0x5B, 0x0, 0x0, x0, reg, x0
-#define DROP(reg)          .insn r 0x5B, 0x0, 0x1, reg, reg, x0
+#define DROP(reg)          .insn r 0x5B, 0x0, 0x1, x0, reg, x0
 #define RCUPDATE(rs1,rs2)      .insn r 0x5B, 0x0, 0x2, x0, rs1, rs2
-#define ALLOC(reg)         .insn r 0x5B, 0x0, 0x3, reg, reg, x0
+#define ALLOC(rd,rs)         .insn r 0x5B, 0x0, 0x3, rd, rs, x0
 #define REVOKET(reg)       .insn r 0x5B, 0x0, 0x4, x0, reg, x0
 
 

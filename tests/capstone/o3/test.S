@@ -4,11 +4,15 @@
 _start: 
     #REVOKE(a1)
     li a1, NODE_ID_INVALID
-    ALLOC(a1)
-    #li a1, 1
-    #REVOKE(a1)
-    QUERY(a1)
-    #RCUPDATE(a1,a2)
+    ALLOC(a2,a1)
+    QUERY(a2)
+    DROP(a2)
+    QUERY(a2)
+
+    ALLOC(a2,a1)
+    QUERY(a2)
+    DROP(a2)
+    QUERY(a2)
     
     j exit
 

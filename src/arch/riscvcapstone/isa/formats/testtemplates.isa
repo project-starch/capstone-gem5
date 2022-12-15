@@ -177,8 +177,14 @@ def template TestDropInitiateAcc {{
     %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
         Trace::InstRecord *traceData) const
     {
-        //TODO: Add code once Jason updates code for the class
-        return NoFault;
+        using namespace gem5::RiscvcapstoneISA::o3;
+
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
+        /* TODO: Add actual method to retrieve node ID from the capability */
+        NodeID node_id = static_cast<NodeID>(xc->getRegOperand(this, 0));
+        DPRINTFN("Test Drop node_id = %u\n", node_id);
+        return dyn_inst->initiateNodeCommand(new NodeDrop(node_id));
     }
 }};
 

@@ -230,7 +230,9 @@ struct NodeDrop : NodeCommand {
     Type getType() const override {
         return NodeCommand::DROP;
     }
-
+    bool beforeCommit() const override {
+        return false;
+    }
     private:
         enum {
             NCDrop_LOAD,
@@ -239,7 +241,7 @@ struct NodeDrop : NodeCommand {
             NCDrop_STORE_LEFT,
             NCDrop_LOAD_RIGHT,
             NCDrop_STORE_RIGHT,
-        } state;
+        } state = NCDrop_LOAD;
 
         Node savedNode;
         NodeID prevNodeId;
