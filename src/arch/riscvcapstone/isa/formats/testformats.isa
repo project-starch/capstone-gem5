@@ -103,7 +103,7 @@ def template TestDeclare {{
     class %(class_name)s : public %(base_class)s
     {
         private:
-            RegId srcRegIdxArr[1]; RegId destRegIdxArr[0];
+            RegId srcRegIdxArr[2]; RegId destRegIdxArr[1];
 
         public:
         /// Constructor.

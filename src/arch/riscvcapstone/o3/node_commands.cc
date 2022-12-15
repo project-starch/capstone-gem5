@@ -185,13 +185,14 @@ NodeQuery::handleResp(PacketPtr pkt) {
     validityError = !node.isValid();
 
     DPRINTF(NodeCmd, "Query validityError for instruction %u = %u"
-            " (node %u state = %u depth = %u prev = %u next = %u)\n",
+            " (node %u state = %u depth = %u prev = %u next = %u counter = %u)\n",
             inst->seqNum, validityError,
             static_cast<unsigned int>(nodeId),
             static_cast<unsigned int>(node.state),
             node.depth,
             static_cast<unsigned int>(node.prev),
-            static_cast<unsigned int>(node.next));
+            static_cast<unsigned int>(node.next),
+            node.counter);
 }
 
 bool

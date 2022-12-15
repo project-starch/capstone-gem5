@@ -1,20 +1,22 @@
+ASM_SOURCES=$(wildcard *.S)
+STATIC_LIB=exit
+HEADERS=asm_insn.h
+OBJECTS=$(patsubst %.S,%.o,$(ASM_SOURCES))
+TARGETS=$(filter-out $(STATIC_LIB),$(patsubst %.S,%,$(ASM_SOURCES)))
+
 GCC=riscv64-unknown-elf-gcc
 
+all: $(TARGETS)
 
-all: test
+$(TARGETS):%:$(STATIC_LIB).o %.o
+	$(GCC) -o $@ -nostdlib -static $^
 
-.PHONY: all clean
-
-test: exit.o test.o
-	$(GCC) -o test -nostdlib -static exit.o test.o
-
-exit.o: exit.S
-	$(GCC) -c -o exit.o exit.S
-	
-test.o: test.S asm_insn.h
-	$(GCC) -c -o test.o test.S
+$(OBJECTS):%.o:%.S $(HEADERS)
+	$(GCC) -c -o $@ $<
 
 clean:
-	rm -rf *.o test
+	rm -rf $(TARGETS) $(OBJECTS)
+
+.PHONY: all clean
 
 

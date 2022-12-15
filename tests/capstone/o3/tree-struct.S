@@ -2,7 +2,6 @@
 
 .global _start
 _start: 
-    #REVOKE(a1)
     li a1, NODE_ID_INVALID
     ALLOC(a2,a1)
     ALLOC(a3,a2)
