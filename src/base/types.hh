@@ -43,6 +43,10 @@
 #include <ostream>
 #include <stdexcept>
 
+#ifdef TARGET_RISCVCapstone
+#include "arch/riscvcapstone/o3/cap.hh"
+#endif
+
 namespace gem5
 {
 
@@ -171,21 +175,19 @@ isRomMicroPC(MicroPC upc)
 const Addr MaxAddr = (Addr)-1;
 
 #ifdef TARGET_RISCVCapstone
-//#include "arch/riscvcapstone/o3/cap.hh"
  //TODO: add tag bit
 
-struct Dummy {};
-
 struct RegVal {
+    using Cap = gem5::RiscvcapstoneISA::o3::Cap;
     union {
-        Dummy cap;
+        Cap cap;
         uint64_t intv;
     } val;
     RegVal() { }
     RegVal(uint64_t v) {
         val.intv = v;
     }
-    RegVal(const Dummy& cap) {
+    RegVal(const Cap& cap) {
         val.cap = cap;
     }
     RegVal& operator = (uint64_t v) {
@@ -217,11 +219,11 @@ struct RegVal {
         //return RegVal(val.intv >> v);
     //}
 
-    Dummy& capVal() {
+    Cap& capVal() {
         return val.cap;
     }
 
-    const Dummy& capVal() const {
+    const Cap& capVal() const {
         return val.cap;
     }
 
