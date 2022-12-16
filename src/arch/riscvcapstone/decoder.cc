@@ -29,6 +29,7 @@
 
 #include "arch/riscvcapstone/decoder.hh"
 #include "arch/riscvcapstone/types.hh"
+#include "arch/riscvcapstone/pcstate.hh"
 #include "base/bitfield.hh"
 #include "debug/Decode.hh"
 

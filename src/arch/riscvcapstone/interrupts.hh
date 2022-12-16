@@ -68,10 +68,10 @@ class Interrupts : public BaseInterrupts
     globalMask() const
     {
         INTERRUPT mask = 0;
-        STATUS status = tc->readMiscReg(MISCREG_STATUS);
-        INTERRUPT mideleg = tc->readMiscReg(MISCREG_MIDELEG);
-        INTERRUPT sideleg = tc->readMiscReg(MISCREG_SIDELEG);
-        PrivilegeMode prv = (PrivilegeMode)tc->readMiscReg(MISCREG_PRV);
+        STATUS status = tc->readMiscReg(MISCREG_STATUS).intVal();
+        INTERRUPT mideleg = tc->readMiscReg(MISCREG_MIDELEG).intVal();
+        INTERRUPT sideleg = tc->readMiscReg(MISCREG_SIDELEG).intVal();
+        PrivilegeMode prv = (PrivilegeMode)tc->readMiscReg(MISCREG_PRV).intVal();
         switch (prv) {
             case PRV_U:
                 mask.mei = (!sideleg.mei) | (sideleg.mei & status.uie);

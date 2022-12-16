@@ -170,7 +170,92 @@ isRomMicroPC(MicroPC upc)
 
 const Addr MaxAddr = (Addr)-1;
 
+#ifdef TARGET_RISCVCapstone
+//#include "arch/riscvcapstone/o3/cap.hh"
+ //TODO: add tag bit
+
+struct Dummy {};
+
+struct RegVal {
+    union {
+        Dummy cap;
+        uint64_t intv;
+    } val;
+    RegVal() { }
+    RegVal(uint64_t v) {
+        val.intv = v;
+    }
+    RegVal(const Dummy& cap) {
+        val.cap = cap;
+    }
+    RegVal& operator = (uint64_t v) {
+        val.intv = v;
+        return *this;
+    }
+
+    bool operator == (const RegVal& other) const {
+        return val.intv == other.val.intv;
+    }
+
+    //RegVal operator & (const RegVal& other) const {
+        //return RegVal(val.intv & other.val.intv);
+    //}
+
+    //RegVal operator | (const RegVal& other) const {
+        //return RegVal(val.intv | other.val.intv);
+    //}
+
+    //RegVal operator ~ () const {
+        //return RegVal(~val.intv);
+    //}
+
+    //RegVal operator << (const unsigned int& v) const {
+        //return RegVal(val.intv << v);
+    //}
+
+    //RegVal operator >> (const unsigned int& v) const {
+        //return RegVal(val.intv >> v);
+    //}
+
+    Dummy& capVal() {
+        return val.cap;
+    }
+
+    const Dummy& capVal() const {
+        return val.cap;
+    }
+
+    uint64_t& intVal() {
+        return val.intv;
+    }
+
+    const uint64_t& intVal() const {
+        return val.intv;
+    }
+
+
+    operator uint64_t&() {
+        return val.intv;
+    }
+
+    operator const uint64_t&() const {
+        return val.intv;
+    }
+};
+
+//uint64_t& operator = (uint64_t& a, const RegVal& r) {
+    //return a = r.val.intv;
+//}
+
+//static inline std::basic_ostream<char>& operator << (std::basic_ostream<char>& s, const RegVal& rv){
+    //return s << rv.val.intv;
+//}
+
+//static_assert(sizeof(RegVal) == 16);
+#else
 using RegVal = uint64_t;
+#endif
+
 
 // Logical register index type.
 using RegIndex = uint16_t;

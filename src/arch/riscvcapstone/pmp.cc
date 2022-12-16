@@ -237,7 +237,7 @@ PMP::shouldCheckPMP(RiscvcapstoneISA::PrivilegeMode pmode,
 
     // data access in S and U mode when MPRV in mstatus is clear
     RiscvcapstoneISA::STATUS status =
-            tc->readMiscRegNoEffect(RiscvcapstoneISA::MISCREG_STATUS);
+            tc->readMiscRegNoEffect(RiscvcapstoneISA::MISCREG_STATUS).intVal();
     bool cond2 = (mode != BaseMMU::Execute &&
                  (pmode != RiscvcapstoneISA::PrivilegeMode::PRV_M)
                  && (!status.mprv));

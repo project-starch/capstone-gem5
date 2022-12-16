@@ -63,9 +63,9 @@ RiscvFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
              name(), pc_state);
 
     if (FullSystem) {
-        PrivilegeMode pp = (PrivilegeMode)tc->readMiscReg(MISCREG_PRV);
+        PrivilegeMode pp = (PrivilegeMode)tc->readMiscReg(MISCREG_PRV).intVal();
         PrivilegeMode prv = PRV_M;
-        STATUS status = tc->readMiscReg(MISCREG_STATUS);
+        STATUS status = tc->readMiscReg(MISCREG_STATUS).intVal();
 
         // According to riscv-privileged-v1.11, if a NMI occurs at the middle
         // of a M-mode trap handler, the state (epc/cause) will be overwritten
@@ -144,7 +144,7 @@ RiscvFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
         tc->setMiscReg(epc, tc->pcState().instAddr());
         tc->setMiscReg(tval, trap_value());
         tc->setMiscReg(MISCREG_PRV, prv);
-        tc->setMiscReg(MISCREG_STATUS, status);
+        tc->setMiscReg(MISCREG_STATUS, static_cast<uint64_t>(status));
         // Temporarily mask NMI while we're in NMI handler. Otherweise, the
         // checkNonMaskableInterrupt will always return true and we'll be
         // stucked in an infinite loop.
@@ -154,7 +154,7 @@ RiscvFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
 
         // Set PC to fault handler address
         Addr addr = mbits(tc->readMiscReg(tvec), 63, 2);
-        if (isInterrupt() && bits(tc->readMiscReg(tvec), 1, 0) == 1)
+        if (isInterrupt() && bits(tc->readMiscReg(tvec), 1, 0).intVal() == 1)
             addr += 4 * _code;
         pc_state.set(addr);
         tc->pcState(pc_state);
@@ -169,10 +169,10 @@ void
 Reset::invoke(ThreadContext *tc, const StaticInstPtr &inst)
 {
     tc->setMiscReg(MISCREG_PRV, PRV_M);
-    STATUS status = tc->readMiscReg(MISCREG_STATUS);
+    STATUS status = tc->readMiscReg(MISCREG_STATUS).intVal();
     status.mie = 0;
     status.mprv = 0;
-    tc->setMiscReg(MISCREG_STATUS, status);
+    tc->setMiscReg(MISCREG_STATUS, static_cast<uint64_t>(status));
     tc->setMiscReg(MISCREG_MCAUSE, 0);
 
     // Advance the PC to the implementation-defined reset vector

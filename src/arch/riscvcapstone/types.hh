@@ -42,8 +42,6 @@
 #ifndef __ARCH_RISCV_TYPES_HH__
 #define __ARCH_RISCV_TYPES_HH__
 
-#include "arch/riscvcapstone/pcstate.hh"
-
 namespace gem5
 {
 

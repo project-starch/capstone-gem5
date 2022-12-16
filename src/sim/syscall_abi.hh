@@ -81,10 +81,18 @@ namespace guest_abi
 
 // For 64 bit systems, return syscall args directly.
 template <typename ABI, typename Arg>
+#ifdef TARGET_RISCVCapstone
+struct Argument<ABI, Arg,
+    typename std::enable_if_t<
+        (std::is_base_of_v<GenericSyscallABI64, ABI> &&
+        std::is_integral_v<Arg>) ||
+        std::is_same_v<Arg, RegVal>>>
+#else
 struct Argument<ABI, Arg,
     typename std::enable_if_t<
         std::is_base_of_v<GenericSyscallABI64, ABI> &&
         std::is_integral_v<Arg>>>
+#endif
 {
     static Arg
     get(ThreadContext *tc, typename ABI::State &state)

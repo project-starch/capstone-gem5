@@ -51,6 +51,7 @@
 #include <utility>
 
 #include "base/str.hh"
+#include "base/types.hh"
 
 namespace gem5
 {
@@ -97,6 +98,19 @@ struct ParseParam<bool>
         return to_bool(s, value);
     }
 };
+
+#ifdef TARGET_RISCVCapstone
+template <>
+struct ParseParam<RegVal> {
+    static bool
+    parse(const std::string &s, RegVal &value) {
+        uint64_t intv = 0;
+        bool success = ParseParam<uint64_t>::parse(s, intv);
+        value = intv;
+        return success;
+    }
+};
+#endif
 
 template <>
 struct ParseParam<std::string>
