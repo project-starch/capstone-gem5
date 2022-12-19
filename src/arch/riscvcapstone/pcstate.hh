@@ -50,7 +50,7 @@ namespace gem5
 namespace RiscvcapstoneISA
 {
 
-class PCState : public GenericISA::UPCState<4>
+class ScalarPCState : public GenericISA::UPCState<4>
 {
   private:
     bool _compressed = false;
@@ -59,13 +59,13 @@ class PCState : public GenericISA::UPCState<4>
   public:
     using GenericISA::UPCState<4>::UPCState;
 
-    PCStateBase *clone() const override { return new PCState(*this); }
+    PCStateBase *clone() const override { return new ScalarPCState(*this); }
 
     void
     update(const PCStateBase &other) override
     {
         Base::update(other);
-        auto &pcstate = other.as<PCState>();
+        auto &pcstate = other.as<ScalarPCState>();
         _compressed = pcstate._compressed;
         _rv32 = pcstate._rv32;
     }
@@ -86,6 +86,21 @@ class PCState : public GenericISA::UPCState<4>
         }
     }
 };
+
+class CapPCState : public GenericISA::PCStateWithNext {
+    public:
+        PCStateBase* clone() const override {
+            panic("unimplemented\n");
+        }
+        void advance() override {
+            panic("unimplemented\n");
+        }
+        bool branching() const override {
+            panic("unimplemented\n");
+        }
+};
+
+using PCState = ScalarPCState;
 
 } // namespace RiscvcapstoneISA
 } // namespace gem5

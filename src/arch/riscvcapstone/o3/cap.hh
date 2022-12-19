@@ -1,6 +1,7 @@
 #ifndef __CAPSTONE_CAP_H_
 #define __CAPSTONE_CAP_H_
 
+#include<utility>
 #include<cstdio>
 #include<cstddef>
 #include<cstdint>
@@ -15,13 +16,22 @@ const size_t CAPSTONE_UNCOMPRESSED_CAP_SIZE = 256; // in bits
 
 
 struct CompressedCapBound {
-    uint8_t bE: 3;
-    uint16_t b : 10;
-    uint8_t tE : 3;
-    uint16_t t : 8;
-    uint8_t iE: 1;
-    uint8_t unused : 2;
-} __attribute__((packed));
+    uint8_t bE;
+    uint16_t b;
+    uint8_t tE;
+    uint16_t t;
+    uint8_t iE;
+
+    CompressedCapBound() {}
+
+    CompressedCapBound(uint32_t raw_bound);
+    CompressedCapBound(uint64_t base, uint64_t top, uint64_t addr);
+    
+    std::pair<uint64_t,uint64_t> decode(uint64_t addr) const;
+    uint64_t start(uint64_t addr) const;
+    uint64_t end(uint64_t addr) const;
+    uint32_t toRaw() const;
+};
 
 
 enum class CapPerm {
