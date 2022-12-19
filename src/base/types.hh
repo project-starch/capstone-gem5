@@ -253,7 +253,8 @@ struct RegVal {
     //return s << rv.val.intv;
 //}
 
-//static_assert(sizeof(RegVal) == 16);
+static_assert(sizeof(RegVal) == (gem5::RiscvcapstoneISA::o3::CAPSTONE_CAP_SIZE >> 3));
+
 #else
 using RegVal = uint64_t;
 #endif

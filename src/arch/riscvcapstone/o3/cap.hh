@@ -175,8 +175,10 @@ static_assert(sizeof(UncompressedCap) == (CAPSTONE_UNCOMPRESSED_CAP_SIZE >> 3));
 
 #ifdef CAPSTONE_USE_UNCOMPRESSED
 using Cap = UncompressedCap;
+const size_t CAPSTONE_CAP_SIZE = CAPSTONE_UNCOMPRESSED_CAP_SIZE;
 #else
 using Cap = CompressedCap;
+const size_t CAPSTONE_CAP_SIZE = CAPSTONE_COMPRESSED_CAP_SIZE;
 #endif
 
 }
