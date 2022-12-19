@@ -491,11 +491,12 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_rv = Rd_rv; // just to make the dumb parser happy
                     }});
                     0xa: capprint ({{
-                        DPRINTFN("Capability = (%llx, %llx), %llx, perm = %u, type = %u\n",
+                        DPRINTFN("Capability = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
                                 Rs1_rv.val.cap.start(), Rs1_rv.val.cap.end(),
                                 Rs1_rv.val.cap.cursor(),
                                 static_cast<unsigned int>(Rs1_rv.val.cap.perm()),
-                                static_cast<unsigned int>(Rs1_rv.val.cap.type()));
+                                static_cast<unsigned int>(Rs1_rv.val.cap.type()),
+                                Rs1_rv.val.cap.nodeId());
                     }});
                 }
             }

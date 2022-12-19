@@ -179,6 +179,10 @@ class UncompressedCap {
             _node_id = node_id;
             return *this;
         }
+
+        NodeID nodeId() const {
+            return _node_id;
+        }
 } __attribute__((packed));
 
 static_assert(sizeof(UncompressedCap) == (CAPSTONE_UNCOMPRESSED_CAP_SIZE >> 3));
