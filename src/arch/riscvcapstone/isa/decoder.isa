@@ -464,27 +464,31 @@ decode QUADRANT default Unknown::unknown() {
                 }
                 format ROp {
                     0x5: capcreate ({{
-                        Rd_rv;
+                        Rd_rv = Rd_rv; // just to make the dumb parser happy
                     }});
                     0x6: captype ({{
                         using CapType = gem5::RiscvcapstoneISA::o3::CapType;
                         CapType temp = static_cast<CapType>(Rs1);
                         assert(temp >= CapType::LIN && temp <= CapType::SEALEDRET);
                         Rd_rv.val.cap.setType(temp);
+                        Rd_rv = Rd_rv; // just to make the dumb parser happy
                     }});
                     0x7: capnode ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         Rd_rv.val.cap.setNodeId(static_cast<NodeID>(Rs1));
+                        Rd_rv = Rd_rv; // just to make the dumb parser happy
                     }});
                     0x8: capperm ({{
                         using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
                         CapPerm temp = static_cast<CapPerm>(Rs1);
                         assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
                         Rd_rv.val.cap.setPerm(temp);
+                        Rd_rv = Rd_rv; // just to make the dumb parser happy
                     }});
                     0x9: capbound ({{
                         DPRINTFN("Set capability bound to (%llx, %llx)\n", Rs1, Rs2);
                         Rd_rv.val.cap.setBound(Rs1, Rs2);
+                        Rd_rv = Rd_rv; // just to make the dumb parser happy
                     }});
                     0xa: capprint ({{
                         DPRINTFN("Capability = (%llx, %llx), %llx, perm = %u, type = %u\n",
