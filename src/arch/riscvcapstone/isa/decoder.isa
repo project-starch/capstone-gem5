@@ -482,6 +482,17 @@ decode QUADRANT default Unknown::unknown() {
                         assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
                         Rd_rv.val.cap.setPerm(temp);
                     }});
+                    0x9: capbound ({{
+                        DPRINTFN("Set capability bound to (%llx, %llx)\n", Rs1, Rs2);
+                        Rd_rv.val.cap.setBound(Rs1, Rs2);
+                    }});
+                    0xa: capprint ({{
+                        DPRINTFN("Capability = (%llx, %llx), %llx, perm = %u, type = %u\n",
+                                Rs1_rv.val.cap.start(), Rs1_rv.val.cap.end(),
+                                Rs1_rv.val.cap.cursor(),
+                                static_cast<unsigned int>(Rs1_rv.val.cap.perm()),
+                                static_cast<unsigned int>(Rs1_rv.val.cap.type()));
+                    }});
                 }
             }
             //End Capstone Test Ops

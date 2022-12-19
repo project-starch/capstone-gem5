@@ -25,5 +25,22 @@
 #define CAPTYPE(rd,rs1)         .insn r 0x5B, 0x0, 0x6, rd, rs1, x0
 #define CAPNODE(rd,rs1)         .insn r 0x5B, 0x0, 0x7, rd, rs1, x0
 #define CAPPERM(rd,rs1)         .insn r 0x5B, 0x0, 0x8, rd, rs1, x0
+#define CAPBOUND(rd,rs1,rs2)    .insn r 0x5B, 0x0, 0x9, rd, rs1, rs2
+#define CAPPRINT(rs1)           .insn r 0x5B, 0x0, 0xa, x0, rs1, x0
 
 #define NODE_ID_INVALID ((-1) & ((1 << 31) - 1))
+
+// Capability-related constants
+#define CAP_PERM_NA 0
+#define CAP_PERM_RO 1
+#define CAP_PERM_RW 2
+#define CAP_PERM_RWX 3
+
+#define CAP_TYPE_LIN 0
+#define CAP_TYPE_NONLIN 1
+#define CAP_TYPE_REV 2
+#define CAP_TYPE_UNINIT 3
+#define CAP_TYPE_SEALED 4
+#define CAP_TYPE_SEALEDRET 5
+
+
