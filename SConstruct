@@ -145,6 +145,8 @@ AddOption('--gprof', action='store_true',
           help='Enable support for the gprof profiler')
 AddOption('--pprof', action='store_true',
           help='Enable support for the pprof profiler')
+AddOption('--uncompressed', action='store_true',
+          help='Use uncompressed capabilities for Capstone instead of compressed ones')
 
 # Inject the built_tools directory into the python path.
 sys.path[1:1] = [ Dir('#build_tools').abspath ]
@@ -714,7 +716,10 @@ Build variables for {dir}:
         CacheDir(env['CONF']['M5_BUILD_CACHE'])
 
 
-    env.Append(CCFLAGS="-DTARGET_" + variant_dir)
+    if GetOption('uncompressed'):
+        env.Append(CPPDEFINES=['CAPSTONE_USE_UNCOMPRESSED'])
+    env.Append(CPPDEFINES=['TARGET_' + variant_dir])
+    # env.Append(CCFLAGS="-DTARGET_" + variant_dir)
     env.Append(CCFLAGS='$CCFLAGS_EXTRA')
     env.Append(LINKFLAGS='$LINKFLAGS_EXTRA')
 
