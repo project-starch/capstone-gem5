@@ -395,43 +395,47 @@ decode QUADRANT default Unknown::unknown() {
                             NPC = Rd;
                     }}, IsCondControl);
                     0x4: shrink ({{
-                        Rd; Rs1; Rs2;
-                        //TODO: bounds maths here
+                        uint64_t start = Rd_rv.val.cap.start();
+                        uint64_t end = Rd_rv.val.cap.end();
+                        assert(Rs1 >= start && Rs2 <= end && Rs1 < Rs2);
+                        Rd_rv.val.cap.setBound(Rs1, Rs2);
                     }});
                     0x5: lt ({{
                         Rd = (Rs1 < Rs2);
                     }});
                     0x6: tighten ({{
-                        Rd; Rs1;
-                        /* TODO: do we perform checks here if new bounds are actually 
-                         * tighter than current bounds?
+                        /* TODO: do we perform checks here if new perms are actually 
+                         * tighter than current perms?
                          */
-                        Rd = Rd | (Rs1 & (0x38 << 2));
+                        using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
+                        CapPerm temp = static_cast<CapPerm>(Rs1);
+                        assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
+                        Rd_rv.val.cap.setPerm(temp);
                     }});
                     0x7: delin ({{
-                        Rd;
-                        //TODO: type change
+                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::NONLIN);
                     }});
                     0x8: scc ({{
-                        Rd; Rs1;
-                        uint64_t temp = Rd >> 64;
-                        temp = temp << 64 | Rs1;
-                        Rd = temp;
+                        uint64_t start = Rd_rv.val.cap.start();
+                        uint64_t end = Rd_rv.val.cap.end();
+                        assert(Rs1 >= start && Rs1 <= end);
+                        Rd_rv.val.cap.setCursor(Rs1);
                     }});
                     0x9: init ({{
-                        Rd;
-                        //TODO: change type
-                        //set cursor to lower bound
+                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::LIN);
+
+                        uint64_t start = Rd_rv.val.cap.start();
+                        Rd_rv.val.cap.setCursor(start);
                     }});
                     0xa: seal ({{
-                        Rd;
-                        //TODO: change type
+                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::SEALED);
                     }});
                     0xb: add2 ({{
                         Rd = Rd + Rs1;
                     }});
                 }
             }
+            //Capstone Test Ops
             0x0: decode FUNCT7 {
                 format QueryTest {
                     0x0: query ({{
@@ -458,7 +462,29 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1; Rs2; Rd;
                     }});
                 }
+                format ROp {
+                    0x5: capcreate ({{
+                        Rd_rv;
+                    }});
+                    0x6: captype ({{
+                        using CapType = gem5::RiscvcapstoneISA::o3::CapType;
+                        CapType temp = static_cast<CapType>(Rs1);
+                        assert(temp >= CapType::LIN && temp <= CapType::SEALEDRET);
+                        Rd_rv.val.cap.setType(temp);
+                    }});
+                    0x7: capnode ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+                        Rd_rv.val.cap.setNodeId(static_cast<NodeID>(Rs1));
+                    }});
+                    0x8: capperm ({{
+                        using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
+                        CapPerm temp = static_cast<CapPerm>(Rs1);
+                        assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
+                        Rd_rv.val.cap.setPerm(temp);
+                    }});
+                }
             }
+            //End Capstone Test Ops
         }
         //End Capstone Ops
         0x00: decode FUNCT3 {

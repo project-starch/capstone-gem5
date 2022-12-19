@@ -38,7 +38,8 @@ def operand_types {{
     'sd' : 'int64_t',
     'ud' : 'uint64_t',
     'sf' : 'float',
-    'df' : 'double'
+    'df' : 'double',
+    'rv' : 'RegVal'
 }};
 
 let {{
