@@ -199,25 +199,6 @@ struct RegVal {
         return val.intv == other.val.intv;
     }
 
-    //RegVal operator & (const RegVal& other) const {
-        //return RegVal(val.intv & other.val.intv);
-    //}
-
-    //RegVal operator | (const RegVal& other) const {
-        //return RegVal(val.intv | other.val.intv);
-    //}
-
-    //RegVal operator ~ () const {
-        //return RegVal(~val.intv);
-    //}
-
-    //RegVal operator << (const unsigned int& v) const {
-        //return RegVal(val.intv << v);
-    //}
-
-    //RegVal operator >> (const unsigned int& v) const {
-        //return RegVal(val.intv >> v);
-    //}
 
     Cap& capVal() {
         return val.cap;
@@ -244,14 +225,6 @@ struct RegVal {
         return val.intv;
     }
 };
-
-//uint64_t& operator = (uint64_t& a, const RegVal& r) {
-    //return a = r.val.intv;
-//}
-
-//static inline std::basic_ostream<char>& operator << (std::basic_ostream<char>& s, const RegVal& rv){
-    //return s << rv.val.intv;
-//}
 
 static_assert(sizeof(RegVal) == (gem5::RiscvcapstoneISA::o3::CAPSTONE_CAP_SIZE >> 3));
 

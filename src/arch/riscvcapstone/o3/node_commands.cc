@@ -69,9 +69,8 @@ NodeAllocate::transition() {
         case NCAllocate_LOAD_PARENT:
             assert(toAllocate != NODE_ID_INVALID);
             // TODO: should attempt to reclaim nodes here instead
-            DPRINTF(NodeCmd, "Allocated node ID = %u, parentID = %lu,"
-                    " invalid = %lu\n", 
-                    toAllocate, parentId, NODE_ID_INVALID);
+            DPRINTF(NodeCmd, "Allocated node ID = %u, parentID = %lu\n",
+                    toAllocate, parentId);
             if(parentId == NODE_ID_INVALID) {
                 DPRINTF(NodeCmd, "Allocated node becomes new root\n");
 

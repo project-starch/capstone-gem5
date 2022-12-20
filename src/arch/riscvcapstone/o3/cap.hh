@@ -195,6 +195,12 @@ using Cap = CompressedCap;
 const size_t CAPSTONE_CAP_SIZE = CAPSTONE_COMPRESSED_CAP_SIZE;
 #endif
 
+inline bool
+capInBound(const Cap& cap) {
+    uint64_t cursor = cap.cursor();
+    return cursor >= cap.start() && cursor <= cap.end();
+}
+
 }
 }
 }
