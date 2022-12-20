@@ -440,6 +440,47 @@ decode QUADRANT default Unknown::unknown() {
                         Rd = Rd + Rs1;
                     }});
                 }
+                format RNodeOp {
+                    0xc: movc ({{
+                        //Rd holds a cap
+                        //TODO: check tag bit
+                        //RcUpdate-1 for Rd if it holds a capability
+                        //Check Rs, if it's non-linear cap, RcUpdate+1
+                        //otherwise do nothing
+
+                        DPRINTFN(CapstoneInst, "In movc\n");
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        uint64_t node_id = Rd_rv.val.cap.nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+
+                        Rd_rv = Rs1_rv;
+
+                        if(Rs1_rv.val.cap.type() == CapType::NONLIN) {
+                            node_id = Rs1_rv.val.cap.nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                        } else {
+                            Rs1_rv = 0;
+                        }
+                    }});
+                    0xd: lds ({{
+                        Rd_rv; Rs1_rv;
+                    }});
+                    0xe: ldc ({{
+                        Rd_rv; Rs1_rv;
+                    }});
+                    0xf: sdc ({{
+                        Rd_rv; Rs1_rv;
+                    }});
+                    0x10: movs ({{
+                        //Rd holds a scalar
+                        Rd_rv; Rs1_rv;
+                    }});
+                }
             }
             //Capstone Test Ops
             0x0: decode FUNCT7 {
