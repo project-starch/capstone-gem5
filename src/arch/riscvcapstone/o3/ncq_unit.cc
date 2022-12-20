@@ -176,8 +176,8 @@ NCQUnit::completeCommand(NodeCommandPtr node_command){
             inst->hasNodeWB()) {
         DPRINTF(NCQ, "Instruction %u can now be committed\n",
                 inst->seqNum);
-        inst->setExecuted();
-        iew->instToCommit(inst);
+        inst->setNodeExecuted();
+        iew->instToCommitIfExeced(inst);
     }
 }
 

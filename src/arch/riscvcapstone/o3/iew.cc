@@ -571,6 +571,13 @@ IEW::cacheUnblocked()
 }
 
 void
+IEW::instToCommitIfExeced(const DynInstPtr& inst) {
+    if(inst->isExecuted() && inst->isNodeExecuted()){
+        instToCommit(inst);
+    }
+}
+
+void
 IEW::instToCommit(const DynInstPtr& inst)
 {
     // This function should not be called after writebackInsts in a
@@ -1288,18 +1295,6 @@ IEW::executeInsts()
                 panic("Unexpected memory type!\n");
             }
 
-        } else if(inst->isNodeOp()) {
-            // TODO: we might consider removing isNodeOp altogether considering 
-            // how prevalent it is that an instruction needs to issue node commands
-            fault = ncQueue.executeNodeOp(inst);
-
-            inst->setNodeInitiated();
-
-            // instructions that require wb still need to wait
-            if(!inst->hasNodeWB()) {
-                inst->setExecuted();
-                instToCommit(inst);
-            }
         } else {
             // If the instruction has already faulted, then skip executing it.
             // Such case can happen when it faulted during ITLB translation.
@@ -1309,12 +1304,30 @@ IEW::executeInsts()
                 inst->execute();
                 if (!inst->readPredicate())
                     inst->forwardOldRegs();
+                inst->setExecuted();
+                instToCommitIfExeced(inst);
+            } else{
+                inst->setExecuted();
+                instToCommit(inst);
             }
 
-            inst->setExecuted();
-            instToCommit(inst);
         }
 
+        if(inst->isNodeOp()) {
+            // TODO: we might consider removing isNodeOp altogether considering 
+            // how prevalent it is that an instruction needs to issue node commands
+            fault = ncQueue.executeNodeOp(inst);
+            inst->setNodeInitiated();
+
+            // instructions that require wb still need to wait
+            if(!inst->hasNodeWB()) {
+                inst->setNodeExecuted();
+                instToCommitIfExeced(inst);
+            }
+        } else {
+            inst->setNodeExecuted();
+            instToCommitIfExeced(inst);
+        }
 
         updateExeInstStats(inst);
 

@@ -189,6 +189,8 @@ class IEW
     /** Sends an instruction to commit through the time buffer. */
     void instToCommit(const DynInstPtr &inst);
 
+    void instToCommitIfExeced(const DynInstPtr &inst);
+
     /** Inserts unused instructions of a thread into the skid buffer. */
     void skidInsert(ThreadID tid);
 

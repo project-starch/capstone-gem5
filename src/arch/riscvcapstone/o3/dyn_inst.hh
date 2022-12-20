@@ -174,6 +174,7 @@ class DynInst : public ExecContext, public RefCounted
                                  /// instructions ahead of it
         SerializeAfter,          /// Needs to serialize instructions behind it
         SerializeHandled,        /// Serialization has been handled
+        NodeExecuted,
         NumStatus
     };
 
@@ -786,6 +787,10 @@ class DynInst : public ExecContext, public RefCounted
 
     /** Sets this instruction as executed. */
     void setExecuted() { status.set(Executed); }
+
+    void setNodeExecuted() { status.set(NodeExecuted); }
+
+    bool isNodeExecuted() const { return status[NodeExecuted]; }
 
     void setNodeInitiated() { nodeInitiated = true; }
 

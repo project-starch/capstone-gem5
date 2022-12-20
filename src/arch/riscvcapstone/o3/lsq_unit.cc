@@ -610,7 +610,7 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
         assert(inst->readPredicate());
         inst->setExecuted();
         inst->completeAcc(nullptr);
-        iewStage->instToCommit(inst);
+        iewStage->instToCommitIfExeced(inst);
         iewStage->activityThisCycle();
         return NoFault;
     }
@@ -1131,7 +1131,7 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
     }
 
     // Need to insert instruction into queue to commit
-    iewStage->instToCommit(inst);
+    iewStage->instToCommitIfExeced(inst);
 
     iewStage->activityThisCycle();
 
