@@ -399,6 +399,7 @@ decode QUADRANT default Unknown::unknown() {
                         uint64_t end = Rd_rv.val.cap.end();
                         assert(Rs1 >= start && Rs2 <= end && Rs1 < Rs2);
                         Rd_rv.val.cap.setBound(Rs1, Rs2);
+                        Rd_rv = Rd_rv;
                     }});
                     0x5: lt ({{
                         Rd = (Rs1 < Rs2);
@@ -411,24 +412,29 @@ decode QUADRANT default Unknown::unknown() {
                         CapPerm temp = static_cast<CapPerm>(Rs1);
                         assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
                         Rd_rv.val.cap.setPerm(temp);
+                        Rd_rv = Rd_rv;
                     }});
                     0x7: delin ({{
                         Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::NONLIN);
+                        Rd_rv = Rd_rv;
                     }});
                     0x8: scc ({{
                         uint64_t start = Rd_rv.val.cap.start();
                         uint64_t end = Rd_rv.val.cap.end();
                         assert(Rs1 >= start && Rs1 <= end);
                         Rd_rv.val.cap.setCursor(Rs1);
+                        Rd_rv = Rd_rv;
                     }});
                     0x9: init ({{
                         Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::LIN);
 
                         uint64_t start = Rd_rv.val.cap.start();
                         Rd_rv.val.cap.setCursor(start);
+                        Rd_rv = Rd_rv;
                     }});
                     0xa: seal ({{
                         Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::SEALED);
+                        Rd_rv = Rd_rv;
                     }});
                     0xb: add2 ({{
                         Rd = Rd + Rs1;
