@@ -88,6 +88,8 @@ CPU::CPU(const CapstoneBaseO3CPUParams &params)
       iew(this, params),
       commit(this, params),
 
+      tagController(params.numThreads),
+
       regFile(params.numPhysIntRegs,
               params.numPhysFloatRegs,
               params.numPhysVecRegs,

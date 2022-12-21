@@ -3,6 +3,7 @@
 
 #include<unordered_set>
 #include<list>
+#include<vector>
 #include "base/types.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
 #include "arch/riscvcapstone/o3/node.hh"
@@ -19,8 +20,12 @@ class MockTagController {
             bool tagSet;
         };
 
+        using TagQueue = std::list<TagEntry>;
+
+        int threadCount;
+
         std::unordered_set<Addr> taggedAddrs; // only the committed tags
-        std::list<TagEntry> tagQueue; // uncommitted tags
+        std::vector<TagQueue> tagQueues; // uncommitted tags
 
         static bool aligned(Addr addr) {
             return (addr & ((1 << CAPSTONE_NODE_SIZE_SHIFT) - 1)) == 0;
@@ -38,13 +43,15 @@ class MockTagController {
         Addr lastCommitted = 0;
 
     public:
-        bool getTag(Addr addr) const;
+        MockTagController(int thread_count);
+
+        bool getTag(Addr addr, ThreadID thread_id) const;
         bool getCommittedTag(Addr addr) const;
-        void setTag(const DynInstPtr& inst, Addr addr, bool tag);
+        void setTag(const DynInstPtr& inst, Addr addr, bool tag, ThreadID thread_id);
         /**
          * Commit instructions before the given sequence number
          * */
-        void commitBefore(InstSeqNum seq_num);
+        void commitBefore(InstSeqNum seq_num, ThreadID thread_id);
 };
 
 using TagController = MockTagController;

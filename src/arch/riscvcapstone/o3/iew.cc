@@ -1570,7 +1570,7 @@ IEW::tick()
             ldstQueue.commitLoads(fromCommit->commitInfo[tid].doneSeqNum,tid);
 
             ncQueue.commitBefore(fromCommit->commitInfo[tid].doneSeqNum,tid);
-            cpu->tagController.commitBefore(fromCommit->commitInfo[tid].doneSeqNum);
+            cpu->tagController.commitBefore(fromCommit->commitInfo[tid].doneSeqNum, tid);
 
             updateLSQNextCycle = true;
             instQueue.commit(fromCommit->commitInfo[tid].doneSeqNum,tid);
