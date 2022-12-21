@@ -448,8 +448,6 @@ decode QUADRANT default Unknown::unknown() {
                         //Check Rs, if it's non-linear cap, RcUpdate+1
                         //otherwise do nothing
 
-                        DPRINTFN(CapstoneInst, "In movc\n");
-
                         using namespace gem5::RiscvcapstoneISA::o3;
 
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
