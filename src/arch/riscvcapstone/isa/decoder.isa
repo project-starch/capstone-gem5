@@ -465,18 +465,34 @@ decode QUADRANT default Unknown::unknown() {
                             Rs1_rv = 0;
                         }
                     }});
-                    0xd: lds ({{
-                        Rd_rv; Rs1_rv;
-                    }});
                     0xe: ldc ({{
                         Rd_rv; Rs1_rv;
                     }});
                     0xf: sdc ({{
                         Rd_rv; Rs1_rv;
                     }});
-                    0x10: movs ({{
-                        //Rd holds a scalar
-                        Rd_rv; Rs1_rv;
+                }
+                format RNodeMemOp {
+                    0xd: lds ({{
+                        Rd_sd; Rs1_rv;
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        NodeID node_id = Rs1_rv.val.cap.nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+
+                        //if node_id is valid
+                        if (static_cast<int>(Rs1_rv.capVal().perm()) < 1)
+                            return std::make_shared<IllegalInstFault>(
+                                    "Rs1 doesn't have the necessary perms", machInst);
+                        
+                        Addr EA = Rs1.capVal().cursor();
+                    }}, {{
+                        Rd_sd = Mem_sw;        
+                        //clear tag bit of Rd
                     }});
                 }
             }

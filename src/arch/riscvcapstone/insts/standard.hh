@@ -55,6 +55,8 @@ class RegNodeOp : public RiscvStaticInst
   protected:
     using RiscvStaticInst::RiscvStaticInst;
 
+    Request::Flags memAccessFlags;
+
     std::string generateDisassembly(
         Addr pc, const loader::SymbolTable *symtab) const override;
 };
