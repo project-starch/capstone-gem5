@@ -1244,7 +1244,11 @@ class DynInst : public ExecContext, public RefCounted
     NodeController& getNodeController() {
         return cpu->nodeController;
     }
+    
 
+    TagController& getTagController() {
+        return cpu->tagController;
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3

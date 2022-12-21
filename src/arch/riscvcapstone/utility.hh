@@ -102,6 +102,13 @@ issignalingnan<double>(double val)
         && (reinterpret_cast<uint64_t&>(val)&0x0004000000000000ULL);
 }
 
+template<typename T>
+constexpr inline uint8_t bitwidth(T val) {
+    uint8_t w = 0;
+    for(; val; ++ w, val >>= 1);
+    return w;
+}
+
 inline std::string
 registerName(RegId reg)
 {

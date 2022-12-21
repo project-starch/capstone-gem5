@@ -229,41 +229,73 @@ struct RegVal {
     }
 };
 
-struct ConstTaggedRegVal;
+class ConstTaggedRegVal;
 
-struct TaggedRegVal {
-    RegVal& val;
-    TagRef tag;
+class TaggedRegVal {
+    private:
+        RegVal& val;
+        TagRef tag;
+
+        friend ConstTaggedRegVal;
     
-    TaggedRegVal(RegVal& val, TagRef tag) :
-        val(val), tag(tag)
-    {}
+    public:
+        TaggedRegVal(RegVal& val, TagRef tag) :
+            val(val), tag(tag)
+        {}
 
-    bool isCap() const {
-        return tag;
-    }
+        bool getTag() const {
+            return tag;
+        }
 
-    inline TaggedRegVal& operator = (const ConstTaggedRegVal& other);
+        void setTag(bool tag) {
+            this->tag = tag;
+        }
+
+        inline TaggedRegVal& operator = (const ConstTaggedRegVal& other);
+
+        RegVal& getRegVal() {
+            return val;
+        }
+
+        const RegVal& getRegVal() const {
+            return val;
+        }
 };
 
-struct ConstTaggedRegVal {
-    RegVal val;
-    ConstTagRef tag;
+class ConstTaggedRegVal {
+    private:
+        RegVal val;
+        ConstTagRef tag;
 
-    ConstTaggedRegVal(): val(0), tag(false) {}
+        friend TaggedRegVal;
 
-    ConstTaggedRegVal(const RegVal& val, const ConstTagRef& tag) :
-        val(val), tag(tag)
-    {}
+    public:
+        ConstTaggedRegVal(): val(0), tag(false) {}
 
-    ConstTaggedRegVal(const TaggedRegVal& other):
-        val(other.val),
-        tag(other.tag)
-    {}
+        ConstTaggedRegVal(const RegVal& val, const ConstTagRef& tag) :
+            val(val), tag(tag)
+        {}
 
-    bool isCap() const {
-        return tag;
-    }
+        ConstTaggedRegVal(const TaggedRegVal& other):
+            val(other.val),
+            tag(other.tag)
+        {}
+
+        bool getTag() const {
+            return tag;
+        }
+
+        void setTag(bool tag) {
+            this->tag = tag;
+        }
+
+        RegVal& getRegVal() {
+            return val;
+        }
+
+        const RegVal& getRegVal() const {
+            return val;
+        }
 };
 
 
