@@ -103,7 +103,6 @@ struct LockedNodeCommand : NodeCommand {
 
 struct NodeQuery : NodeCommand {
     NodeID nodeId;
-    Node* data = NULL;
     bool validityError = false;
     
     NodeQuery() {}

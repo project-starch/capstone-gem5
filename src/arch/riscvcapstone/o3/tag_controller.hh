@@ -44,7 +44,7 @@ class MockTagController {
         /**
          * Commit instructions before the given sequence number
          * */
-        void commit(InstSeqNum seq_num);
+        void commitBefore(InstSeqNum seq_num);
 };
 
 using TagController = MockTagController;

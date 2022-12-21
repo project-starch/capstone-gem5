@@ -42,11 +42,16 @@ MockTagController::getCommittedTag(Addr addr) const {
 }
 
 void
-MockTagController::commit(InstSeqNum seq_num) {
-    for(auto& tag_entry : tagQueue) {
-        if(tag_entry.inst->seqNum > seq_num)
-            continue;
-        commitTag(tag_entry);
+MockTagController::commitBefore(InstSeqNum seq_num) {
+    for(std::list<TagEntry>::iterator it = tagQueue.begin();
+        it != tagQueue.end(); ) {
+        if(it->inst->seqNum <= seq_num) {
+            commitTag(*it);
+            it = tagQueue.erase(it);
+        } else {
+            ++ it;
+        }
+
     }
 }
 
