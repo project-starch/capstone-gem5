@@ -1214,6 +1214,25 @@ class DynInst : public ExecContext, public RefCounted
         //TODO setResult
     }
 
+    void
+    setTaggedRegOperand(const StaticInst *si, int idx, 
+            const ConstTaggedRegVal& tagged_val) {
+        const PhysRegIdPtr reg = renamedDestIdx(idx);
+        if (reg->is(InvalidRegClass))
+            return;
+        cpu->setTaggedReg(reg, tagged_val);
+        //setResult(val);
+    }
+
+
+    ConstTaggedRegVal
+    getTaggedRegOperand(const StaticInst *si, int idx) {
+        const PhysRegIdPtr reg = renamedSrcIdx(idx);
+        if (reg->is(InvalidRegClass))
+            return ConstTaggedRegVal();
+        return cpu->getTaggedReg(reg);
+    }
+
     // Capstone-related
     InstStateMachinePtr getStateMachine() {
         auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());

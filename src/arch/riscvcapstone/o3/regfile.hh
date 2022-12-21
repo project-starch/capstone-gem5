@@ -161,6 +161,47 @@ class PhysRegFile
         return &miscRegIds[reg_idx];
     }
 
+    ConstTaggedRegVal
+    getTaggedReg(PhysRegIdPtr phys_reg) const 
+    {
+        const RegClassType type = phys_reg->classValue();
+        const RegIndex idx = phys_reg->index();
+
+        switch (type) {
+          case IntRegClass:
+            return intRegFile.taggedReg(idx);
+          case FloatRegClass:
+            return floatRegFile.taggedReg(idx);
+          case VecElemClass:
+            return vectorElemRegFile.taggedReg(idx);
+          case CCRegClass:
+            return ccRegFile.taggedReg(idx);
+          default:
+            panic("Unsupported tagged register class type %d.", type);
+        }
+    }
+    
+    TaggedRegVal
+    getWritableTaggedReg(PhysRegIdPtr phys_reg) 
+    {
+        const RegClassType type = phys_reg->classValue();
+        const RegIndex idx = phys_reg->index();
+
+        switch (type) {
+          case IntRegClass:
+            return intRegFile.taggedReg(idx);
+          case FloatRegClass:
+            return floatRegFile.taggedReg(idx);
+          case VecElemClass:
+            return vectorElemRegFile.taggedReg(idx);
+          case CCRegClass:
+            return ccRegFile.taggedReg(idx);
+          default:
+            panic("Unsupported writable tagged register class type %d.", type);
+        }
+    }
+    
+
     RegVal
     getReg(PhysRegIdPtr phys_reg) const
     {
@@ -309,6 +350,37 @@ class PhysRegFile
             break;
           default:
             panic("Unrecognized register class type %d.", type);
+        }
+    }
+
+    void
+    setTaggedReg(PhysRegIdPtr phys_reg, ConstTaggedRegVal tagged_val) {
+        const RegClassType type = phys_reg->classValue();
+        const RegIndex idx = phys_reg->index();
+
+        switch (type) {
+          case InvalidRegClass:
+            break;
+          case IntRegClass:
+            intRegFile.taggedReg(idx) = tagged_val;
+            DPRINTF(IEW, "RegFile: Setting int tagged taggedRegister %i\n",
+                    idx);
+            break;
+          case FloatRegClass:
+            floatRegFile.taggedReg(idx) = tagged_val;
+            DPRINTF(IEW, "RegFile: Setting float tagged taggedRegister %i\n",
+                    idx);
+            break;
+          case VecElemClass:
+            vectorElemRegFile.taggedReg(idx) = tagged_val;
+            DPRINTF(IEW, "RegFile: Setting vector element tagged taggedRegister %i\n", idx);
+            break;
+          case CCRegClass:
+            ccRegFile.taggedReg(idx) = tagged_val;
+            DPRINTF(IEW, "RegFile: Setting cc tagged taggedRegister %i\n");
+            break;
+          default:
+            panic("Unsupported tagged register class type %d.", type);
         }
     }
 

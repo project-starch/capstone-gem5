@@ -1077,6 +1077,31 @@ CPU::getReg(PhysRegIdPtr phys_reg)
     return regFile.getReg(phys_reg);
 }
 
+ConstTaggedRegVal
+CPU::getTaggedReg(PhysRegIdPtr phys_reg) {
+    switch (phys_reg->classValue()) {
+      case IntRegClass:
+        cpuStats.intRegfileReads++;
+        break;
+      case FloatRegClass:
+        cpuStats.fpRegfileReads++;
+        break;
+      case CCRegClass:
+        cpuStats.ccRegfileReads++;
+        break;
+      case VecRegClass:
+      case VecElemClass:
+        cpuStats.vecRegfileReads++;
+        break;
+      case VecPredRegClass:
+        cpuStats.vecPredRegfileReads++;
+        break;
+      default:
+        break;
+    }
+    return regFile.getTaggedReg(phys_reg);
+}
+
 void
 CPU::getReg(PhysRegIdPtr phys_reg, void *val)
 {
@@ -1117,6 +1142,22 @@ CPU::getWritableReg(PhysRegIdPtr phys_reg)
         break;
     }
     return regFile.getWritableReg(phys_reg);
+}
+
+
+TaggedRegVal
+CPU::getWritableTaggedReg(PhysRegIdPtr phys_reg) {
+    switch (phys_reg->classValue()) {
+      case VecRegClass:
+        cpuStats.vecRegfileReads++;
+        break;
+      case VecPredRegClass:
+        cpuStats.vecPredRegfileReads++;
+        break;
+      default:
+        break;
+    }
+    return regFile.getWritableTaggedReg(phys_reg);
 }
 
 void
@@ -1171,6 +1212,32 @@ CPU::setReg(PhysRegIdPtr phys_reg, const void *val)
     regFile.setReg(phys_reg, val);
 }
 
+
+void
+CPU::setTaggedReg(PhysRegIdPtr phys_reg, const ConstTaggedRegVal& tagged_val) {
+    switch (phys_reg->classValue()) {
+      case IntRegClass:
+        cpuStats.intRegfileWrites++;
+        break;
+      case FloatRegClass:
+        cpuStats.fpRegfileWrites++;
+        break;
+      case CCRegClass:
+        cpuStats.ccRegfileWrites++;
+        break;
+      case VecRegClass:
+      case VecElemClass:
+        cpuStats.vecRegfileWrites++;
+        break;
+      case VecPredRegClass:
+        cpuStats.vecPredRegfileWrites++;
+        break;
+      default:
+        break;
+    }
+    regFile.setTaggedReg(phys_reg, tagged_val);
+}
+
 RegVal
 CPU::getArchReg(const RegId &reg, ThreadID tid)
 {
@@ -1185,11 +1252,23 @@ CPU::getArchReg(const RegId &reg, void *val, ThreadID tid)
     regFile.getReg(phys_reg, val);
 }
 
+ConstTaggedRegVal 
+CPU::getTaggedArchReg(const RegId &reg, ThreadID tid) {
+    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(reg);
+    return regFile.getTaggedReg(phys_reg);
+}
+
 void *
 CPU::getWritableArchReg(const RegId &reg, ThreadID tid)
 {
     PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(reg);
     return regFile.getWritableReg(phys_reg);
+}
+
+TaggedRegVal 
+CPU::getWritableTaggedArchReg(const RegId &reg, ThreadID tid) {
+    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(reg);
+    return regFile.getWritableTaggedReg(phys_reg);
 }
 
 void
@@ -1204,6 +1283,13 @@ CPU::setArchReg(const RegId &reg, const void *val, ThreadID tid)
 {
     PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(reg);
     regFile.setReg(phys_reg, val);
+}
+
+void
+CPU::setTaggedArchReg(const RegId &reg, const ConstTaggedRegVal& tagged_val,
+        ThreadID tid) {
+    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(reg);
+    regFile.setTaggedReg(phys_reg, tagged_val);
 }
 
 const PCStateBase &

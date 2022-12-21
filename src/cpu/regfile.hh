@@ -46,12 +46,22 @@ class RegFile
     const size_t _regShift;
     const size_t _regBytes;
 
+
+    const bool hasTags;
+#ifdef TARGET_RISCVCapstone
+    std::vector<bool> tags;
+#endif
+
   public:
     const RegClass &regClass;
 
     RegFile(const RegClass &info, const size_t new_size) :
         data(new_size << info.regShift()), _size(new_size),
         _regShift(info.regShift()), _regBytes(info.regBytes()),
+#ifdef TARGET_RISCVCapstone
+        hasTags(true),
+        tags(hasTags ? new_size : 0), // one tag per register
+#endif
         regClass(info)
     {}
 
@@ -76,6 +86,28 @@ class RegFile
         return *reinterpret_cast<const Reg *>(
                 data.data() + (idx << _regShift));
     }
+
+#ifdef TARGET_RISCVCapstone
+    TaggedRegVal taggedReg(size_t idx) {
+        return TaggedRegVal(reg(idx), tag(idx));
+    }
+    
+    ConstTaggedRegVal taggedReg(size_t idx) const {
+        return ConstTaggedRegVal(reg(idx), tag(idx));
+    }
+
+    TagRef
+    tag(size_t idx) {
+        assert(idx < _size);
+        return tags[idx];
+    }
+
+    ConstTagRef
+    tag(size_t idx) const {
+        assert(idx < _size);
+        return tags[idx];
+    }
+#endif
 
     void *
     ptr(size_t idx)
