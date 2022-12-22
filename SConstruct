@@ -147,6 +147,8 @@ AddOption('--pprof', action='store_true',
           help='Enable support for the pprof profiler')
 AddOption('--uncompressed', action='store_true',
           help='Use uncompressed capabilities for Capstone instead of compressed ones')
+AddOption('--mocktag', action='store_true',
+          help='Use mock tag controller instead of the memory-backed one')
 
 # Inject the built_tools directory into the python path.
 sys.path[1:1] = [ Dir('#build_tools').abspath ]
@@ -718,6 +720,8 @@ Build variables for {dir}:
 
     if GetOption('uncompressed'):
         env.Append(CPPDEFINES=['CAPSTONE_USE_UNCOMPRESSED'])
+    if GetOption('mocktag'):
+        env.Append(CPPDEFINES=['CAPSTONE_USE_MOCKTAG'])
     env.Append(CPPDEFINES=['TARGET_' + variant_dir])
     # env.Append(CCFLAGS="-DTARGET_" + variant_dir)
     env.Append(CCFLAGS='$CCFLAGS_EXTRA')
