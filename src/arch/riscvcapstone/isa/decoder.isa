@@ -440,6 +440,70 @@ decode QUADRANT default Unknown::unknown() {
                         Rd = Rd + Rs1;
                     }});
                 }
+                format RNodeOp {
+                    0xc: movc ({{
+                        //Rd holds a cap
+                        //TODO: check tag bit
+                        //RcUpdate-1 for Rd if it holds a capability
+                        //Check Rs, if it's non-linear cap, RcUpdate+1
+                        //otherwise do nothing
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        uint64_t node_id = Rd_rv.val.cap.nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+
+                        Rd_rv = Rs1_rv;
+
+                        if(Rs1_rv.val.cap.type() == CapType::NONLIN) {
+                            node_id = Rs1_rv.val.cap.nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                        } else {
+                            Rs1_rv = 0;
+                        }
+                    }});
+                    0xe: ldc ({{
+                        Rd_rv; Rs1_rv;
+                    }});
+                    0xf: sdc ({{
+                        Rd_rv; Rs1_rv;
+                    }});
+                }
+                format RNodeMemOp {
+                    0xd: lds ({{
+                        Rd_sd; Rs1_rv;
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        NodeID node_id = Rs1_rv.val.cap.nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+
+                        //if node_id is valid
+                        if (static_cast<int>(Rs1_rv.capVal().perm()) < 1)
+                            return std::make_shared<IllegalInstFault>(
+                                    "Rs1 doesn't have the necessary perms", machInst);
+                    }}, {{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
+
+                        assert(qry);
+                        if(qry->validityError)
+                            return std::make_shared<IllegalInstFault>(
+                                "Capability provided is not valid!", machInst);
+                    }}, {{
+                        Addr EA = Rs1.capVal().cursor();
+                    }}, {{
+                        Rd_sd = Mem_sw;        
+                        //clear tag bit of Rd
+                    }});
+                }
             }
             //Capstone Test Ops
             0x0: decode FUNCT7 {

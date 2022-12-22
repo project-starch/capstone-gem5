@@ -45,6 +45,22 @@ namespace gem5
 
 namespace RiscvcapstoneISA
 {
+
+/**
+ * Base class for operations that take reg operands
+ * but touch the rev tree
+ */
+class RegNodeOp : public RiscvStaticInst
+{
+  protected:
+    using RiscvStaticInst::RiscvStaticInst;
+
+    Request::Flags memAccessFlags;
+
+    std::string generateDisassembly(
+        Addr pc, const loader::SymbolTable *symtab) const override;
+};
+
 /**
  * Base class for revoke ops
  */

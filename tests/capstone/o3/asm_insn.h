@@ -12,6 +12,8 @@
 #define INIT(reg)               .insn r 0x5B, 0x1, 0x9, reg, x0, x0
 #define SEAL(reg)               .insn r 0x5B, 0x1, 0xa, reg, x0, x0
 #define ADD2(rd,rs1)            .insn r 0x5B, 0x1, 0xb, rd, rs1, x0
+#define MOVC(rd,rs1)            .insn r 0x5B, 0x1, 0xc, rd, rs1, x0
+#define LDS(rd,rs1)             .insn r 0x5B, 0x1, 0xd, rd, rs1, x0
 
 // Test instructions for node ops
 #define QUERY(reg)              .insn r 0x5B, 0x0, 0x0, x0, reg, x0
