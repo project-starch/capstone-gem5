@@ -488,7 +488,16 @@ decode QUADRANT default Unknown::unknown() {
                         if (static_cast<int>(Rs1_rv.capVal().perm()) < 1)
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
-                        
+                    }}, {{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
+
+                        assert(qry);
+                        if(qry->validityError)
+                            return std::make_shared<IllegalInstFault>(
+                                "Capability provided is not valid!", machInst);
+                    }}, {{
                         Addr EA = Rs1.capVal().cursor();
                     }}, {{
                         Rd_sd = Mem_sw;        
