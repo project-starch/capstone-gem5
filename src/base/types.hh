@@ -42,6 +42,7 @@
 #include <memory>
 #include <ostream>
 #include <stdexcept>
+#include <vector>
 
 #ifdef TARGET_RISCVCapstone
 #include "arch/riscvcapstone/o3/cap.hh"
@@ -177,6 +178,9 @@ const Addr MaxAddr = (Addr)-1;
 #ifdef TARGET_RISCVCapstone
  //TODO: add tag bit
 
+using TagRef = std::vector<bool>::reference;
+using ConstTagRef = std::vector<bool>::const_reference;
+
 struct RegVal {
     using Cap = gem5::RiscvcapstoneISA::o3::Cap;
     union {
@@ -198,7 +202,6 @@ struct RegVal {
     bool operator == (const RegVal& other) const {
         return val.intv == other.val.intv;
     }
-
 
     Cap& capVal() {
         return val.cap;
@@ -225,6 +228,84 @@ struct RegVal {
         return val.intv;
     }
 };
+
+class ConstTaggedRegVal;
+
+class TaggedRegVal {
+    private:
+        RegVal& val;
+        TagRef tag;
+
+        friend ConstTaggedRegVal;
+    
+    public:
+        TaggedRegVal(RegVal& val, TagRef tag) :
+            val(val), tag(tag)
+        {}
+
+        bool getTag() const {
+            return tag;
+        }
+
+        void setTag(bool tag) {
+            this->tag = tag;
+        }
+
+        inline TaggedRegVal& operator = (const ConstTaggedRegVal& other);
+
+        RegVal& getRegVal() {
+            return val;
+        }
+
+        const RegVal& getRegVal() const {
+            return val;
+        }
+};
+
+class ConstTaggedRegVal {
+    private:
+        RegVal val;
+        ConstTagRef tag;
+
+        friend TaggedRegVal;
+
+    public:
+        ConstTaggedRegVal(): val(0), tag(false) {}
+
+        ConstTaggedRegVal(const RegVal& val, const ConstTagRef& tag) :
+            val(val), tag(tag)
+        {}
+
+        ConstTaggedRegVal(const TaggedRegVal& other):
+            val(other.val),
+            tag(other.tag)
+        {}
+
+        bool getTag() const {
+            return tag;
+        }
+
+        void setTag(bool tag) {
+            this->tag = tag;
+        }
+
+        RegVal& getRegVal() {
+            return val;
+        }
+
+        const RegVal& getRegVal() const {
+            return val;
+        }
+};
+
+
+inline TaggedRegVal&
+TaggedRegVal::operator = (const ConstTaggedRegVal& other) {
+    val = other.val;
+    tag = other.tag;
+    return *this;
+}
+
 
 static_assert(sizeof(RegVal) == (gem5::RiscvcapstoneISA::o3::CAPSTONE_CAP_SIZE >> 3));
 

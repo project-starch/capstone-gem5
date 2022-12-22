@@ -2,12 +2,14 @@
 #define __CAPSTONE_NODE_H_
 
 #include<cstddef>
+#include "arch/riscvcapstone/utility.hh"
 
 namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
-const size_t CAPSTONE_NODE_SIZE = 128;
+constexpr const size_t CAPSTONE_NODE_SIZE = 128; // in bits
+constexpr const size_t CAPSTONE_NODE_SIZE_SHIFT = bitwidth(CAPSTONE_NODE_SIZE) - 3;
 
 /*
     revocation node structure
