@@ -64,6 +64,39 @@ namespace gem5
 // These functions actually perform the swapping for parameters of various bit
 // lengths.
 
+#ifdef TARGET_RISCVCapstone
+inline uint256_t
+swap_byte256(uint256_t x);
+
+inline uint128_t
+swap_byte128(uint128_t x) {
+#if defined(__linux__)
+#define _SWAP64 bswap_64
+#elif defined(__APPLE__)
+#define _SWAP64 OSSwapInt64
+#else
+#define _SWAP64(v) (uint64_t)((((uint64_t)(v) & 0xff) << 56) | \
+            ((uint64_t)(v) & 0xff00ULL) << 40 | \
+            ((uint64_t)(v) & 0xff0000ULL) << 24 | \
+            ((uint64_t)(v) & 0xff000000ULL) << 8 | \
+            ((uint64_t)(v) & 0xff00000000ULL) >> 8 | \
+            ((uint64_t)(v) & 0xff0000000000ULL) >> 24 | \
+            ((uint64_t)(v) & 0xff000000000000ULL) >> 40 | \
+            ((uint64_t)(v) & 0xff00000000000000ULL) >> 56)
+#endif
+    return uint128_t { .lo = _SWAP64(x.hi), .hi = _SWAP64(x.lo) };
+#undef _SWAP64
+}
+
+
+inline uint256_t
+swap_byte256(uint256_t x) {
+    return uint256_t { .lo = swap_byte128(x.hi), .hi = swap_byte128(x.lo) };
+}
+
+#endif
+
+
 inline uint64_t
 swap_byte64(uint64_t x)
 {
@@ -109,6 +142,38 @@ swap_byte16(uint16_t x)
                       ((uint16_t)(x) & 0xff00) >> 8);
 #endif
 }
+
+#ifdef TARGET_RISCVCapstone
+template <typename T>
+inline std::enable_if_t<
+    sizeof(T) == 32 && std::is_convertible_v<T, uint256_t>, T>
+swap_byte(T x)
+{
+    return swap_byte256((uint256_t)x);
+}
+
+template <typename T>
+inline std::enable_if_t<
+    sizeof(T) == 16 && std::is_convertible_v<T, uint128_t>, T>
+swap_byte(T x)
+{
+    return swap_byte128((uint128_t)x);
+}
+
+//static_assert(std::is_convertible_v<gem5::RiscvcapstoneISA::o3::UncompressedCap, uint256_t>, 
+        //"UncompressedCap should be convertible with uint256_t");
+//static_assert(std::is_convertible_v<gem5::RiscvcapstoneISA::o3::CompressedCap, uint128_t>, 
+        //"CompressedCap should be convertible with uint128_t");
+
+#ifdef CAPSTONE_USE_UNCOMPRESSED
+static_assert(std::is_convertible_v<RegVal, uint256_t>, 
+        "UncompressedCap should be convertible with uint256_t");
+#else
+static_assert(std::is_convertible_v<RegVal, uint128_t>, 
+        "CompressedCap should be convertible with uint128_t");
+#endif
+
+#endif
 
 template <typename T>
 inline std::enable_if_t<

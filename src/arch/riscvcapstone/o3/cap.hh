@@ -5,6 +5,8 @@
 #include<cstdio>
 #include<cstddef>
 #include<cstdint>
+#include<cstring>
+#include "arch/riscvcapstone/base_types.hh"
 #include "arch/riscvcapstone/types.hh"
 
 namespace gem5 {
@@ -70,6 +72,12 @@ class CompressedCap {
     //}
 
     public:
+        CompressedCap() = default;
+
+        CompressedCap(uint128_t v) {
+            static_assert(sizeof(*this) == sizeof(v));
+            memcpy(this, &v, sizeof(v));
+        }
 
         CapPerm perm() const {
             return _perm;
@@ -114,6 +122,12 @@ class CompressedCap {
             _node_id = node_id;
             return *this;
         }
+
+        operator uint128_t() const {
+            uint128_t v;
+            memcpy(&v, this, sizeof(v));
+            return v;
+        }
 } __attribute__((packed));
 
 
@@ -130,6 +144,13 @@ class UncompressedCap {
         uint32_t _unused: 27;
 
     public:
+        UncompressedCap() = default;
+
+        UncompressedCap(uint256_t v) {
+            static_assert(sizeof(*this) == sizeof(v));
+            memcpy(this, &v, sizeof(v));
+        }
+
         CapPerm perm() const {
             return _perm;
         }
@@ -182,6 +203,13 @@ class UncompressedCap {
 
         NodeID nodeId() const {
             return _node_id;
+        }
+
+
+        operator uint256_t() const {
+            uint256_t v;
+            memcpy(&v, this, sizeof(v));
+            return v;
         }
 } __attribute__((packed));
 

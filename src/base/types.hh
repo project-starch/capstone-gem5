@@ -45,6 +45,7 @@
 #include <vector>
 
 #ifdef TARGET_RISCVCapstone
+#include "arch/riscvcapstone/base_types.hh"
 #include "arch/riscvcapstone/o3/cap.hh"
 #endif
 
@@ -227,6 +228,13 @@ struct RegVal {
     operator const uint64_t&() const {
         return val.intv;
     }
+
+#ifdef CAPSTONE_USE_UNCOMPRESSED
+    operator uint256_t() const {
+        return val.cap;
+    }
+#else
+#endif
 };
 
 class ConstTaggedRegVal;
