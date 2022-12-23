@@ -9,6 +9,9 @@ if ! [ -x "$SCRIPT_PATH" ]; then
     exit 1
 fi
 
+# a hack to allow files to be removed by runner later
+umask o=rwx
+
 # without further ado, let's start the real work
 "$SCRIPT_PATH"
 
