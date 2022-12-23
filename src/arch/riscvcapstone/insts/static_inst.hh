@@ -163,6 +163,11 @@ class RiscvStaticInst : public StaticInst
             Trace::InstRecord *traceData) const {
         return NoFault;
     }
+
+    virtual Fault completeTagQuery(ExecContext* xc, BaseCPU* cpu,
+            Addr addr, bool tag, Trace::InstRecord* traceData) const {
+        return NoFault;
+    }
 };
 
 /**

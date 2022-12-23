@@ -1,4 +1,5 @@
 #include "mem/packet.hh"
+#include "mem/packet_access.hh"
 #include "arch/riscvcapstone/o3/tag_controller.hh"
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 
@@ -96,12 +97,16 @@ MockTagController::commitTag(const TagEntry& tag_entry,
     }
 }
 
+void
+MockTagController::insertInstruction(const DynInstPtr& inst, ThreadID thread_id) {
+}
 
 MemoryTagController::MemoryTagController(CPU* cpu, 
-        int thread_count, int tcache_ports_count) :
+        int thread_count, int tcache_ports_count, int queue_size) :
             BaseTagController(thread_count),
             cpu(cpu),
-            tcachePort(this, cpu, tcache_ports_count) {
+            tcachePort(this, cpu, tcache_ports_count),
+            queueSize(queue_size) {
     wbQueues.reserve(thread_count);
     for(int i = 0; i < thread_count; i ++){
         wbQueues.emplace_back();
@@ -188,15 +193,26 @@ MemoryTagController::writeback(const TagEntry& tag_entry) {
     };
 }
 
+void
+MemoryTagController::insertInstruction(const DynInstPtr& inst, ThreadID thread_id) {
+}
+
 bool
 MemoryTagController::handleResp(PacketPtr pkt) {
     auto it = ongoingRequests.find(pkt->id);
     assert(it != ongoingRequests.end());
+
+    TagEntry& tag_entry = it->second.entry;
+    DynInstPtr& inst = tag_entry.inst;
     if(it->second.isWrite) {
         // TODO: potentially mark the instruction as complete
         // compare with store completion
+
     } else{
-        // TODO: call the instruction's complete tag load
+        bool tag = pkt->getRaw<bool>();
+        inst->completeTagQuery(tag_entry.addr, tag);
+        // TODO: handle fault and 
+        // check whether the instruction execution is complete
     }
 }
 

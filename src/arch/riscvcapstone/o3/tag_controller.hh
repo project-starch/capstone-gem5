@@ -3,9 +3,11 @@
 
 #include<type_traits>
 #include<unordered_set>
-#include<unordered_map> #include<list>
+#include<unordered_map> 
+#include<list>
 #include<vector>
 #include "base/types.hh"
+#include "base/circular_queue.hh"
 #include "mem/port.hh"
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
 #include "arch/riscvcapstone/o3/node.hh"
@@ -24,6 +26,7 @@ class BaseTagController {
             bool tagSet;
         };
 
+        //using TagQueue = CircularQueue<TagEntry>;
         using TagQueue = std::list<TagEntry>;
 
         int threadCount;
@@ -50,8 +53,8 @@ class BaseTagController {
         void commitBefore(InstSeqNum seq_num, ThreadID thread_id);
         virtual void tick() = 0;
         virtual void writeback() = 0;
-
-
+        // insert instruction during dispatch (in-order)
+        virtual void insertInstruction(const DynInstPtr& inst, ThreadID thread_id) = 0;
 };
 
 class MockTagController : public BaseTagController {
@@ -63,7 +66,7 @@ class MockTagController : public BaseTagController {
 
         void tick() override {}
         void writeback() override {}
-
+        void insertInstruction(const DynInstPtr& inst, ThreadID thread_id) override;
 };
 
 /**
@@ -77,7 +80,7 @@ class MemoryTagController : public BaseTagController {
         std::vector<TagQueue> wbQueues; // tag entries that await writeback
 
         MemoryTagController(CPU* cpu, int thread_count,
-                int tcache_ports_count);
+                int tcache_ports_count, int queue_size);
 
         class TagCachePort : public RequestPort {
             private:
@@ -118,6 +121,8 @@ class MemoryTagController : public BaseTagController {
         TagCachePort tcachePort;
 
         std::unordered_map<PacketId, TagCacheRequest> ongoingRequests;
+            
+        int queueSize;
 
         void writeback(const TagEntry& tag_entry);
 
@@ -141,6 +146,7 @@ class MemoryTagController : public BaseTagController {
         bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) override;
         void tick() override;
         void writeback() override;
+        void insertInstruction(const DynInstPtr& inst, ThreadID thread_id) override;
 
         RequestPort& getTagCachePort() {
             return tcachePort;

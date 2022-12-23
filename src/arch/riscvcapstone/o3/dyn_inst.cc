@@ -385,6 +385,23 @@ DynInst::completeNodeAcc(NodeCommandPtr node_command) {
 
 
 Fault
+DynInst::completeTagQuery(Addr addr, bool tag) {
+    auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
+    assert(rvStaticInst != nullptr);
+
+    bool no_squash_from_TC = thread->noSquashFromTC;
+    thread->noSquashFromTC = true;
+
+    Fault fault = rvStaticInst->completeTagQuery(this, cpu,
+            addr, tag, traceData);
+
+    thread->noSquashFromTC = no_squash_from_TC;
+
+    return fault;
+}
+
+
+Fault
 DynInst::initiateAcc()
 {
     // @todo: Pretty convoluted way to avoid squashing from happening
