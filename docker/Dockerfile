@@ -10,6 +10,7 @@ RUN cd /toolchain && bash setup-toolchain.sh
 RUN rm /toolchain/setup-toolchain.sh
 
 RUN apt-get install -y apt-utils m4 python-is-python3
+RUN apt-get install -y python-dev-is-python3
 
 ADD entrypoint.sh /entrypoint.sh
 

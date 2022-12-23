@@ -1,7 +1,7 @@
 #!/bin/bash
 
 print_prompt() {
-    echo "####################"$1"####################"
+    echo "#################### "$1" ####################"
 }
 
 BUILD_FLAGS="--uncompressed --mocktag"
@@ -46,7 +46,4 @@ else
     print_prompt "Tests Failed"
     exit 1
 fi
-
-
-
 
