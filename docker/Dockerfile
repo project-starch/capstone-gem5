@@ -11,3 +11,7 @@ RUN rm /toolchain/setup-toolchain.sh
 
 RUN apt-get install -y apt-utils m4 python-is-python3
 
+ADD entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+
