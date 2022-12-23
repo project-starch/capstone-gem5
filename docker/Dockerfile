@@ -14,5 +14,7 @@ RUN apt-get install -y python-dev-is-python3
 
 ADD entrypoint.sh /entrypoint.sh
 
+ENV RISCV_TOOLCHAIN=/toolchain/riscv
+
 ENTRYPOINT ["/entrypoint.sh"]
 

@@ -13,5 +13,5 @@ fi
 umask o=rwx
 
 # without further ado, let's start the real work
-"$SCRIPT_PATH"
+PATH=$PATH:$RISCV_TOOLCHAIN/bin "$SCRIPT_PATH"
 
