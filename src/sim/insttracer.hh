@@ -247,6 +247,13 @@ class InstRecord
         data_status = DataVecPred;
     }
 
+    #ifdef TARGET_RISCVCapstone
+    void setData(gem5::RiscvcapstoneISA::o3::Cap& c)
+    {
+        return;
+    }
+    #endif
+
     void
     setFetchSeq(InstSeqNum seq)
     {

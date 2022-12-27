@@ -39,7 +39,8 @@ def operand_types {{
     'ud' : 'uint64_t',
     'sf' : 'float',
     'df' : 'double',
-    'rv' : 'RegVal'
+    'rv' : 'RegVal',
+    'trv': 'ConstTaggedRegVal'
 }};
 
 let {{
