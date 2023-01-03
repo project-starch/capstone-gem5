@@ -77,7 +77,7 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
 #ifdef CAPSTONE_USE_MOCKTAG
       tagController(params.numThreads, 32),
 #else
-      tagController(this, params.numThreads,
+      tagController(_cpu, params.numThreads,
               32, // port count
               32), // queue size
 #endif
