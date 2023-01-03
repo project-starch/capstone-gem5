@@ -79,8 +79,6 @@ class MemoryTagController : public BaseTagController {
 
         std::vector<TagQueue> wbQueues; // tag entries that await writeback
 
-        MemoryTagController(CPU* cpu, int thread_count,
-                int tcache_ports_count, int queue_size);
 
         class TagCachePort : public RequestPort {
             private:
@@ -142,6 +140,9 @@ class MemoryTagController : public BaseTagController {
     public:
         const Addr BASE_ADDRESS = 0x70000000; // TODO: for now a random address;
                                               // make this configurable
+
+        MemoryTagController(CPU* cpu, int thread_count,
+                int tcache_ports_count, int queue_size);
 
         bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) override;
         void tick() override;

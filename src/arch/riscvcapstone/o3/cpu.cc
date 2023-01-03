@@ -87,9 +87,13 @@ CPU::CPU(const CapstoneBaseO3CPUParams &params)
       rename(this, params),
       iew(this, params),
       commit(this, params),
-
+#ifdef CAPSTONE_USE_MOCKTAG
       tagController(params.numThreads),
-
+#else
+      tagController(this, params.numThreads,
+              32, // port count
+              32), // queue size
+#endif
       regFile(params.numPhysIntRegs,
               params.numPhysFloatRegs,
               params.numPhysVecRegs,

@@ -637,7 +637,7 @@ class CPU : public BaseCPU
 
   public:
     NodeController nodeController;
-    MockTagController tagController; // just a super simple place to maintain the tags for now
+    TagController tagController; // just a super simple place to maintain the tags for now
 
     // hardware transactional memory
     void htmSendAbortSignal(ThreadID tid, uint64_t htm_uid,
