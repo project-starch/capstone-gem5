@@ -68,6 +68,7 @@ Source('cap.cc', tags='riscvcapstone isa')
 
 DebugFlag('NCQ', tags='riscvcapstone isa')
 DebugFlag('NodeCmd', tags='riscvcapstone isa')
+DebugFlag('TagController', tags='riscvcapstone isa')
 #DebugFlag('CommitRate')
 #DebugFlag('IEW')
 #DebugFlag('IQ')

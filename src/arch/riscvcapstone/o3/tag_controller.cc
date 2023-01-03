@@ -2,31 +2,33 @@
 #include "mem/packet_access.hh"
 #include "arch/riscvcapstone/o3/tag_controller.hh"
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
+#include "debug/TagController.hh"
 
 
 namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
-BaseTagController::BaseTagController(int thread_count):
-    threadCount(thread_count) {
+BaseTagController::BaseTagController(int thread_count, int queue_size):
+    threadCount(thread_count),
+    queueSize(queue_size) {
     tagQueues.reserve(thread_count);
     for(int i = 0; i < thread_count; i ++) {
-        tagQueues.emplace_back();
+        tagQueues.emplace_back(queue_size);
     }
 }
 
 void
-BaseTagController::setTag(const DynInstPtr& inst, Addr addr, bool tag, 
-        ThreadID thread_id) {
+BaseTagController::setTag(const DynInstPtr& inst, Addr addr, bool tag) {
+    assert(inst->tqIdx >= 0);
+
     if(!aligned(addr)) {
         assert(!tag);
         // cannot tag unaligned addr
         return;
     }
-    tagQueues[thread_id].push_back(TagEntry {
-        inst, addr, tag
-    });
+
+    inst->tqIt->ops.push_back(TagOp {.addr = addr, .tagSet = tag });
 }
 
 void
@@ -34,42 +36,85 @@ BaseTagController::commitBefore(InstSeqNum seq_num, ThreadID thread_id) {
     TagQueue& tag_queue = tagQueues[thread_id];
 
     for(TagQueue::iterator it = tag_queue.begin();
-        it != tag_queue.end(); ) {
-        if(it->inst->seqNum <= seq_num) {
-            commitTag(*it, thread_id);
-            it = tag_queue.erase(it);
-        } else {
-            ++ it;
-        }
-
+        it != tag_queue.end() && it->inst->seqNum <= seq_num; ++ it) {
+        it->canWB = true;
     }
 }
 
 
 bool
 BaseTagController::getTag(const DynInstPtr& inst, Addr addr,
-        ThreadID thread_id, bool& delayed) {
+        bool& delayed) {
+    DPRINTF(TagController, "Tag controller get tag at %llx [sn:%u]\n",
+            addr, inst->seqNum);
+
+    assert(inst->tqIdx >= 0);
+
     if(!aligned(addr)) {
         delayed = false;
         return false;
     }
 
+    ThreadID thread_id = inst->threadNumber;
+
     TagQueue& tag_queue = tagQueues[thread_id];
 
     // need to start from the most recent
-    for(TagQueue::const_reverse_iterator it = tag_queue.rbegin();
-            it != tag_queue.rend();
-            ++ it) {
-        if(it->addr == addr) {
-            delayed = false;
-            return it->tagSet;
+    for(auto it = inst->tqIt;; -- it) {
+        for(auto op_it = it->ops.rbegin(); op_it != it->ops.rend(); ++ op_it) {
+            if(op_it->addr == addr) {
+                delayed = false;
+                return op_it->tagSet;
+            }
         }
+        if(it == tag_queue.begin())
+            break;
     }
     return getCommittedTag(inst, addr, delayed);
 }
 
-MockTagController::MockTagController(int thread_count):
-    BaseTagController(thread_count)
+void
+BaseTagController::insertInstruction(const DynInstPtr& inst) {
+    DPRINTF(TagController, "Tag controller insert inst [sn:%u]\n",
+            inst->seqNum);
+
+    ThreadID thread_id = inst->threadNumber;
+    assert(thread_id >= 0 && thread_id < threadCount);
+    TagQueue& tq = tagQueues[thread_id];
+    assert(!tq.full());
+    tq.advance_tail();
+    tq.back() = TagEntry { 
+        .inst = inst,
+        .canWB = false
+    };
+
+    inst->tqIdx = tq.tail();
+    inst->tqIt = tq.end() - 1;
+}
+
+void
+BaseTagController::writeback() {
+    // TODO: multithreaded scenario?
+    DPRINTF(TagController, "Tag controller writeback()\n");
+    for(auto tq_it = tagQueues.begin();
+            tq_it != tagQueues.end();
+            ++ tq_it) {
+        for(; !tq_it->empty() && tq_it->front().canWB &&
+                writebackTagEntry(tq_it->front());
+                tq_it->pop_front());
+    }
+}
+
+bool
+BaseTagController::writebackTagEntry(TagEntry& tag_entry) {
+    for(auto it = tag_entry.ops.begin(); it != tag_entry.ops.end() &&
+            writebackTagOp(tag_entry.inst, *it);
+            it = tag_entry.ops.erase(it));
+    return tag_entry.ops.empty();
+}
+
+MockTagController::MockTagController(int thread_count, int queue_size):
+    BaseTagController(thread_count, queue_size)
 {
 }
 
@@ -86,37 +131,23 @@ MockTagController::getCommittedTag(const DynInstPtr& inst,
 }
 
 
-void
-MockTagController::commitTag(const TagEntry& tag_entry, 
-        ThreadID thread_id) {
-    assert(aligned(tag_entry.addr));
-    if(tag_entry.tagSet) {
-        taggedAddrs.insert(tag_entry.addr);
+bool
+MockTagController::writebackTagOp(DynInstPtr& inst, TagOp& tag_op) {
+    assert(aligned(tag_op.addr));
+    if(tag_op.tagSet) {
+        taggedAddrs.insert(tag_op.addr);
     } else {
-        taggedAddrs.erase(tag_entry.addr);
+        taggedAddrs.erase(tag_op.addr);
     }
-}
-
-void
-MockTagController::insertInstruction(const DynInstPtr& inst, ThreadID thread_id) {
+    return true; // 0 latency for mock tag controller 
+                 // to update the state
 }
 
 MemoryTagController::MemoryTagController(CPU* cpu, 
         int thread_count, int tcache_ports_count, int queue_size) :
-            BaseTagController(thread_count),
+            BaseTagController(thread_count, queue_size),
             cpu(cpu),
-            tcachePort(this, cpu, tcache_ports_count),
-            queueSize(queue_size) {
-    wbQueues.reserve(thread_count);
-    for(int i = 0; i < thread_count; i ++){
-        wbQueues.emplace_back();
-    }
-}
-
-void
-MemoryTagController::commitTag(const TagEntry& tag_entry, 
-        ThreadID thread_id) {
-    wbQueues[thread_id].push_back(tag_entry);
+            tcachePort(this, cpu, tcache_ports_count){
 }
 
 bool
@@ -138,8 +169,8 @@ MemoryTagController::getCommittedTag(const DynInstPtr& inst,
 
     assert(ongoingRequests.find(pkt->id) == ongoingRequests.end());
     ongoingRequests[pkt->id] = TagCacheRequest {
-        .entry = TagEntry {
-            .inst = inst,
+        .inst = inst,
+        .op = TagOp {
             .addr = addr,
             .tagSet = false
         },
@@ -155,46 +186,32 @@ MemoryTagController::tick() {
     tcachePort.tick();
 }
 
+bool
+MemoryTagController::writebackTagOp(DynInstPtr& inst, TagOp& tag_op) {
+    if(!tcachePort.canSend())
+        return false;
 
-void
-MemoryTagController::writeback() {
-    // write back to cache the oldest first
-    // TODO: consider reordering
-    // TODO: consider ordering of threads
-
-    for(auto& wb_queue : wbQueues) {
-        for(TagQueue::iterator it = wb_queue.begin();
-            it != wb_queue.end() && tcachePort.canSend();
-            it = wb_queue.erase(it)) {
-            writeback(*it);
-        }
-    }
-}
-
-void
-MemoryTagController::writeback(const TagEntry& tag_entry) {
-    Addr addr = getTagAddr(tag_entry.addr);
+    Addr addr = getTagAddr(tag_op.addr);
 
     RequestPtr req = std::make_shared<Request>();
-    req->requestorId(tag_entry.inst->requestorId());
+    req->requestorId(inst->requestorId());
     req->setPaddr(addr);
 
     PacketPtr pkt = Packet::createWrite(req);
     pkt->setSize(1);
     pkt->allocate();
-    *(pkt->getPtr<uint8_t>()) = tag_entry.tagSet ? 1 : 0;
+    *(pkt->getPtr<uint8_t>()) = tag_op.tagSet ? 1 : 0;
 
     tcachePort.trySendPacket(pkt);
 
     assert(ongoingRequests.find(pkt->id) == ongoingRequests.end());
     ongoingRequests[pkt->id] = TagCacheRequest {
-        .entry = tag_entry,
+        .inst = inst,
+        .op = tag_op,
         .isWrite = true
     };
-}
 
-void
-MemoryTagController::insertInstruction(const DynInstPtr& inst, ThreadID thread_id) {
+    return true;
 }
 
 bool
@@ -202,15 +219,16 @@ MemoryTagController::handleResp(PacketPtr pkt) {
     auto it = ongoingRequests.find(pkt->id);
     assert(it != ongoingRequests.end());
 
-    TagEntry& tag_entry = it->second.entry;
-    DynInstPtr& inst = tag_entry.inst;
-    if(it->second.isWrite) {
+    TagCacheRequest& req = it->second;
+    TagOp& tag_op = req.op;
+    DynInstPtr& inst = req.inst;
+    if(req.isWrite) {
         // TODO: potentially mark the instruction as complete
         // compare with store completion
 
     } else{
         bool tag = pkt->getRaw<bool>();
-        inst->completeTagQuery(tag_entry.addr, tag);
+        inst->completeTagQuery(tag_op.addr, tag);
         // TODO: handle fault and 
         // check whether the instruction execution is complete
     }

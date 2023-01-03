@@ -20,16 +20,21 @@ class CPU;
 
 class BaseTagController {
     protected:
-        struct TagEntry {
-            DynInstPtr inst;
+        struct TagOp { // tag changes
             Addr addr;
             bool tagSet;
         };
 
-        //using TagQueue = CircularQueue<TagEntry>;
-        using TagQueue = std::list<TagEntry>;
+        struct TagEntry {
+            DynInstPtr inst;
+            std::list<TagOp> ops;
+            bool canWB;
+        };
 
-        int threadCount;
+        //using TagQueue = CircularQueue<TagEntry>;
+        using TagQueue = CircularQueue<TagEntry>;
+
+        int threadCount, queueSize;
 
         std::unordered_set<Addr> taggedAddrs; // only the committed tags
         std::vector<TagQueue> tagQueues; // uncommitted tags
@@ -39,35 +44,41 @@ class BaseTagController {
         }
 
 
-        BaseTagController(int thread_count);
+        BaseTagController(int thread_count, int queue_size);
 
-        virtual void commitTag(const TagEntry& tag_entry, ThreadID thread_id) = 0;
+        virtual bool writebackTagEntry(TagEntry& tag_entry);
+        virtual bool writebackTagOp(DynInstPtr& inst, TagOp& tag_op) = 0;
     
     public:
-        bool getTag(const DynInstPtr& inst, Addr addr, ThreadID thread_id, bool& delayed);
+        using TQIterator = typename TagQueue::iterator;
+
+        bool getTag(const DynInstPtr& inst, Addr addr, bool& delayed);
         virtual bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) = 0;
-        void setTag(const DynInstPtr& inst, Addr addr, bool tag, ThreadID thread_id);
+        void setTag(const DynInstPtr& inst, Addr addr, bool tag);
         /**
          * Commit instructions before the given sequence number
          * */
         void commitBefore(InstSeqNum seq_num, ThreadID thread_id);
         virtual void tick() = 0;
-        virtual void writeback() = 0;
+        virtual void writeback();
         // insert instruction during dispatch (in-order)
-        virtual void insertInstruction(const DynInstPtr& inst, ThreadID thread_id) = 0;
+        virtual void insertInstruction(const DynInstPtr& inst);
+
+        bool isFull(ThreadID thread_id) {
+            assert(thread_id >= 0 && thread_id < threadCount);
+            return tagQueues[thread_id].full();
+        }
 };
 
 class MockTagController : public BaseTagController {
     protected:
-        void commitTag(const TagEntry& tag_entry, ThreadID thread_id) override;
+        bool writebackTagOp(DynInstPtr& inst, TagOp& tag_op) override;
     public:
-        MockTagController(int thread_count);
+        MockTagController(int thread_count, int queue_size);
         MockTagController(const MockTagController& other) = delete;
         bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) override;
 
         void tick() override {}
-        void writeback() override {}
-        void insertInstruction(const DynInstPtr& inst, ThreadID thread_id) override;
 };
 
 /**
@@ -77,9 +88,6 @@ class MemoryTagController : public BaseTagController {
     private:
         // for now we use the same mechanism as in the mock controller
         // for the per-thread queue.
-
-        std::vector<TagQueue> wbQueues; // tag entries that await writeback
-
 
         class TagCachePort : public RequestPort {
             private:
@@ -112,7 +120,8 @@ class MemoryTagController : public BaseTagController {
         };
 
         struct TagCacheRequest {
-            TagEntry entry;
+            DynInstPtr inst;
+            TagOp op;
             bool isWrite;
         };
 
@@ -121,10 +130,6 @@ class MemoryTagController : public BaseTagController {
 
         std::unordered_map<PacketId, TagCacheRequest> ongoingRequests;
             
-        int queueSize;
-
-        void writeback(const TagEntry& tag_entry);
-
         Addr getTagAddr(Addr addr) const {
             assert(aligned(addr));
             //return BASE_ADDRESS + (node_id >> (CAPSTONE_NODE_SIZE_SHIFT + 3));
@@ -136,7 +141,7 @@ class MemoryTagController : public BaseTagController {
         void trySendPacket(PacketPtr pkt);
 
     protected:
-        void commitTag(const TagEntry& tag_entry, ThreadID thread_id) override;
+        bool writebackTagOp(DynInstPtr& inst, TagOp& tag_op) override;
 
     public:
         const Addr BASE_ADDRESS = 0x70000000; // TODO: for now a random address;
@@ -149,8 +154,6 @@ class MemoryTagController : public BaseTagController {
 
         bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) override;
         void tick() override;
-        void writeback() override;
-        void insertInstruction(const DynInstPtr& inst, ThreadID thread_id) override;
 
         RequestPort& getTagCachePort() {
             return tcachePort;

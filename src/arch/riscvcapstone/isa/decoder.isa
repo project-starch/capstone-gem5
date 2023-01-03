@@ -512,7 +512,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         bool delayed;
 
-                        bool res_tag = t.getTag(dyn_inst, EA, dyn_inst->threadNumber, delayed);
+                        bool res_tag = t.getTag(dyn_inst, EA, delayed);
 
                         assert(!delayed); // FIXME: not supporting mem tag controller
 
@@ -523,7 +523,7 @@ decode QUADRANT default Unknown::unknown() {
                             //  clear the mem location itself
 
                             if(Mem_rv.capVal().type() != CapType::NONLIN) {
-                                t.setTag(dyn_inst, EA, false, dyn_inst->threadNumber);
+                                t.setTag(dyn_inst, EA, false);
                                 //TODO: Write 0s here
                                 Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
                                             memAccessFlags, nullptr);

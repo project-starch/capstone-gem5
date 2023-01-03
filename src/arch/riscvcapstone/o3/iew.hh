@@ -52,6 +52,7 @@
 #include "arch/riscvcapstone/o3/lsq.hh"
 #include "arch/riscvcapstone/o3/ncq.hh"
 #include "arch/riscvcapstone/o3/scoreboard.hh"
+#include "arch/riscvcapstone/o3/tag_controller.hh"
 #include "cpu/timebuf.hh"
 #include "debug/IEW.hh"
 #include "sim/probe/probe.hh"
@@ -363,6 +364,8 @@ class IEW
 
     /** Node command queue */
     NCQ ncQueue;
+
+    TagController tagController; // just a super simple place to maintain the tags for now
 
     /** Pointer to the functional unit pool. */
     FUPool *fuPool;

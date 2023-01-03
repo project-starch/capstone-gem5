@@ -367,6 +367,9 @@ class DynInst : public ExecContext, public RefCounted
     ssize_t ncqIdx = -1;
     typename NCQUnit::NCQIterator ncqIt;
 
+    ssize_t tqIdx = -1;
+    typename BaseTagController::TQIterator tqIt;
+
 
     /////////////////////// TLB Miss //////////////////////
     /**
@@ -420,6 +423,10 @@ class DynInst : public ExecContext, public RefCounted
                          AtomicOpFunctorPtr amo_op) override;
 
     Fault initiateNodeCommand(NodeCommandPtr cmd);
+
+    Fault initiateGetTag(Addr addr);
+
+    Fault initiateSetTag(Addr addr, bool tag);
 
     /** True if the DTB address translation has started. */
     bool translationStarted() const { return instFlags[TranslationStarted]; }
@@ -1249,7 +1256,7 @@ class DynInst : public ExecContext, public RefCounted
     
 
     TagController& getTagController() {
-        return cpu->tagController;
+        return cpu->getTagController();
     }
 };
 

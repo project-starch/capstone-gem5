@@ -637,7 +637,6 @@ class CPU : public BaseCPU
 
   public:
     NodeController nodeController;
-    TagController tagController; // just a super simple place to maintain the tags for now
 
     // hardware transactional memory
     void htmSendAbortSignal(ThreadID tid, uint64_t htm_uid,
@@ -654,6 +653,10 @@ class CPU : public BaseCPU
 
     bool passedQuery(const DynInstPtr& inst) const {
         return iew.ncQueue.passedQuery(inst);
+    }
+
+    TagController& getTagController() {
+        return iew.tagController;
     }
 };
 
