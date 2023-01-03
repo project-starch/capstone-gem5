@@ -472,17 +472,26 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        uint64_t node_id = Rd_rv.val.cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+                        const RegVal& rdv = Rd_trv.getRegVal();
 
-                        Rd_rv = Rs1_rv;
-
-                        if(Rs1_rv.val.cap.type() == CapType::NONLIN) {
-                            node_id = Rs1_rv.val.cap.nodeId();
-                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
-                        } else {
-                            Rs1_rv = 0;
+                        if(Rd_trv.getTag()) {
+                            uint64_t node_id = rdv.capVal().nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
                         }
+
+                        Rd_trv = Rs1_trv;
+
+                        const RegVal& rsv = Rs1_trv.getRegVal();
+
+                        if(Rs1_trv.getTag()) {
+                            if(rsv.capVal().type() == CapType::NONLIN) {
+                                uint64_t node_id = rsv.capVal().nodeId();
+                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                            } else {
+                                Rs1_trv.setTag(false);
+                            }
+                        }
+                        Rs1_trv = Rs1_trv;
                     }});
                     0xf: sdc ({{
                         Rd_rv; Rs1_rv;
