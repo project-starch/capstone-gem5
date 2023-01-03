@@ -394,6 +394,8 @@ DynInst::completeTagQuery(Addr addr, bool tag) {
 
     Fault fault = rvStaticInst->completeTagQuery(this, cpu,
             addr, tag, traceData);
+    assert(incompleteTagReqs > 0);
+    -- incompleteTagReqs;
 
     thread->noSquashFromTC = no_squash_from_TC;
 
@@ -509,6 +511,7 @@ DynInst::initiateGetTag(Addr addr) {
     bool tag, delayed;
     TagController& tag_controller = getTagController();
     
+    ++ incompleteTagReqs;
     tag = tag_controller.getTag(dynamic_cast<DynInstPtr::PtrType>(this),
             addr, delayed);
     if(!delayed) {

@@ -245,6 +245,9 @@ class DynInst : public ExecContext, public RefCounted
     // Whether or not the source register is ready, one bit per register.
     uint8_t *_readySrcIdx;
 
+    // number of unfinished tag requests
+    int incompleteTagReqs = 0;
+
   public:
     size_t numSrcs() const { return _numSrcs; }
     size_t numDests() const { return _numDests; }
@@ -804,6 +807,8 @@ class DynInst : public ExecContext, public RefCounted
     void setNodeInitiated() { nodeInitiated = true; }
 
     bool isNodeInitiated() { return nodeInitiated; }
+
+    bool isTagCompleted() { return incompleteTagReqs == 0; }
 
     /** Returns whether or not this instruction has executed. */
     bool isExecuted() const { return status[Executed]; }

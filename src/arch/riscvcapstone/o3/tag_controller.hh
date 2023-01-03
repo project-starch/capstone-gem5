@@ -17,6 +17,7 @@ namespace RiscvcapstoneISA {
 namespace o3 {
 
 class CPU;
+class IEW;
 
 class BaseTagController {
     protected:
@@ -126,6 +127,7 @@ class MemoryTagController : public BaseTagController {
         };
 
         CPU* cpu;
+        IEW* iew;
         TagCachePort tcachePort;
 
         std::unordered_map<PacketId, TagCacheRequest> ongoingRequests;
@@ -147,7 +149,7 @@ class MemoryTagController : public BaseTagController {
         const Addr BASE_ADDRESS = 0x70000000; // TODO: for now a random address;
                                               // make this configurable
 
-        MemoryTagController(CPU* cpu, int thread_count,
+        MemoryTagController(CPU* cpu, IEW* iew, int thread_count,
                 int tcache_ports_count, int queue_size);
 
         MemoryTagController(const MemoryTagController& other) = delete;
