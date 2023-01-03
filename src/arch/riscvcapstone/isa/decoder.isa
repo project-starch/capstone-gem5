@@ -395,11 +395,14 @@ decode QUADRANT default Unknown::unknown() {
                             NPC = Rd;
                     }}, IsCondControl);
                     0x4: shrink ({{
-                        uint64_t start = Rd_rv.val.cap.start();
-                        uint64_t end = Rd_rv.val.cap.end();
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
+
+                        uint64_t start = rdv.capVal().start();
+                        uint64_t end = rdv.capVal().end();
                         assert(Rs1 >= start && Rs2 <= end && Rs1 < Rs2);
-                        Rd_rv.val.cap.setBound(Rs1, Rs2);
-                        Rd_rv = Rd_rv;
+                        rdv.capVal().setBound(Rs1, Rs2);
+                        Rd_trv = Rd_trv;
                     }});
                     0x5: lt ({{
                         Rd = (Rs1 < Rs2);
@@ -408,18 +411,27 @@ decode QUADRANT default Unknown::unknown() {
                         /* TODO: do we perform checks here if new perms are actually 
                          * tighter than current perms?
                          */
+
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
+
                         using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
                         CapPerm temp = static_cast<CapPerm>(Rs1);
                         assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
-                        Rd_rv.val.cap.setPerm(temp);
-                        Rd_rv = Rd_rv;
+                        rdv.capVal().setPerm(temp);
+                        Rd_trv = Rd_trv;
                     }});
                     0x7: delin ({{
-                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::NONLIN);
-                        Rd_rv = Rd_rv;
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
+
+                        rdv.capVal().setType(gem5::RiscvcapstoneISA::o3::CapType::NONLIN);
+                        Rd_trv = Rd_trv;
                     }});
                     0x8: scc ({{
                         RegVal& reg_val = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
+
                         uint64_t start = reg_val.val.cap.start();
                         uint64_t end = reg_val.val.cap.end();
                         assert(Rs1 >= start && Rs1 <= end);
@@ -427,15 +439,21 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rd_trv;
                     }});
                     0x9: init ({{
-                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::LIN);
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
 
-                        uint64_t start = Rd_rv.val.cap.start();
-                        Rd_rv.val.cap.setCursor(start);
-                        Rd_rv = Rd_rv;
+                        rdv.capVal().setType(gem5::RiscvcapstoneISA::o3::CapType::LIN);
+
+                        uint64_t start = rdv.capVal().start();
+                        rdv.capVal().setCursor(start);
+                        Rd_trv = Rd_trv;
                     }});
                     0xa: seal ({{
-                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::SEALED);
-                        Rd_rv = Rd_rv;
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
+
+                        rdv.capVal().setType(gem5::RiscvcapstoneISA::o3::CapType::SEALED);
+                        Rd_trv = Rd_trv;
                     }});
                     0xb: add2 ({{
                         Rd = Rd + Rs1;
