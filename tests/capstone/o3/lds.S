@@ -26,7 +26,7 @@ _start:
 
     CAPPRINT(a3)
 
-    LDS(a4, a3)
+    LDC(a4, a3)
     
     CAPPRINT(a4)
 

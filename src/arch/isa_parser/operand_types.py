@@ -186,6 +186,8 @@ class Operand(object):
     def makeDecl(self):
         # Note that initializations in the declarations are solely
         # to avoid 'uninitialized variable' errors from the compiler.
+        if self.ext == 'trv':
+            return self.ctype + ' ' + self.base_name + ';\n';
         return self.ctype + ' ' + self.base_name + ' = 0;\n';
 
 class RegOperand(Operand):
@@ -207,7 +209,20 @@ class RegOperand(Operand):
 
 class RegValOperand(RegOperand):
     def makeRead(self):
-        reg_val = f'xc->getRegOperand(this, {self.src_reg_idx})'
+        if self.ext == 'trv':
+            reg_val = f'dyn_inst->getTaggedRegOperand(this, {self.src_reg_idx})'
+
+            return f'''
+                    {{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        {self.base_name} = {reg_val};\n
+                    }}'''
+        else:
+            reg_val = f'xc->getRegOperand(this, {self.src_reg_idx})'
 
         if self.ctype == 'float':
             reg_val = f'bitsToFloat32({reg_val})'
@@ -223,6 +238,21 @@ class RegValOperand(RegOperand):
             reg_val = f'floatToBits32({reg_val})'
         elif self.ctype == 'double':
             reg_val = f'floatToBits64({reg_val})'
+
+        if self.ext == 'trv':
+            return f'''
+            {{
+                using namespace gem5::RiscvcapstoneISA::o3;
+
+                DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                assert(dyn_inst);
+
+                ConstTaggedRegVal final_val = {reg_val};
+                dyn_inst->setTaggedRegOperand(this, {self.dest_reg_idx}, final_val);
+                if (traceData) {{
+                    traceData->setData(final_val);
+                }}
+            }}'''
 
         return f'''
         {{
@@ -457,6 +487,7 @@ class ControlRegOperandDesc(RegOperandDesc):
     def __init__(self, *args, **kwargs):
         super().__init__('MiscRegClass', ControlRegOperand, *args, **kwargs)
 
+#TODO: may need to make changes
 class MemOperand(Operand):
     def isMem(self):
         return 1
@@ -478,6 +509,7 @@ class MemOperandDesc(OperandDesc):
     def __init__(self, *args, **kwargs):
         super().__init__(MemOperand, *args, **kwargs)
 
+#TODO
 class PCStateOperand(Operand):
     def __init__(self, parser, *args, **kwargs):
         super().__init__(parser, *args, **kwargs)

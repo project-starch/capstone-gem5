@@ -465,27 +465,25 @@ decode QUADRANT default Unknown::unknown() {
                             Rs1_rv = 0;
                         }
                     }});
-                    0xe: ldc ({{
-                        Rd_rv; Rs1_rv;
-                    }});
                     0xf: sdc ({{
                         Rd_rv; Rs1_rv;
                     }});
                 }
                 format RNodeMemOp {
-                    0xd: lds ({{
-                        Rd_sd; Rs1_rv;
+                    0xe: ldc ({{
+                        Rd_trv; Rs1_trv;
 
                         using namespace gem5::RiscvcapstoneISA::o3;
+
+                        assert(Rs1_trv.getTag());
 
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        NodeID node_id = Rs1_rv.val.cap.nodeId();
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
 
-                        //if node_id is valid
-                        if (static_cast<int>(Rs1_rv.capVal().perm()) < 1)
+                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1)
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
@@ -498,10 +496,41 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                 "Capability provided is not valid!", machInst);
                     }}, {{
-                        Addr EA = Rs1.capVal().cursor();
+                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
                     }}, {{
-                        Rd_sd = Mem_sw;        
-                        //clear tag bit of Rd
+                        Rd_trv.getRegVal() = Mem_rv;
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        TagController t = dyn_inst->getTagController();
+
+                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
+
+                        bool delayed;
+
+                        bool res_tag = t.getTag(dyn_inst, EA, dyn_inst->threadNumber, delayed);
+
+                        if(res_tag) {
+                            //if load result is a capability
+                            //if it's linear type
+                            //  clear tag bit from EA
+                            //  clear the mem location itself
+
+                            if(Mem_rv.capVal().type() != CapType::NONLIN) {
+                                t.setTag(dyn_inst, EA, false, dyn_inst->threadNumber);
+                                //TODO: Write 0s here
+                                Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
+                                            memAccessFlags, nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+                            }
+                            Rd_trv.setTag(true);
+                        } else {
+                            Rd_trv.setTag(false);
+                        }
                     }});
                 }
             }
