@@ -395,11 +395,14 @@ decode QUADRANT default Unknown::unknown() {
                             NPC = Rd;
                     }}, IsCondControl);
                     0x4: shrink ({{
-                        uint64_t start = Rd_rv.val.cap.start();
-                        uint64_t end = Rd_rv.val.cap.end();
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
+
+                        uint64_t start = rdv.capVal().start();
+                        uint64_t end = rdv.capVal().end();
                         assert(Rs1 >= start && Rs2 <= end && Rs1 < Rs2);
-                        Rd_rv.val.cap.setBound(Rs1, Rs2);
-                        Rd_rv = Rd_rv;
+                        rdv.capVal().setBound(Rs1, Rs2);
+                        Rd_trv = Rd_trv;
                     }});
                     0x5: lt ({{
                         Rd = (Rs1 < Rs2);
@@ -408,18 +411,27 @@ decode QUADRANT default Unknown::unknown() {
                         /* TODO: do we perform checks here if new perms are actually 
                          * tighter than current perms?
                          */
+
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
+
                         using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
                         CapPerm temp = static_cast<CapPerm>(Rs1);
                         assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
-                        Rd_rv.val.cap.setPerm(temp);
-                        Rd_rv = Rd_rv;
+                        rdv.capVal().setPerm(temp);
+                        Rd_trv = Rd_trv;
                     }});
                     0x7: delin ({{
-                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::NONLIN);
-                        Rd_rv = Rd_rv;
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
+
+                        rdv.capVal().setType(gem5::RiscvcapstoneISA::o3::CapType::NONLIN);
+                        Rd_trv = Rd_trv;
                     }});
                     0x8: scc ({{
                         RegVal& reg_val = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
+
                         uint64_t start = reg_val.val.cap.start();
                         uint64_t end = reg_val.val.cap.end();
                         assert(Rs1 >= start && Rs1 <= end);
@@ -427,15 +439,21 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rd_trv;
                     }});
                     0x9: init ({{
-                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::LIN);
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
 
-                        uint64_t start = Rd_rv.val.cap.start();
-                        Rd_rv.val.cap.setCursor(start);
-                        Rd_rv = Rd_rv;
+                        rdv.capVal().setType(gem5::RiscvcapstoneISA::o3::CapType::LIN);
+
+                        uint64_t start = rdv.capVal().start();
+                        rdv.capVal().setCursor(start);
+                        Rd_trv = Rd_trv;
                     }});
                     0xa: seal ({{
-                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::SEALED);
-                        Rd_rv = Rd_rv;
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        assert(Rd_trv.getTag());
+
+                        rdv.capVal().setType(gem5::RiscvcapstoneISA::o3::CapType::SEALED);
+                        Rd_trv = Rd_trv;
                     }});
                     0xb: add2 ({{
                         Rd = Rd + Rs1;
@@ -454,20 +472,59 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        uint64_t node_id = Rd_rv.val.cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+                        const RegVal& rdv = Rd_trv.getRegVal();
 
-                        Rd_rv = Rs1_rv;
-
-                        if(Rs1_rv.val.cap.type() == CapType::NONLIN) {
-                            node_id = Rs1_rv.val.cap.nodeId();
-                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
-                        } else {
-                            Rs1_rv = 0;
+                        if(Rd_trv.getTag()) {
+                            uint64_t node_id = rdv.capVal().nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
                         }
+
+                        Rd_trv = Rs1_trv;
+
+                        const RegVal& rsv = Rs1_trv.getRegVal();
+
+                        if(Rs1_trv.getTag()) {
+                            if(rsv.capVal().type() == CapType::NONLIN) {
+                                uint64_t node_id = rsv.capVal().nodeId();
+                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                            } else {
+                                Rs1_trv.setTag(false);
+                            }
+                        }
+                        Rs1_trv = Rs1_trv;
                     }});
-                    0xf: sdc ({{
-                        Rd_rv; Rs1_rv;
+                    0xd: lcc ({{
+                        Rd_trv; Rs1_trv;
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+
+                        if(Rd_trv.getTag()) {
+                            uint64_t node_id = Rd_trv.getRegVal().capVal().nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+                            Rd_trv.setTag(false);
+                        }
+
+                        Rd_trv.getRegVal() = Rs1_trv.getRegVal().capVal().cursor();
+
+                        Rd_trv = Rd_trv;
+                    }});
+                    0x10: dropi ({{
+                        Rd_trv;
+
+                        assert(Rd_trv.getTag());
+
+                        Rd_trv.setTag(false);
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+
+                        uint64_t node_id = Rd_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeDrop(node_id));
+
+                        Rd_trv = Rd_trv;
                     }});
                 }
                 format RNodeMemOp {
@@ -535,6 +592,72 @@ decode QUADRANT default Unknown::unknown() {
                             Rd_trv.setTag(false);
                         }
                         Rd_trv = Rd_trv;
+                    }});
+                }
+                format RNodeStoreMemOp {
+                    0xf: sdc ({{
+                        Rd_trv; Rs1_trv;
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        assert(Rd_trv.getTag());
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+
+                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 2)
+                            return std::make_shared<IllegalInstFault>(
+                                    "Rd doesn't have the necessary perms", machInst);
+                    }}, {{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
+
+                        assert(qry);
+                        if(qry->validityError)
+                            return std::make_shared<IllegalInstFault>(
+                                "Capability provided is not valid!", machInst);
+                    }}, {{
+                        Addr EA = Rd_trv.getRegVal().capVal().cursor();
+
+                        Mem_rv = Rs1_trv.getRegVal();
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        TagController& t = dyn_inst->getTagController();
+
+                        bool delayed;
+
+                        bool res_tag = t.getTag(dyn_inst, EA, delayed);
+
+                        assert(!delayed); // FIXME: not supporting mem tag controller
+
+                        if(res_tag) {
+                            //if Rd has a capability AND Rs1 is scalar
+                            //  clear tag bit from EA
+
+                            if(Rs1_trv.getTag() == false)
+                                t.setTag(dyn_inst, EA, false);
+                        }
+
+                        Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
+                                          memAccessFlags, nullptr);
+                            if (fault != NoFault)
+                                return fault;
+                        
+                        if(Rs1_trv.getTag()) {
+                            if(Rs1_trv.getRegVal().capVal().type() != 
+                                gem5::RiscvcapstoneISA::o3::CapType::NONLIN)
+                                Rs1_trv.setTag(false);
+                        }
+
+                        Rs1_trv = Rs1_trv;
                     }});
                 }
             }
