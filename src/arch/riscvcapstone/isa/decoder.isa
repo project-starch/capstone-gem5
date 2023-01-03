@@ -514,6 +514,8 @@ decode QUADRANT default Unknown::unknown() {
 
                         bool res_tag = t.getTag(dyn_inst, EA, dyn_inst->threadNumber, delayed);
 
+                        assert(!delayed); // FIXME: not supporting mem tag controller
+
                         if(res_tag) {
                             //if load result is a capability
                             //if it's linear type
@@ -532,6 +534,7 @@ decode QUADRANT default Unknown::unknown() {
                         } else {
                             Rd_trv.setTag(false);
                         }
+                        Rd_trv = Rd_trv;
                     }});
                 }
             }

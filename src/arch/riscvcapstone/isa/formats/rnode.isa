@@ -152,7 +152,7 @@ def template RNodeMemCompleteAcc {{
         %(op_decl)s;
         %(op_rd)s;
 
-        gem5::RiscvcapstoneISA::o3::Cap cap = Mem.capVal();
+        gem5::RiscvcapstoneISA::o3::Cap& cap = Mem.capVal();
 
         getMemLE(pkt, cap, traceData);
 
