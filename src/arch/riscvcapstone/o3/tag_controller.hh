@@ -62,6 +62,7 @@ class MockTagController : public BaseTagController {
         void commitTag(const TagEntry& tag_entry, ThreadID thread_id) override;
     public:
         MockTagController(int thread_count);
+        MockTagController(const MockTagController& other) = delete;
         bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) override;
 
         void tick() override {}
@@ -143,6 +144,8 @@ class MemoryTagController : public BaseTagController {
 
         MemoryTagController(CPU* cpu, int thread_count,
                 int tcache_ports_count, int queue_size);
+
+        MemoryTagController(const MemoryTagController& other) = delete;
 
         bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) override;
         void tick() override;

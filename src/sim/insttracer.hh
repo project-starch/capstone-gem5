@@ -221,6 +221,10 @@ class InstRecord
         data_status = DataInt8;
     }
 
+#ifdef TARGET_RISCVCapstone
+    void setData(const ConstTaggedRegVal& d) {}
+#endif
+
     void setData(int64_t d) { setData((uint64_t)d); }
     void setData(int32_t d) { setData((uint32_t)d); }
     void setData(int16_t d) { setData((uint16_t)d); }

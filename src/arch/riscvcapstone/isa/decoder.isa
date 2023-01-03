@@ -419,11 +419,12 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_rv = Rd_rv;
                     }});
                     0x8: scc ({{
-                        uint64_t start = Rd_rv.val.cap.start();
-                        uint64_t end = Rd_rv.val.cap.end();
+                        RegVal& reg_val = Rd_trv.getRegVal();
+                        uint64_t start = reg_val.val.cap.start();
+                        uint64_t end = reg_val.val.cap.end();
                         assert(Rs1 >= start && Rs1 <= end);
-                        Rd_rv.val.cap.setCursor(Rs1);
-                        Rd_rv = Rd_rv;
+                        reg_val.val.cap.setCursor(Rs1);
+                        Rd_trv = Rd_trv;
                     }});
                     0x9: init ({{
                         Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::LIN);
@@ -505,7 +506,7 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        TagController t = dyn_inst->getTagController();
+                        TagController& t = dyn_inst->getTagController();
 
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
@@ -563,39 +564,42 @@ decode QUADRANT default Unknown::unknown() {
                 }
                 format ROp {
                     0x5: capcreate ({{
-                        Rd_rv = Rd_rv; // just to make the dumb parser happy
+                        Rd_trv.setTag(true);
+                        Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0x6: captype ({{
                         using CapType = gem5::RiscvcapstoneISA::o3::CapType;
                         CapType temp = static_cast<CapType>(Rs1);
                         assert(temp >= CapType::LIN && temp <= CapType::SEALEDRET);
-                        Rd_rv.val.cap.setType(temp);
-                        Rd_rv = Rd_rv; // just to make the dumb parser happy
+                        Rd_trv.getRegVal().val.cap.setType(temp);
+                        Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0x7: capnode ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
-                        Rd_rv.val.cap.setNodeId(static_cast<NodeID>(Rs1));
-                        Rd_rv = Rd_rv; // just to make the dumb parser happy
+                        Rd_trv.getRegVal().val.cap.setNodeId(static_cast<NodeID>(Rs1));
+                        Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0x8: capperm ({{
                         using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
                         CapPerm temp = static_cast<CapPerm>(Rs1);
                         assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
-                        Rd_rv.val.cap.setPerm(temp);
-                        Rd_rv = Rd_rv; // just to make the dumb parser happy
+                        Rd_trv.getRegVal().val.cap.setPerm(temp);
+                        Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0x9: capbound ({{
                         DPRINTFN("Set capability bound to (%llx, %llx)\n", Rs1, Rs2);
-                        Rd_rv.val.cap.setBound(Rs1, Rs2);
-                        Rd_rv = Rd_rv; // just to make the dumb parser happy
+                        Rd_trv.getRegVal().val.cap.setBound(Rs1, Rs2);
+                        Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0xa: capprint ({{
-                        DPRINTFN("Capability = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
-                                Rs1_rv.val.cap.start(), Rs1_rv.val.cap.end(),
-                                Rs1_rv.val.cap.cursor(),
-                                static_cast<unsigned int>(Rs1_rv.val.cap.perm()),
-                                static_cast<unsigned int>(Rs1_rv.val.cap.type()),
-                                Rs1_rv.val.cap.nodeId());
+                        const RegVal& reg_val = Rs1_trv.getRegVal();
+                        DPRINTFN("Capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
+                                Rs1_trv.getTag(),
+                                reg_val.val.cap.start(), reg_val.val.cap.end(),
+                                reg_val.val.cap.cursor(),
+                                static_cast<unsigned int>(reg_val.val.cap.perm()),
+                                static_cast<unsigned int>(reg_val.val.cap.type()),
+                                reg_val.val.cap.nodeId());
                     }});
                 }
             }
