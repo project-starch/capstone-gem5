@@ -3,6 +3,7 @@ STATIC_LIB=exit
 HEADERS=asm_insn.h
 OBJECTS=$(patsubst %.S,%.o,$(ASM_SOURCES))
 TARGETS=$(filter-out $(STATIC_LIB),$(patsubst %.S,%,$(ASM_SOURCES)))
+RUN_TARGETS=$(patsubst %,run-%,$(TARGETS))
 GEM5?=gem5.opt
 GEM5_FLAGS?=
 GEM5_CONFIG?=config.py
@@ -18,15 +19,15 @@ $(TARGETS):%:$(STATIC_LIB).o %.o
 $(OBJECTS):%.o:%.S $(HEADERS)
 	$(GCC) -c -o $@ $<
 
-run: $(TARGETS)
-	$(foreach testcase,$(TARGETS), \
-		echo "Running testcase $(testcase)"; \
-		$(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $(testcase); \
-	)
+$(RUN_TARGETS):run-%:%
+	@echo "Running testcase $^"
+	$(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
+
+run: $(RUN_TARGETS)
 
 clean:
 	rm -rf $(TARGETS) $(OBJECTS)
 
-.PHONY: all clean run
+.PHONY: all clean run $(RUN_TARGETS)
 
 
