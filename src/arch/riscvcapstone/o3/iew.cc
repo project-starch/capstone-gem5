@@ -580,9 +580,8 @@ IEW::cacheUnblocked()
 
 void
 IEW::instToCommitIfExeced(const DynInstPtr& inst) {
-    if(inst->isExecuted() &&
-        inst->isNodeExecuted() &&
-        inst->isTagCompleted()){
+    if(inst->isQueryCompleted() && inst->isExecuted() &&
+            inst->isNodeExecuted()) {
         instToCommit(inst);
     }
 }

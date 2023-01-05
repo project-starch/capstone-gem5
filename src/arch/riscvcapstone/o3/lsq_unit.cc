@@ -80,7 +80,9 @@ LSQUnit::WritebackEvent::process()
 
     assert(inst->savedRequest);
     inst->savedRequest->writebackDone();
-    delete pkt;
+    if(!pkt->isRead()) {
+        delete pkt;
+    }
 }
 
 const char *
@@ -1131,7 +1133,7 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
     }
 
     // Need to insert instruction into queue to commit
-    iewStage->instToCommitIfExeced(inst);
+    //iewStage->instToCommitIfExeced(inst);
 
     iewStage->activityThisCycle();
 

@@ -394,8 +394,19 @@ DynInst::completeTagQuery(Addr addr, bool tag) {
 
     Fault fault = rvStaticInst->completeTagQuery(this, cpu,
             addr, tag, traceData);
-    assert(incompleteTagReqs > 0);
-    -- incompleteTagReqs;
+    int i;
+    for(i = 0; i < tagQueryN && tagQueries[i].addr != addr; i ++);
+    assert(i < tagQueryN && tagQueries[i].addr == addr); // the query should previoulys be added
+    assert(!tagQueryCompleted[i]); // the query should not be completed yet
+
+    tagQueries[i].res_tag = tag;
+    tagQueryCompleted[i] = true;
+
+    assert(completedTagQueryN < tagQueryN);
+
+    ++ completedTagQueryN;
+
+    checkQueryCompleted();
 
     thread->noSquashFromTC = no_squash_from_TC;
 
@@ -436,9 +447,24 @@ DynInst::completeAcc(PacketPtr pkt)
         }
     }
 
-    fault = staticInst->completeAcc(pkt, this, traceData);
+    if(pkt && pkt->isRead()) {
+        int i;
+        for(i = 0; i < memReadN && !pkt->matchAddr(memReads[i].addr, false);
+                i ++);
+        assert(i < memReadN);
+        memReads[i].res_pkt = pkt;
+        assert(!memReadCompleted[i]);
+        memReadCompleted[i] = true;
 
+        assert(completedMemReadN < memReadN);
+        ++ completedMemReadN;
+
+        checkQueryCompleted();
+    } else{
+        fault = staticInst->completeAcc(pkt, this, traceData);
+    }
     thread->noSquashFromTC = no_squash_from_TC;
+
 
     return fault;
 }
@@ -454,6 +480,13 @@ DynInst::initiateMemRead(Addr addr, unsigned size, Request::Flags flags,
                                const std::vector<bool> &byte_enable)
 {
     assert(byte_enable.size() == size);
+
+    memReads[memReadN] = MemReadRecord {
+        .addr = addr,
+        .res_pkt = nullptr
+    };
+    memReadCompleted[memReadN] = false;
+    ++ memReadN;
     return cpu->pushRequest(
         dynamic_cast<DynInstPtr::PtrType>(this),
         /* ld */ true, nullptr, size, addr, flags, nullptr, nullptr,
@@ -511,13 +544,23 @@ DynInst::initiateGetTag(Addr addr) {
     bool tag, delayed;
     TagController& tag_controller = getTagController();
     
-    ++ incompleteTagReqs;
     tag = tag_controller.getTag(dynamic_cast<DynInstPtr::PtrType>(this),
             addr, delayed);
-    if(!delayed) {
-        completeTagQuery(addr, tag);
-    }
 
+    tagQueries[tagQueryN] = TagQueryRecord {
+        .addr = addr,
+        .res_tag = tag
+    };
+    tagQueryCompleted[tagQueryN] = !delayed;
+    ++ tagQueryN;
+
+    return NoFault;
+}
+
+Fault
+DynInst::initiateSetTag(Addr addr, bool tag) {
+    getTagController().setTag(dynamic_cast<DynInstPtr::PtrType>(this),
+            addr, tag);
     return NoFault;
 }
 
