@@ -75,6 +75,8 @@ class Packet;
 namespace RiscvcapstoneISA::o3
 {
 
+    const int MAX_QUERY_N = 4;
+
 class DynInst : public ExecContext, public RefCounted
 {
   private:
@@ -147,6 +149,29 @@ class DynInst : public ExecContext, public RefCounted
 
     /** InstRecord that tracks this instructions. */
     Trace::InstRecord *traceData = nullptr;
+
+
+    struct TagQueryRecord {
+        Addr addr;
+        bool res_tag;
+    };
+    
+    //NodeCommandPtr nodeQueries[MAX_QUERY_N];
+    //bool nodeQueryCompleted[MAX_QUERY_N];
+    //int nodeQueryN = 0, completedNodeQueryN = 0;
+
+    TagQueryRecord tagQueries[MAX_QUERY_N];
+    bool tagQueryCompleted[MAX_QUERY_N];
+    int tagQueryN = 0, completedTagQueryN = 0;
+
+    struct MemReadRecord {
+        Addr addr;
+        PacketPtr res_pkt;
+    };
+    
+    MemReadRecord memReads[MAX_QUERY_N];
+    bool memReadCompleted[MAX_QUERY_N];
+    int memReadN = 0, completedMemReadN = 0;
 
   protected:
     enum Status
@@ -770,6 +795,12 @@ class DynInst : public ExecContext, public RefCounted
     /** Returns whether or not this instruction is completed. */
     bool isCompleted() const { return status[Completed]; }
 
+
+    bool isQueryCompleted() const {
+        return completedTagQueryN == tagQueryN &&
+            completedMemReadN == memReadN;
+    }
+
     /** Marks the result as ready. */
     void setResultReady() { status.set(ResultReady); }
 
@@ -804,6 +835,8 @@ class DynInst : public ExecContext, public RefCounted
     void setNodeInitiated() { nodeInitiated = true; }
 
     bool isNodeInitiated() { return nodeInitiated; }
+
+    bool isTagCompleted() { return tagQueryN == completedTagQueryN; }
 
     /** Returns whether or not this instruction has executed. */
     bool isExecuted() const { return status[Executed]; }
@@ -1257,6 +1290,20 @@ class DynInst : public ExecContext, public RefCounted
 
     TagController& getTagController() {
         return cpu->getTagController();
+    }
+
+    void checkQueryCompleted() {
+        if(isQueryCompleted()) {
+            if(memReadN > 0) {
+                staticInst->completeAcc(memReads[0].res_pkt, this, traceData);
+                for(int i = 0; i < memReadN; i ++){
+                    delete memReads[i].res_pkt;
+                    memReads[i].res_pkt = nullptr; // just to make sure 
+                                                   // we are not doing use-after-free
+                }
+            }
+            cpu->iewInstToCommitIfExeced(dynamic_cast<DynInstPtr::PtrType>(this));
+        }
     }
 };
 

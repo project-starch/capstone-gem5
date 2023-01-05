@@ -77,7 +77,7 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
 #ifdef CAPSTONE_USE_MOCKTAG
       tagController(params.numThreads, 32),
 #else
-      tagController(this, params.numThreads,
+      tagController(_cpu, this, params.numThreads,
               32, // port count
               32), // queue size
 #endif
@@ -580,7 +580,8 @@ IEW::cacheUnblocked()
 
 void
 IEW::instToCommitIfExeced(const DynInstPtr& inst) {
-    if(inst->isExecuted() && inst->isNodeExecuted()){
+    if(inst->isQueryCompleted() && inst->isExecuted() &&
+            inst->isNodeExecuted()) {
         instToCommit(inst);
     }
 }

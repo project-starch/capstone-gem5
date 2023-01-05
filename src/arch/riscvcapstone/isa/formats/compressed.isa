@@ -100,17 +100,18 @@ def format CBOp(code, *opt_flags) {{
 }};
 
 def format CompressedLoad(ldisp_code, memacc_code,
-        ea_code, mem_flags=[], inst_flags=[]) {{
+        ea_code, complete_tag_query_code={{ }}, mem_flags=[], inst_flags=[]) {{
     (header_output, decoder_output, decode_block, exec_output) = \
         LoadStoreBase(name, Name, ldisp_code, ea_code, memacc_code, mem_flags,
-        inst_flags, 'Load', exec_template_base='Load')
+        inst_flags, 'Load', complete_tag_query_code=complete_tag_query_code, exec_template_base='Load')
 }};
 
 def format CompressedStore(sdisp_code, memacc_code,
-        ea_code, mem_flags=[], inst_flags=[]) {{
+        ea_code, complete_tag_query_code={{ }}, mem_flags=[], inst_flags=[]) {{
     (header_output, decoder_output, decode_block, exec_output) = \
         LoadStoreBase(name, Name, sdisp_code, ea_code, memacc_code, mem_flags,
-        inst_flags, 'Store', exec_template_base='Store')
+        inst_flags, 'Store', complete_tag_query_code=complete_tag_query_code, 
+        exec_template_base='Store')
 }};
 
 // Compressed basic instruction class declaration template.

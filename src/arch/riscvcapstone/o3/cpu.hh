@@ -658,6 +658,10 @@ class CPU : public BaseCPU
     TagController& getTagController() {
         return iew.tagController;
     }
+
+    void iewInstToCommitIfExeced(const DynInstPtr& inst) {
+        iew.instToCommitIfExeced(inst);
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3

@@ -2,6 +2,7 @@
 #include "mem/packet_access.hh"
 #include "arch/riscvcapstone/o3/tag_controller.hh"
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
+#include "arch/riscvcapstone/o3/iew.hh"
 #include "debug/TagController.hh"
 
 
@@ -143,10 +144,10 @@ MockTagController::writebackTagOp(DynInstPtr& inst, TagOp& tag_op) {
                  // to update the state
 }
 
-MemoryTagController::MemoryTagController(CPU* cpu, 
+MemoryTagController::MemoryTagController(CPU* cpu, IEW* iew,
         int thread_count, int tcache_ports_count, int queue_size) :
             BaseTagController(thread_count, queue_size),
-            cpu(cpu),
+            cpu(cpu), iew(iew),
             tcachePort(this, cpu, tcache_ports_count){
 }
 
@@ -229,6 +230,8 @@ MemoryTagController::handleResp(PacketPtr pkt) {
     } else{
         bool tag = pkt->getRaw<bool>();
         inst->completeTagQuery(tag_op.addr, tag);
+        iew->instToCommitIfExeced(inst);
+
         // TODO: handle fault and 
         // check whether the instruction execution is complete
     }
