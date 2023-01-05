@@ -210,7 +210,7 @@ ISA::ISA(const Params &p) : BaseISA(p)
 
 bool ISA::inUserMode() const
 {
-    return miscRegFile[MISCREG_PRV].intVal() == PRV_U;
+    return miscRegFile[MISCREG_PRV] == PRV_U;
 }
 
 void
@@ -294,7 +294,7 @@ ISA::readMiscReg(int misc_reg)
         if (hpmCounterEnabled(MISCREG_CYCLE)) {
             DPRINTF(RiscvMisc, "Cycle counter at: %llu.\n",
                     tc->getCpuPtr()->curCycle());
-            return static_cast<uint64_t>(tc->getCpuPtr()->curCycle());
+            return tc->getCpuPtr()->curCycle();
         } else {
             warn("Cycle counter disabled.\n");
             return 0;
@@ -349,7 +349,7 @@ ISA::readMiscReg(int misc_reg)
             if (hpmCounterEnabled(misc_reg)) {
                 DPRINTF(RiscvMisc, "HPM counter %d: %llu.\n",
                         misc_reg - MISCREG_CYCLE, tc->getCpuPtr()->curCycle());
-                return static_cast<uint64_t>(tc->getCpuPtr()->curCycle());
+                return tc->getCpuPtr()->curCycle();
             } else {
                 warn("HPM counter %d disabled.\n", misc_reg - MISCREG_CYCLE);
                 return 0;
@@ -416,12 +416,12 @@ ISA::setMiscReg(int misc_reg, RegVal val)
             {
                 // we only support bare and Sv39 mode; setting a different mode
                 // shall have no effect (see 4.1.12 in priv ISA manual)
-                SATP cur_val = readMiscRegNoEffect(misc_reg).intVal();
-                SATP new_val = val.intVal();
+                SATP cur_val = readMiscRegNoEffect(misc_reg);
+                SATP new_val = val;
                 if (new_val.mode != AddrXlateMode::BARE &&
                     new_val.mode != AddrXlateMode::SV39)
                     new_val.mode = cur_val.mode;
-                setMiscRegNoEffect(misc_reg, static_cast<uint64_t>(new_val));
+                setMiscRegNoEffect(misc_reg, new_val);
             }
             break;
           case MISCREG_TSELECT:
@@ -433,7 +433,7 @@ ISA::setMiscReg(int misc_reg, RegVal val)
             break;
           case MISCREG_ISA:
             {
-                auto cur_val = readMiscRegNoEffect(misc_reg).intVal();
+                auto cur_val = readMiscRegNoEffect(misc_reg);
                 // only allow to disable compressed instructions
                 // if the following instruction is 4-byte aligned
                 if ((val & ISA_EXT_C_MASK) == 0 &&
@@ -441,20 +441,20 @@ ISA::setMiscReg(int misc_reg, RegVal val)
                             2, 0) != 0) {
                     val |= cur_val & ISA_EXT_C_MASK;
                 }
-                setMiscRegNoEffect(misc_reg, static_cast<uint64_t>(val));
+                setMiscRegNoEffect(misc_reg, val);
             }
             break;
           case MISCREG_STATUS:
             {
                 // SXL and UXL are hard-wired to 64 bit
-                auto cur = readMiscRegNoEffect(misc_reg).intVal();
+                auto cur = readMiscRegNoEffect(misc_reg);
                 val &= ~(STATUS_SXL_MASK | STATUS_UXL_MASK);
                 val |= cur & (STATUS_SXL_MASK | STATUS_UXL_MASK);
                 setMiscRegNoEffect(misc_reg, val);
             }
             break;
           default:
-            setMiscRegNoEffect(misc_reg, static_cast<uint64_t>(val));
+            setMiscRegNoEffect(misc_reg, val);
         }
     }
 }

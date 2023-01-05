@@ -53,14 +53,7 @@ build_and_run() {
     cd "$CUR_DIR"
 }
 
-print_prompt "Build and run with the mock tag controller"
-
-BUILD_FLAGS="--uncompressed --mocktag"
-build_and_run
-
-print_prompt "Build and run with the memory-backed tag controller"
-
-BUILD_FLAGS="--uncompressed"
+BUILD_FLAGS=""
 build_and_run
 
 

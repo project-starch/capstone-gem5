@@ -717,13 +717,6 @@ Build variables for {dir}:
         print('Using build cache located at', env['CONF']['M5_BUILD_CACHE'])
         CacheDir(env['CONF']['M5_BUILD_CACHE'])
 
-
-    if GetOption('uncompressed'):
-        env.Append(CPPDEFINES=['CAPSTONE_USE_UNCOMPRESSED'])
-    if GetOption('mocktag'):
-        env.Append(CPPDEFINES=['CAPSTONE_USE_MOCKTAG'])
-    env.Append(CPPDEFINES=['TARGET_' + variant_dir])
-    # env.Append(CCFLAGS="-DTARGET_" + variant_dir)
     env.Append(CCFLAGS='$CCFLAGS_EXTRA')
     env.Append(LINKFLAGS='$LINKFLAGS_EXTRA')
 

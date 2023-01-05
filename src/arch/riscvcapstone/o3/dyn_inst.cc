@@ -539,30 +539,5 @@ DynInst::initiateNodeCommand(NodeCommand* cmd) {
             cmd);
 }
 
-Fault
-DynInst::initiateGetTag(Addr addr) {
-    bool tag, delayed;
-    TagController& tag_controller = getTagController();
-    
-    tag = tag_controller.getTag(dynamic_cast<DynInstPtr::PtrType>(this),
-            addr, delayed);
-
-    tagQueries[tagQueryN] = TagQueryRecord {
-        .addr = addr,
-        .res_tag = tag
-    };
-    tagQueryCompleted[tagQueryN] = !delayed;
-    ++ tagQueryN;
-
-    return NoFault;
-}
-
-Fault
-DynInst::initiateSetTag(Addr addr, bool tag) {
-    getTagController().setTag(dynamic_cast<DynInstPtr::PtrType>(this),
-            addr, tag);
-    return NoFault;
-}
-
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5

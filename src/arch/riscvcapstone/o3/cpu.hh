@@ -318,13 +318,8 @@ class CPU : public BaseCPU
     void getReg(PhysRegIdPtr phys_reg, void *val);
     void *getWritableReg(PhysRegIdPtr phys_reg);
 
-    ConstTaggedRegVal getTaggedReg(PhysRegIdPtr phys_reg);
-    TaggedRegVal getWritableTaggedReg(PhysRegIdPtr phys_reg);
-
     void setReg(PhysRegIdPtr phys_reg, RegVal val);
     void setReg(PhysRegIdPtr phys_reg, const void *val);
-
-    void setTaggedReg(PhysRegIdPtr phys_reg, const ConstTaggedRegVal& tagged_val);
 
     /** Architectural register accessors.  Looks up in the commit
      * rename table to obtain the true physical index of the
@@ -336,14 +331,8 @@ class CPU : public BaseCPU
     void getArchReg(const RegId &reg, void *val, ThreadID tid);
     void *getWritableArchReg(const RegId &reg, ThreadID tid);
 
-    ConstTaggedRegVal getTaggedArchReg(const RegId &reg, ThreadID tid);
-    TaggedRegVal getWritableTaggedArchReg(const RegId &reg, ThreadID tid);
-
     void setArchReg(const RegId &reg, RegVal val, ThreadID tid);
     void setArchReg(const RegId &reg, const void *val, ThreadID tid);
-
-    void setTaggedArchReg(const RegId &reg, const ConstTaggedRegVal& tagged_val,
-            ThreadID tid);
 
     /** Sets the commit PC state of a specific thread. */
     void pcState(const PCStateBase &new_pc_state, ThreadID tid);
@@ -590,13 +579,6 @@ class CPU : public BaseCPU
         return iew.ncQueue.getNodePort();
     }
 
-#ifndef CAPSTONE_USE_MOCKTAG
-    Port&
-    getTagPort() {
-        return iew.tagController.getTagPort();
-    }
-#endif
-
     struct CPUStats : public statistics::Group
     {
         CPUStats(CPU *cpu);
@@ -660,10 +642,6 @@ class CPU : public BaseCPU
 
     bool passedQuery(const DynInstPtr& inst) const {
         return iew.ncQueue.passedQuery(inst);
-    }
-
-    TagController& getTagController() {
-        return iew.tagController;
     }
 
     void iewInstToCommitIfExeced(const DynInstPtr& inst) {

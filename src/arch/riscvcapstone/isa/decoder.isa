@@ -51,7 +51,7 @@ decode QUADRANT default Unknown::unknown() {
             0x1: c_fld({{
                 offset = CIMM3 << 3 | CIMM2 << 6;
             }}, {{
-                STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                STATUS status = xc->readMiscReg(MISCREG_STATUS);
                 if (status.fs == FPUStatus::OFF)
                     return std::make_shared<IllegalInstFault>("FPU is off",
                                                                machInst);
@@ -81,7 +81,7 @@ decode QUADRANT default Unknown::unknown() {
             0x5: c_fsd({{
                 offset = CIMM3 << 3 | CIMM2 << 6;
             }}, {{
-                STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                STATUS status = xc->readMiscReg(MISCREG_STATUS);
                 if (status.fs == FPUStatus::OFF)
                     return std::make_shared<IllegalInstFault>("FPU is off",
                                                                machInst);
@@ -372,243 +372,6 @@ decode QUADRANT default Unknown::unknown() {
         }
     }
     0x3: decode OPCODE {
-        //Capstone Ops
-        0x16: decode FUNCT3 {
-            0x1: decode FUNCT7 {
-                format Revoke {
-                    0x0: revoke ({{
-                        Rs1;
-                    }});
-                }
-                format Calls {
-                    0x1: call ({{
-                        Rs1, Rd;
-                    }});
-                    //TODO: Add rest of calls
-                }
-                format ROp {
-                    0x2: jmp ({{
-                        NPC = Rs1;
-                    }}, IsUncondControl);
-                    0x3: jnz ({{
-                        if(Rs1 != 0)
-                            NPC = Rd;
-                    }}, IsCondControl);
-                    0x4: shrink ({{
-                        uint64_t start = Rd_rv.val.cap.start();
-                        uint64_t end = Rd_rv.val.cap.end();
-                        assert(Rs1 >= start && Rs2 <= end && Rs1 < Rs2);
-                        Rd_rv.val.cap.setBound(Rs1, Rs2);
-                        Rd_rv = Rd_rv;
-                    }});
-                    0x5: lt ({{
-                        Rd = (Rs1 < Rs2);
-                    }});
-                    0x6: tighten ({{
-                        /* TODO: do we perform checks here if new perms are actually 
-                         * tighter than current perms?
-                         */
-                        using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
-                        CapPerm temp = static_cast<CapPerm>(Rs1);
-                        assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
-                        Rd_rv.val.cap.setPerm(temp);
-                        Rd_rv = Rd_rv;
-                    }});
-                    0x7: delin ({{
-                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::NONLIN);
-                        Rd_rv = Rd_rv;
-                    }});
-                    0x8: scc ({{
-                        RegVal& reg_val = Rd_trv.getRegVal();
-                        uint64_t start = reg_val.val.cap.start();
-                        uint64_t end = reg_val.val.cap.end();
-                        assert(Rs1 >= start && Rs1 <= end);
-                        reg_val.val.cap.setCursor(Rs1);
-                        Rd_trv = Rd_trv;
-                    }});
-                    0x9: init ({{
-                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::LIN);
-
-                        uint64_t start = Rd_rv.val.cap.start();
-                        Rd_rv.val.cap.setCursor(start);
-                        Rd_rv = Rd_rv;
-                    }});
-                    0xa: seal ({{
-                        Rd_rv.val.cap.setType(gem5::RiscvcapstoneISA::o3::CapType::SEALED);
-                        Rd_rv = Rd_rv;
-                    }});
-                    0xb: add2 ({{
-                        Rd = Rd + Rs1;
-                    }});
-                }
-                format RNodeOp {
-                    0xc: movc ({{
-                        //Rd holds a cap
-                        //TODO: check tag bit
-                        //RcUpdate-1 for Rd if it holds a capability
-                        //Check Rs, if it's non-linear cap, RcUpdate+1
-                        //otherwise do nothing
-
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-
-                        uint64_t node_id = Rd_rv.val.cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
-
-                        Rd_rv = Rs1_rv;
-
-                        if(Rs1_rv.val.cap.type() == CapType::NONLIN) {
-                            node_id = Rs1_rv.val.cap.nodeId();
-                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
-                        } else {
-                            Rs1_rv = 0;
-                        }
-                    }});
-                    0xf: sdc ({{
-                        Rd_rv; Rs1_rv;
-                    }});
-                }
-                format RNodeMemOp {
-                    0xe: ldc ({{
-                        Rd_trv; Rs1_trv;
-
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        assert(Rs1_trv.getTag());
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-
-                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-
-                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1)
-                            return std::make_shared<IllegalInstFault>(
-                                    "Rs1 doesn't have the necessary perms", machInst);
-                    }}, {{
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
-
-                        assert(qry);
-                        if(qry->validityError)
-                            return std::make_shared<IllegalInstFault>(
-                                "Capability provided is not valid!", machInst);
-                    }}, {{
-                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
-                    }}, {{
-                        Rd_trv.getRegVal() = Mem_rv;
-
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-
-                        TagController& t = dyn_inst->getTagController();
-
-                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
-
-                        bool delayed;
-
-                        bool res_tag = t.getTag(dyn_inst, EA, delayed);
-
-                        assert(!delayed); // FIXME: not supporting mem tag controller
-
-                        if(res_tag) {
-                            //if load result is a capability
-                            //if it's linear type
-                            //  clear tag bit from EA
-                            //  clear the mem location itself
-
-                            if(Mem_rv.capVal().type() != CapType::NONLIN) {
-                                t.setTag(dyn_inst, EA, false);
-                                //TODO: Write 0s here
-                                Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
-                                            memAccessFlags, nullptr);
-                                if (fault != NoFault)
-                                    return fault;
-                            }
-                            Rd_trv.setTag(true);
-                        } else {
-                            Rd_trv.setTag(false);
-                        }
-                        Rd_trv = Rd_trv;
-                    }});
-                }
-            }
-            //Capstone Test Ops
-            0x0: decode FUNCT7 {
-                format QueryTest {
-                    0x0: query ({{
-                        Rs1; Rs2; Rd;
-                    }});
-                }
-                format DropTest {
-                    0x1: drop ({{
-                        Rs1; Rs2; Rd;
-                    }});
-                }
-                format RcUpdateTest {
-                    0x2: rcup ({{
-                        Rs1; Rs2; Rd;
-                    }});
-                }
-                format AllocTest {
-                    0x3: alloc ({{
-                        Rs1; Rs2; Rd;
-                    }});
-                }
-                format RevokeTest {
-                    0x4: revoket ({{
-                        Rs1; Rs2; Rd;
-                    }});
-                }
-                format ROp {
-                    0x5: capcreate ({{
-                        Rd_trv.setTag(true);
-                        Rd_trv = Rd_trv; // just to make the dumb parser happy
-                    }});
-                    0x6: captype ({{
-                        using CapType = gem5::RiscvcapstoneISA::o3::CapType;
-                        CapType temp = static_cast<CapType>(Rs1);
-                        assert(temp >= CapType::LIN && temp <= CapType::SEALEDRET);
-                        Rd_trv.getRegVal().val.cap.setType(temp);
-                        Rd_trv = Rd_trv; // just to make the dumb parser happy
-                    }});
-                    0x7: capnode ({{
-                        using namespace gem5::RiscvcapstoneISA::o3;
-                        Rd_trv.getRegVal().val.cap.setNodeId(static_cast<NodeID>(Rs1));
-                        Rd_trv = Rd_trv; // just to make the dumb parser happy
-                    }});
-                    0x8: capperm ({{
-                        using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
-                        CapPerm temp = static_cast<CapPerm>(Rs1);
-                        assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
-                        Rd_trv.getRegVal().val.cap.setPerm(temp);
-                        Rd_trv = Rd_trv; // just to make the dumb parser happy
-                    }});
-                    0x9: capbound ({{
-                        DPRINTFN("Set capability bound to (%llx, %llx)\n", Rs1, Rs2);
-                        Rd_trv.getRegVal().val.cap.setBound(Rs1, Rs2);
-                        Rd_trv = Rd_trv; // just to make the dumb parser happy
-                    }});
-                    0xa: capprint ({{
-                        const RegVal& reg_val = Rs1_trv.getRegVal();
-                        DPRINTFN("Capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
-                                Rs1_trv.getTag(),
-                                reg_val.val.cap.start(), reg_val.val.cap.end(),
-                                reg_val.val.cap.cursor(),
-                                static_cast<unsigned int>(reg_val.val.cap.perm()),
-                                static_cast<unsigned int>(reg_val.val.cap.type()),
-                                reg_val.val.cap.nodeId());
-                    }});
-                }
-            }
-            //End Capstone Test Ops
-        }
-        //End Capstone Ops
         0x00: decode FUNCT3 {
             format Load {
                 0x0: lb({{
@@ -638,7 +401,7 @@ decode QUADRANT default Unknown::unknown() {
         0x01: decode FUNCT3 {
             format Load {
                 0x1: flh({{
-                    STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                    STATUS status = xc->readMiscReg(MISCREG_STATUS);
                     if (status.fs == FPUStatus::OFF)
                         return std::make_shared<IllegalInstFault>(
                                     "FPU is off", machInst);
@@ -647,7 +410,7 @@ decode QUADRANT default Unknown::unknown() {
                     Fd_bits = fd.v;
                 }}, inst_flags=FloatMemReadOp);
                 0x2: flw({{
-                    STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                    STATUS status = xc->readMiscReg(MISCREG_STATUS);
                     if (status.fs == FPUStatus::OFF)
                         return std::make_shared<IllegalInstFault>(
                                     "FPU is off", machInst);
@@ -656,7 +419,7 @@ decode QUADRANT default Unknown::unknown() {
                     Fd_bits = fd.v;
                 }}, inst_flags=FloatMemReadOp);
                 0x3: fld({{
-                    STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                    STATUS status = xc->readMiscReg(MISCREG_STATUS);
                     if (status.fs == FPUStatus::OFF)
                         return std::make_shared<IllegalInstFault>(
                                     "FPU is off", machInst);
@@ -835,7 +598,7 @@ decode QUADRANT default Unknown::unknown() {
         0x09: decode FUNCT3 {
             format Store {
                 0x1: fsh({{
-                    STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                    STATUS status = xc->readMiscReg(MISCREG_STATUS);
                     if (status.fs == FPUStatus::OFF)
                         return std::make_shared<IllegalInstFault>(
                                 "FPU is off", machInst);
@@ -843,7 +606,7 @@ decode QUADRANT default Unknown::unknown() {
                     Mem_uh = (uint16_t)Fs2_bits;
                 }}, inst_flags=FloatMemWriteOp);
                 0x2: fsw({{
-                    STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                    STATUS status = xc->readMiscReg(MISCREG_STATUS);
                     if (status.fs == FPUStatus::OFF)
                         return std::make_shared<IllegalInstFault>(
                                 "FPU is off", machInst);
@@ -851,7 +614,7 @@ decode QUADRANT default Unknown::unknown() {
                     Mem_uw = (uint32_t)Fs2_bits;
                 }}, inst_flags=FloatMemWriteOp);
                 0x3: fsd({{
-                    STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                    STATUS status = xc->readMiscReg(MISCREG_STATUS);
                     if (status.fs == FPUStatus::OFF)
                         return std::make_shared<IllegalInstFault>(
                                 "FPU is off", machInst);
@@ -2019,7 +1782,7 @@ decode QUADRANT default Unknown::unknown() {
                     0x0: decode RS2 {
                         0x0: EcallOp::ecall({{
                             return std::make_shared<SyscallFault>(
-                                (PrivilegeMode)xc->readMiscReg(MISCREG_PRV).intVal());
+                                (PrivilegeMode)xc->readMiscReg(MISCREG_PRV));
                         }}, IsSerializeAfter, IsNonSpeculative, IsSyscall,
                             No_OpClass);
                         0x1: ebreak({{
@@ -2027,18 +1790,18 @@ decode QUADRANT default Unknown::unknown() {
                                 xc->pcState());
                         }}, IsSerializeAfter, IsNonSpeculative, No_OpClass);
                         0x2: uret({{
-                            STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                            STATUS status = xc->readMiscReg(MISCREG_STATUS);
                             status.uie = status.upie;
                             status.upie = 1;
                             xc->setMiscReg(MISCREG_STATUS, static_cast<uint64_t>(status));
-                            NPC = xc->readMiscReg(MISCREG_UEPC).intVal();
+                            NPC = xc->readMiscReg(MISCREG_UEPC);
                         }}, IsSerializeAfter, IsNonSpeculative, IsReturn);
                     }
                     0x8: decode RS2 {
                         0x2: sret({{
-                            STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                            STATUS status = xc->readMiscReg(MISCREG_STATUS);
                             auto pm = (PrivilegeMode)(xc->readMiscReg(
-                                MISCREG_PRV).intVal());
+                                MISCREG_PRV));
                             if (pm == PRV_U ||
                                 (pm == PRV_S && status.tsr == 1)) {
                                 return std::make_shared<IllegalInstFault>(
@@ -2051,13 +1814,13 @@ decode QUADRANT default Unknown::unknown() {
                                 status.spie = 1;
                                 status.spp = PRV_U;
                                 xc->setMiscReg(MISCREG_STATUS, static_cast<uint64_t>(status));
-                                NPC = xc->readMiscReg(MISCREG_SEPC).intVal();
+                                NPC = xc->readMiscReg(MISCREG_SEPC);
                             }
                         }}, IsSerializeAfter, IsNonSpeculative, IsReturn);
                         0x5: wfi({{
-                            STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                            STATUS status = xc->readMiscReg(MISCREG_STATUS);
                             auto pm = (PrivilegeMode)(xc->readMiscReg(
-                                MISCREG_PRV).intVal());
+                                MISCREG_PRV));
                             if (pm == PRV_U ||
                                 (pm == PRV_S && status.tw == 1)) {
                                 return std::make_shared<IllegalInstFault>(
@@ -2068,8 +1831,8 @@ decode QUADRANT default Unknown::unknown() {
                         }}, No_OpClass);
                     }
                     0x9: sfence_vma({{
-                        STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
-                        auto pm = (PrivilegeMode)xc->readMiscReg(MISCREG_PRV).intVal();
+                        STATUS status = xc->readMiscReg(MISCREG_STATUS);
+                        auto pm = (PrivilegeMode)xc->readMiscReg(MISCREG_PRV);
                         if (pm == PRV_U || (pm == PRV_S && status.tvm == 1)) {
                             return std::make_shared<IllegalInstFault>(
                                         "sfence in user mode or TVM enabled",
@@ -2078,19 +1841,19 @@ decode QUADRANT default Unknown::unknown() {
                         xc->tcBase()->getMMUPtr()->demapPage(Rs1, Rs2);
                     }}, IsNonSpeculative, IsSerializeAfter, No_OpClass);
                     0x18: mret({{
-                        if (xc->readMiscReg(MISCREG_PRV).intVal() != PRV_M) {
+                        if (xc->readMiscReg(MISCREG_PRV) != PRV_M) {
                             return std::make_shared<IllegalInstFault>(
                                         "mret at lower privilege", machInst);
                             NPC = NPC;
                         } else {
-                            STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+                            STATUS status = xc->readMiscReg(MISCREG_STATUS);
                             xc->setMiscReg(MISCREG_PRV, static_cast<uint64_t>(status.mpp));
                             xc->setMiscReg(MISCREG_NMIE, static_cast<uint64_t>(1));
                             status.mie = status.mpie;
                             status.mpie = 1;
                             status.mpp = PRV_U;
                             xc->setMiscReg(MISCREG_STATUS, static_cast<uint64_t>(status));
-                            NPC = xc->readMiscReg(MISCREG_MEPC).intVal();
+                            NPC = xc->readMiscReg(MISCREG_MEPC);
                         }
                     }}, IsSerializeAfter, IsNonSpeculative, IsReturn);
                 }

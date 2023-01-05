@@ -281,7 +281,7 @@ TLB::doTranslate(const RequestPtr &req, ThreadContext *tc,
     delayed = false;
 
     Addr vaddr = Addr(sext<VADDR_BITS>(req->getVaddr()));
-    SATP satp = tc->readMiscReg(MISCREG_SATP).intVal();
+    SATP satp = tc->readMiscReg(MISCREG_SATP);
 
     TlbEntry *e = lookup(vaddr, satp.asid, mode, false);
     if (!e) {
@@ -295,7 +295,7 @@ TLB::doTranslate(const RequestPtr &req, ThreadContext *tc,
         assert(e != nullptr);
     }
 
-    STATUS status = tc->readMiscReg(MISCREG_STATUS).intVal();
+    STATUS status = tc->readMiscReg(MISCREG_STATUS);
     PrivilegeMode pmode = getMemPriv(tc, mode);
     Fault fault = checkPermissions(status, pmode, vaddr, mode, e->pte);
     if (fault != NoFault) {
@@ -324,10 +324,10 @@ TLB::doTranslate(const RequestPtr &req, ThreadContext *tc,
 PrivilegeMode
 TLB::getMemPriv(ThreadContext *tc, BaseMMU::Mode mode)
 {
-    STATUS status = (STATUS)tc->readMiscReg(MISCREG_STATUS).intVal();
-    PrivilegeMode pmode = (PrivilegeMode)tc->readMiscReg(MISCREG_PRV).intVal();
+    STATUS status = (STATUS)tc->readMiscReg(MISCREG_STATUS);
+    PrivilegeMode pmode = (PrivilegeMode)tc->readMiscReg(MISCREG_PRV);
     if (mode != BaseMMU::Execute && status.mprv == 1)
-        pmode = (PrivilegeMode)static_cast<uint64_t>(status.mpp);
+        pmode = (PrivilegeMode)(RegVal)status.mpp;
     return pmode;
 }
 
@@ -340,7 +340,7 @@ TLB::translate(const RequestPtr &req, ThreadContext *tc,
 
     if (FullSystem) {
         PrivilegeMode pmode = getMemPriv(tc, mode);
-        SATP satp = tc->readMiscReg(MISCREG_SATP).intVal();
+        SATP satp = tc->readMiscReg(MISCREG_SATP);
         if (pmode == PrivilegeMode::PRV_M || satp.mode == AddrXlateMode::BARE)
             req->setFlags(Request::PHYSICAL);
 

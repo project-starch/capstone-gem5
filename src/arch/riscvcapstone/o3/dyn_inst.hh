@@ -449,10 +449,6 @@ class DynInst : public ExecContext, public RefCounted
 
     Fault initiateNodeCommand(NodeCommandPtr cmd);
 
-    Fault initiateGetTag(Addr addr);
-
-    Fault initiateSetTag(Addr addr, bool tag);
-
     /** True if the DTB address translation has started. */
     bool translationStarted() const { return instFlags[TranslationStarted]; }
     void translationStarted(bool f) { instFlags[TranslationStarted] = f; }
@@ -1256,24 +1252,7 @@ class DynInst : public ExecContext, public RefCounted
         //TODO setResult
     }
 
-    void
-    setTaggedRegOperand(const StaticInst *si, int idx, 
-            const ConstTaggedRegVal& tagged_val) {
-        const PhysRegIdPtr reg = renamedDestIdx(idx);
-        if (reg->is(InvalidRegClass))
-            return;
-        cpu->setTaggedReg(reg, tagged_val);
-        //setResult(val);
-    }
 
-
-    ConstTaggedRegVal
-    getTaggedRegOperand(const StaticInst *si, int idx) {
-        const PhysRegIdPtr reg = renamedSrcIdx(idx);
-        if (reg->is(InvalidRegClass))
-            return ConstTaggedRegVal();
-        return cpu->getTaggedReg(reg);
-    }
 
     // Capstone-related
     InstStateMachinePtr getStateMachine() {
@@ -1287,10 +1266,6 @@ class DynInst : public ExecContext, public RefCounted
         return cpu->nodeController;
     }
     
-
-    TagController& getTagController() {
-        return cpu->getTagController();
-    }
 
     void checkQueryCompleted() {
         if(isQueryCompleted()) {

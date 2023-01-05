@@ -47,8 +47,8 @@ class RegFile
     const size_t _regBytes;
 
 
-    const bool hasTags;
 #ifdef TARGET_RISCVCapstone
+    const bool hasTags;
     std::vector<bool> tags;
 #endif
 

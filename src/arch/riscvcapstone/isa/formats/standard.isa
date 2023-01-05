@@ -334,7 +334,7 @@ def template CSRExecute {{
 
         RegVal data, olddata;
         auto lowestAllowedMode = (PrivilegeMode)bits(csr, 9, 8);
-        auto pm = (PrivilegeMode)(xc->readMiscReg(MISCREG_PRV).intVal());
+        auto pm = (PrivilegeMode)(xc->readMiscReg(MISCREG_PRV));
         if (pm < lowestAllowedMode) {
             return std::make_shared<IllegalInstFault>(
                     csprintf("%s is not accessible in %s\n", csrName, pm),
@@ -342,7 +342,7 @@ def template CSRExecute {{
         }
         switch (csr) {
           case CSR_SATP: {
-            STATUS status = xc->readMiscReg(MISCREG_STATUS).intVal();
+            STATUS status = xc->readMiscReg(MISCREG_STATUS);
             if (pm == PRV_S && status.tvm == 1) {
                 return std::make_shared<IllegalInstFault>(
                         "SATP access with TVM enabled\n",
@@ -355,10 +355,10 @@ def template CSRExecute {{
         }
 
         if (csr == CSR_FCSR) {
-            olddata = xc->readMiscReg(MISCREG_FFLAGS).intVal() |
-                      (xc->readMiscReg(MISCREG_FRM).intVal() << FRM_OFFSET);
+            olddata = xc->readMiscReg(MISCREG_FFLAGS) |
+                      (xc->readMiscReg(MISCREG_FRM) << FRM_OFFSET);
         } else {
-            olddata = xc->readMiscReg(midx).intVal();
+            olddata = xc->readMiscReg(midx);
         }
         auto olddata_all = olddata;
 

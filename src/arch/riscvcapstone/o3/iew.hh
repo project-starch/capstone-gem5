@@ -365,8 +365,6 @@ class IEW
     /** Node command queue */
     NCQ ncQueue;
 
-    TagController tagController; // just a super simple place to maintain the tags for now
-
     /** Pointer to the functional unit pool. */
     FUPool *fuPool;
     /** Records if the LSQ needs to be updated on the next cycle, so that

@@ -74,13 +74,6 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
       instQueue(_cpu, this, params),
       ldstQueue(_cpu, this, params),
       ncQueue(_cpu, this, params.ncqSize, params.numThreads),
-#ifdef CAPSTONE_USE_MOCKTAG
-      tagController(params.numThreads, 32),
-#else
-      tagController(_cpu, this, params.numThreads,
-              32, // port count
-              32), // queue size
-#endif
       fuPool(params.fuPool),
       commitToIEWDelay(params.commitToIEWDelay),
       renameToIEWDelay(params.renameToIEWDelay),
@@ -1001,14 +994,6 @@ IEW::dispatchInsts(ThreadID tid)
             break;
         }
 
-        if(tagController.isFull(tid)) {
-            DPRINTF(IEW, "[tid:%i] Issue: tag queue has become full.\n", tid);
-            DPRINTF(TagController, "[tid:%i] tag queue has become full.\n", tid);
-            block(tid);
-            toRename->iewUnblock[tid] = false;
-            break;
-        }
-
         // hardware transactional memory
         // CPU needs to track transactional state in program order.
         const int numHtmStarts = ldstQueue.numHtmStarts(tid);
@@ -1029,8 +1014,6 @@ IEW::dispatchInsts(ThreadID tid)
         if(inst->isNodeOp()) {
             ncQueue.insertInstruction(inst);
         }
-
-        tagController.insertInstruction(inst);
 
         if (inst->isAtomic()) {
             DPRINTF(IEW, "[tid:%i] Issue: Memory instruction "
@@ -1568,8 +1551,6 @@ IEW::tick()
 
     ncQueue.cleanupCommands();
     
-    tagController.writeback();
-
     // Check the committed load/store signals to see if there's a load
     // or store to commit.  Also check if it's being told to execute a
     // nonspeculative instruction.
@@ -1591,7 +1572,6 @@ IEW::tick()
             ldstQueue.commitLoads(fromCommit->commitInfo[tid].doneSeqNum,tid);
 
             ncQueue.commitBefore(fromCommit->commitInfo[tid].doneSeqNum,tid);
-            tagController.commitBefore(fromCommit->commitInfo[tid].doneSeqNum, tid);
 
             updateLSQNextCycle = true;
             instQueue.commit(fromCommit->commitInfo[tid].doneSeqNum,tid);

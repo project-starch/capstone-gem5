@@ -2,6 +2,7 @@
 #define __CAPSTONE_NODE_H_
 
 #include<cstddef>
+#include "arch/riscvcapstone/types.hh"
 #include "arch/riscvcapstone/utility.hh"
 
 namespace gem5 {
