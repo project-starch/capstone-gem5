@@ -1662,6 +1662,10 @@ Port&
 CPU::getPort(const std::string& name, PortID idx) {
     if(name == "ncache_port")
         return getNodePort();
+#ifndef CAPSTONE_USE_MOCKTAG
+    else if(name == "tcache_port")
+        return getTagPort();
+#endif
     return BaseCPU::getPort(name, idx);
 }
 

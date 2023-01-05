@@ -157,7 +157,7 @@ class MemoryTagController : public BaseTagController {
         bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) override;
         void tick() override;
 
-        RequestPort& getTagCachePort() {
+        RequestPort& getTagPort() {
             return tcachePort;
         }
 

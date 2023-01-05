@@ -590,6 +590,13 @@ class CPU : public BaseCPU
         return iew.ncQueue.getNodePort();
     }
 
+#ifndef CAPSTONE_USE_MOCKTAG
+    Port&
+    getTagPort() {
+        return iew.tagController.getTagPort();
+    }
+#endif
+
     struct CPUStats : public statistics::Group
     {
         CPUStats(CPU *cpu);

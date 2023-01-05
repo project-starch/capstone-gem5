@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--skip', type=int, default=0, help='number of instructions to skip through fast-forwarding')
 parser.add_argument('--lim', type=int, default=0, help='max number of instructions to simulate (0 for no limit)')
 parser.add_argument('--ncache-size', type=str, default='8kB', help='size of the node cache')
+parser.add_argument('--tcache-size', type=str, default='8kB', help='size of the tag cache')
 parser.add_argument('--checkpoint-period', type=int, default=0, help='interval between checkpoints')
 parser.add_argument('--checkpoint-folder', type=str, default='./checkpoints', help='where to store the checkpoints')
 parser.add_argument('--cpu', type=str, default='simple', help='CPU model (atomic, simple, o3)')
@@ -66,6 +67,16 @@ class NCache(Cache):
     mshrs = 4
     tgts_per_mshr = 20
 
+class TCache(Cache):
+    size = args.tcache_size
+    assoc = 2
+    tag_latency = 2
+    data_latency = 2
+    response_latency = 2
+    mshrs = 4
+    tgts_per_mshr = 20
+
+
 class L2Cache(Cache):
     size = '256kB'
     assoc = 8
@@ -96,6 +107,11 @@ system.membus = SystemXBar()
 
 system.cpu.icache = L1ICache()
 system.cpu.dcache = L1DCache()
+
+if 'tcache_port' in system.cpu.__dict__:
+    system.cpu.tcache = TCache()
+    system.cpu.tcache.mem_side = system.l2bus.cpu_side_ports
+    system.cpu.tcache_port = system.cpu.tcache.cpu_side
 
 system.l2bus.mem_side_ports = system.l2cache.cpu_side
 system.l2cache.mem_side = system.membus.cpu_side_ports
@@ -129,7 +145,6 @@ if is_capstone:
         system.cpu.node_controller = system.node_controller
         system.node_controller.mem_side = system.ncache.cpu_side
         system.ncache.mem_side = system.membus.cpu_side_ports
-
 
 system.workload = SEWorkload.init_compatible(binary)
 
