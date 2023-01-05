@@ -178,3 +178,5 @@ class CapstoneBaseO3CPU(BaseCPU):
     # node_controller = Param.CapstoneO3NodeController('node controller for revocation nodes')
     ncqSize = Param.Unsigned(32, "Size of the node command queue")
 
+    tcache_port = RequestPort('tag cache port')
+
