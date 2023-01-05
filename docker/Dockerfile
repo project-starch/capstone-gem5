@@ -12,6 +12,8 @@ RUN rm /toolchain/setup-toolchain.sh
 RUN apt-get install -y apt-utils m4 python-is-python3
 RUN apt-get install -y python-dev-is-python3
 
+RUN apt-get install -y libgoogle-perftools-dev protobuf-compiler
+
 ADD entrypoint.sh /entrypoint.sh
 
 ENV RISCV_TOOLCHAIN=/toolchain/riscv
