@@ -173,6 +173,12 @@ class DynInst : public ExecContext, public RefCounted
     bool memReadCompleted[MAX_QUERY_N];
     int memReadN = 0, completedMemReadN = 0;
 
+    bool getTagQueryRes(int idx) const {
+        assert(idx < tagQueryN);
+        assert(tagQueryCompleted[idx]);
+        return tagQueries[idx].res_tag;
+    }
+
   protected:
     enum Status
     {

@@ -554,7 +554,18 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                 "Capability provided is not valid!", machInst);
                     }}, {{
+                        using namespace gem5::RiscvcapstoneISA::o3;
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        Fault fault = dyn_inst->initiateGetTag(EA);
+                        if(fault != NoFault)
+                            return fault;
+
+                        DPRINTFN("MemReads count = %d, tag query count = %d\n",
+                                dyn_inst->memReadN, dyn_inst->tagQueryN);
                     }}, {{
                         Rd_trv.getRegVal() = Mem_rv;
 
@@ -563,73 +574,10 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
-
-                        #ifdef CAPSTONE_USE_MOCKTAG
-                        TagController& t = dyn_inst->getTagController();
-                        bool delayed;
-                        bool res_tag = t.getTag(dyn_inst, EA, delayed);
-                        assert(!delayed); // FIXME: not supporting mem tag controller
-                        if(res_tag) {
-                            //if load result is a capability
-                            //if it's linear type
-                            //  clear tag bit from EA
-                            //  clear the mem location itself
-
-                            if(Mem_rv.capVal().type() != CapType::NONLIN) {
-                                t.setTag(dyn_inst, EA, false);
-                                //TODO: Write 0s here
-                                Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
-                                            memAccessFlags, nullptr);
-                                if (fault != NoFault)
-                                    return fault;
-                            }
-                            Rd_trv.setTag(true);
-                        } else {
-                            Rd_trv.setTag(false);
-                        }
-                        #else
-                        DPRINTFN("Aditya: before initiateGetTag");
-                        Fault fault = dyn_inst->initiateGetTag(EA);
-                        if(fault != NoFault)
-                            return fault;
-                        DPRINTFN("Aditya: after initiateGetTag");
-                        #endif
+                        bool tag_res = dyn_inst->getTagQueryRes(0);
+                        Rd_trv.setTag(tag_res);
 
                         Rd_trv = Rd_trv;
-                    }}, {{
-                        #ifndef CAPSTONE_USE_MOCKTAG
-                        DPRINTFN("Aditya: in complete_tag_query_code");
-                        //complete_tag_query_code
-
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-
-                        if(tag) {
-                            //if load result is a capability
-                            //if it's linear type
-                            //  clear tag bit from EA
-                            //  clear the mem location itself
-
-                            DPRINTFN("Aditya: load res is a cap");
-
-                            if(Rd_trv.getRegVal().capVal().type() != CapType::NONLIN) {
-                                dyn_inst->initiateSetTag(EA, false);
-                                //TODO: Write 0s here
-                                Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
-                                            memAccessFlags, nullptr);
-                                if (fault != NoFault)
-                                    return fault;
-                            }
-                            Rd_trv.setTag(true);
-                        } else {
-                            Rd_trv.setTag(false);
-                        }
-
-                        Rd_trv = Rd_trv;
-                        #endif
                     }});
                 }
                 format RNodeStoreMemOp {

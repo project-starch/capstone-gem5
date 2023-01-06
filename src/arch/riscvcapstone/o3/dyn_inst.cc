@@ -551,8 +551,12 @@ DynInst::initiateGetTag(Addr addr) {
         .addr = addr,
         .res_tag = tag
     };
+
     tagQueryCompleted[tagQueryN] = !delayed;
     ++ tagQueryN;
+    if(!delayed) {
+        ++ completedTagQueryN;
+    }
 
     return NoFault;
 }

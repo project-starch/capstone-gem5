@@ -52,6 +52,8 @@ BaseTagController::getTag(const DynInstPtr& inst, Addr addr,
     assert(inst->tqIdx >= 0);
 
     if(!aligned(addr)) {
+        DPRINTF(TagController, "Unaligned address %llx, hence tag is 0\n",
+            addr);
         delayed = false;
         return false;
     }
@@ -96,7 +98,6 @@ BaseTagController::insertInstruction(const DynInstPtr& inst) {
 void
 BaseTagController::writeback() {
     // TODO: multithreaded scenario?
-    DPRINTF(TagController, "Tag controller writeback()\n");
     for(auto tq_it = tagQueues.begin();
             tq_it != tagQueues.end();
             ++ tq_it) {
@@ -154,6 +155,8 @@ MemoryTagController::MemoryTagController(CPU* cpu, IEW* iew,
 bool
 MemoryTagController::getCommittedTag(const DynInstPtr& inst,
         Addr addr, bool& delayed) {
+    DPRINTF(TagController, "tag controller sending tag query for inst %u\n",
+            inst->seqNum);
     delayed = true;
 
     Addr tag_addr = getTagAddr(addr);
@@ -192,6 +195,9 @@ MemoryTagController::writebackTagOp(DynInstPtr& inst, TagOp& tag_op) {
     if(!tcachePort.canSend())
         return false;
 
+    DPRINTF(TagController, "Tag controller writebackTaOp for inst %u\n",
+            inst->seqNum);
+
     Addr addr = getTagAddr(tag_op.addr);
 
     RequestPtr req = std::make_shared<Request>();
@@ -217,6 +223,7 @@ MemoryTagController::writebackTagOp(DynInstPtr& inst, TagOp& tag_op) {
 
 bool
 MemoryTagController::handleResp(PacketPtr pkt) {
+    DPRINTF(TagController, "tag controller received response\n");
     auto it = ongoingRequests.find(pkt->id);
     assert(it != ongoingRequests.end());
 
@@ -224,10 +231,12 @@ MemoryTagController::handleResp(PacketPtr pkt) {
     TagOp& tag_op = req.op;
     DynInstPtr& inst = req.inst;
     if(req.isWrite) {
+        DPRINTF(TagController, "tag controller write response\n");
         // TODO: potentially mark the instruction as complete
         // compare with store completion
 
     } else{
+        DPRINTF(TagController, "tag controller query response\n");
         bool tag = pkt->getRaw<bool>();
         inst->completeTagQuery(tag_op.addr, tag);
         iew->instToCommitIfExeced(inst);
