@@ -447,7 +447,8 @@ DynInst::completeAcc(PacketPtr pkt)
         }
     }
 
-    if(pkt && pkt->isRead()) {
+    //if(pkt && pkt->isRead()) {
+    if(pkt) {
         int i;
         for(i = 0; i < memReadN && !pkt->matchAddr(memReads[i].addr, false);
                 i ++);

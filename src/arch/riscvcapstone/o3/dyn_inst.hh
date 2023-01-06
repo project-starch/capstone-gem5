@@ -1303,9 +1303,20 @@ class DynInst : public ExecContext, public RefCounted
             if(memReadN > 0) {
                 staticInst->completeAcc(memReads[0].res_pkt, this, traceData);
                 for(int i = 0; i < memReadN; i ++){
-                    delete memReads[i].res_pkt;
+                    bool saved = false;
+                    //delete memReads[i].res_pkt;
+                    for(auto it = savedRequest->_packets.begin();
+                            it != savedRequest->_packets.end();
+                            ++ it) {
+                        if(*it == memReads[i].res_pkt) {
+                            saved = true;
+                            break;
+                        }
+                    }
+                    if(!saved) {
+                        delete memReads[i].res_pkt;
+                    }
                     memReads[i].res_pkt = nullptr; // just to make sure 
-                                                   // we are not doing use-after-free
                 }
             }
             cpu->iewInstToCommitIfExeced(dynamic_cast<DynInstPtr::PtrType>(this));
