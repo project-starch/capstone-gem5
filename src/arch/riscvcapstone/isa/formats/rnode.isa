@@ -168,8 +168,13 @@ def template RNodeMemCompleteAcc {{
 def template RNodeMemCompleteTagQuery {{
     Fault
     %(class_name)s::completeTagQuery(ExecContext* xc, BaseCPU* cpu,
-                Addr addr, bool tag, Trace::InstRecord* traceData) const {
+                Addr EA, bool tag, Trace::InstRecord* traceData) const {
+        %(op_decl)s;
+        %(op_rd)s;
+
         %(complete_tag_query_code)s;
+
+        %(op_wb)s;
 
         return NoFault;
     }
@@ -195,7 +200,7 @@ def template RNodeMemDeclare {{
                               Trace::InstRecord *) const override;
         Fault completeAcc(PacketPtr, ExecContext *, Trace::InstRecord *) const override;
         Fault completeTagQuery(ExecContext* xc, BaseCPU* cpu,
-                Addr addr, bool tag, Trace::InstRecord* traceData) const override;
+                Addr EA, bool tag, Trace::InstRecord* traceData) const override;
         using %(base_class)s::generateDisassembly;
     };
 }};

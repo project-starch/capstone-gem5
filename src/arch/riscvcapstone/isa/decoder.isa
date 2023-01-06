@@ -563,16 +563,13 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        TagController& t = dyn_inst->getTagController();
-
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
+                        #ifdef CAPSTONE_USE_MOCKTAG
+                        TagController& t = dyn_inst->getTagController();
                         bool delayed;
-
                         bool res_tag = t.getTag(dyn_inst, EA, delayed);
-
                         assert(!delayed); // FIXME: not supporting mem tag controller
-
                         if(res_tag) {
                             //if load result is a capability
                             //if it's linear type
@@ -591,7 +588,48 @@ decode QUADRANT default Unknown::unknown() {
                         } else {
                             Rd_trv.setTag(false);
                         }
+                        #else
+                        DPRINTFN("Aditya: before initiateGetTag");
+                        Fault fault = dyn_inst->initiateGetTag(EA);
+                        if(fault != NoFault)
+                            return fault;
+                        DPRINTFN("Aditya: after initiateGetTag");
+                        #endif
+
                         Rd_trv = Rd_trv;
+                    }}, {{
+                        #ifndef CAPSTONE_USE_MOCKTAG
+                        DPRINTFN("Aditya: in complete_tag_query_code");
+                        //complete_tag_query_code
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        if(tag) {
+                            //if load result is a capability
+                            //if it's linear type
+                            //  clear tag bit from EA
+                            //  clear the mem location itself
+
+                            DPRINTFN("Aditya: load res is a cap");
+
+                            if(Rd_trv.getRegVal().capVal().type() != CapType::NONLIN) {
+                                dyn_inst->initiateSetTag(EA, false);
+                                //TODO: Write 0s here
+                                Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
+                                            memAccessFlags, nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+                            }
+                            Rd_trv.setTag(true);
+                        } else {
+                            Rd_trv.setTag(false);
+                        }
+
+                        Rd_trv = Rd_trv;
+                        #endif
                     }});
                 }
                 format RNodeStoreMemOp {
@@ -608,7 +646,7 @@ decode QUADRANT default Unknown::unknown() {
                         NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
 
-                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 2)
+                        if (static_cast<int>(Rd_trv.getRegVal().capVal().perm()) < 2)
                             return std::make_shared<IllegalInstFault>(
                                     "Rd doesn't have the necessary perms", machInst);
                     }}, {{
