@@ -238,7 +238,6 @@ MemoryTagController::handleResp(PacketPtr pkt) {
     } else{
         DPRINTF(TagController, "tag controller query response\n");
         bool tag = pkt->getRaw<bool>();
-        inst->completeTagQuery(tag_op.addr, tag);
         iew->instToCommitIfExeced(inst);
 
         // TODO: handle fault and 

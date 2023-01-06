@@ -49,8 +49,6 @@ def template LoadStoreDeclare {{
         Addr getAddr(ExecContext *, Trace::InstRecord *) const override;
         Fault completeAcc(PacketPtr, ExecContext *,
                           Trace::InstRecord *) const override;
-        Fault completeTagQuery(ExecContext* xc, BaseCPU* cpu,
-                Addr addr, bool tag, Trace::InstRecord* traceData) const override;
     };
 }};
 
@@ -97,8 +95,7 @@ def LoadStoreBase(name, Name, offset_code, ea_code, memacc_code, mem_flags,
         decode_template.subst(iop),
         fullExecTemplate.subst(iop) +
         initiateAccTemplate.subst(iop) +
-        completeAccTemplate.subst(iop) +
-        LoadStoreCompleteTagQuery.subst(iop)
+        completeAccTemplate.subst(iop)
         )
 }};
 
@@ -245,16 +242,6 @@ def template StoreCompleteAcc {{
     %(class_name)s::completeAcc(PacketPtr pkt, ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
-        return NoFault;
-    }
-}};
-
-def template LoadStoreCompleteTagQuery {{
-    Fault
-    %(class_name)s::completeTagQuery(ExecContext* xc, BaseCPU* cpu,
-                Addr addr, bool tag, Trace::InstRecord* traceData) const {
-        %(complete_tag_query_code)s;
-
         return NoFault;
     }
 }};

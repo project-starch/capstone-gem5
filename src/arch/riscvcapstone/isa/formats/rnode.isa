@@ -94,20 +94,17 @@ def template RNodeInitiateAcc {{
 }};
 
 def format RNodeMemOp(check_code, post_check_code,
-                        ea_code, memacc_code, 
-                        complete_tag_query_code={{ }}, *opt_flags) {{
+                        ea_code, memacc_code, *opt_flags) {{
     iop = InstObjParams(name, Name, 'RegNodeOp', 
                         {'check_code': check_code, 
                         'post_check_code': post_check_code, 'ea_code': ea_code, 
-                        'memacc_code': memacc_code,
-                        'complete_tag_query_code': complete_tag_query_code}, opt_flags)
+                        'memacc_code': memacc_code}, opt_flags)
     header_output = RNodeMemDeclare.subst(iop)
     decoder_output = RNodeConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (RNodeExecute.subst(iop)
                    + RNodeMemInitiateAcc.subst(iop)
-                   + RNodeMemCompleteAcc.subst(iop)
-                   + RNodeMemCompleteTagQuery.subst(iop))
+                   + RNodeMemCompleteAcc.subst(iop))
 }};
 
 def template RNodeMemInitiateAcc {{
@@ -165,21 +162,6 @@ def template RNodeMemCompleteAcc {{
     }
 }};
 
-def template RNodeMemCompleteTagQuery {{
-    Fault
-    %(class_name)s::completeTagQuery(ExecContext* xc, BaseCPU* cpu,
-                Addr EA, bool tag, Trace::InstRecord* traceData) const {
-        %(op_decl)s;
-        %(op_rd)s;
-
-        %(complete_tag_query_code)s;
-
-        %(op_wb)s;
-
-        return NoFault;
-    }
-}};
-
 def template RNodeMemDeclare {{
     //
     // Static instruction class for "%(mnemonic)s".
@@ -199,8 +181,6 @@ def template RNodeMemDeclare {{
                               gem5::RiscvcapstoneISA::o3::NodeCommand *,
                               Trace::InstRecord *) const override;
         Fault completeAcc(PacketPtr, ExecContext *, Trace::InstRecord *) const override;
-        Fault completeTagQuery(ExecContext* xc, BaseCPU* cpu,
-                Addr EA, bool tag, Trace::InstRecord* traceData) const override;
         using %(base_class)s::generateDisassembly;
     };
 }};

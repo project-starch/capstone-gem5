@@ -383,37 +383,6 @@ DynInst::completeNodeAcc(NodeCommandPtr node_command) {
     return fault;
 }
 
-
-Fault
-DynInst::completeTagQuery(Addr addr, bool tag) {
-    auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
-    assert(rvStaticInst != nullptr);
-
-    bool no_squash_from_TC = thread->noSquashFromTC;
-    thread->noSquashFromTC = true;
-
-    Fault fault = rvStaticInst->completeTagQuery(this, cpu,
-            addr, tag, traceData);
-    int i;
-    for(i = 0; i < tagQueryN && tagQueries[i].addr != addr; i ++);
-    assert(i < tagQueryN && tagQueries[i].addr == addr); // the query should previoulys be added
-    assert(!tagQueryCompleted[i]); // the query should not be completed yet
-
-    tagQueries[i].res_tag = tag;
-    tagQueryCompleted[i] = true;
-
-    assert(completedTagQueryN < tagQueryN);
-
-    ++ completedTagQueryN;
-
-    checkQueryCompleted();
-
-    thread->noSquashFromTC = no_squash_from_TC;
-
-    return fault;
-}
-
-
 Fault
 DynInst::initiateAcc()
 {

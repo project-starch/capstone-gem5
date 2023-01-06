@@ -122,8 +122,6 @@ class DynInst : public ExecContext, public RefCounted
 
     Fault completeNodeAcc(NodeCommandPtr node_command);
 
-    Fault completeTagQuery(Addr addr, bool tag);
-
     /** Initiates the access.  Only valid for memory operations. */
     Fault initiateAcc();
 
