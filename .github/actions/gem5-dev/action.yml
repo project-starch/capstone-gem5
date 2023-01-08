@@ -1,0 +1,13 @@
+name: 'gem5-dev'
+description: 'Run script within the gem5 development environment'
+inputs:
+  script-path:
+    description: 'Path to the script to execute'
+    required: true
+    default: '.github/script.sh'
+runs:
+  using: 'docker'
+  image: 'docker://corank/gem5-dev:latest'
+  args:
+    - ${{ inputs.script-path }}
+

@@ -1,0 +1,12 @@
+name: Building and testing on push
+on: [push]
+jobs:
+  build:
+    name: Build
+    runs-on: Linux
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/gem5-dev/
+        with:
+          script-path: '.github/scripts/build-test.sh'
+      
