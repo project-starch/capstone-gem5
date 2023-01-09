@@ -375,9 +375,26 @@ decode QUADRANT default Unknown::unknown() {
         //Capstone Ops
         0x16: decode FUNCT3 {
             0x1: decode FUNCT7 {
-                format Revoke {
+                format RNodeOp {
                     0x0: revoke ({{
-                        Rs1;
+                        Rs1_trv;
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        //assert(Rs1_trv.getRegVal().capVal().type() == CapType::REV);
+                        
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+
+                        DPRINTFN("Revoke: node_id = %lu\n", node_id);
+
+                        Fault fault = dyn_inst->initiateNodeCommand(new NodeRevoke(node_id));
+                        if(fault != NoFault)
+                            return fault;
+                        
+                        Rs1_trv = Rs1_trv; //dummy write to force ordering
                     }});
                 }
                 format Calls {
@@ -520,6 +537,7 @@ decode QUADRANT default Unknown::unknown() {
                         using namespace gem5::RiscvcapstoneISA::o3;
 
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
 
                         uint64_t node_id = Rd_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeDrop(node_id));
@@ -674,6 +692,68 @@ decode QUADRANT default Unknown::unknown() {
                         }
 
                         Rs1_trv = Rs1_trv;
+                    }});
+                }
+                format RNodeOp {
+                    0x11: mrev ({{
+                        Rs1_trv;
+
+                        assert(Rs1_trv.getTag());
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        //TODO: maybe should query rs1 nodeid
+                        //but then need to wait for query resp
+
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+
+                        Fault fault = dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                        if(fault != NoFault)
+                            return fault;
+                    }}, {{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
+
+                        assert(qry);
+                        if(qry->validityError)
+                            return std::make_shared<IllegalInstFault>(
+                                "Capability provided is not valid!", machInst);
+
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+
+                        //TODO: get Rs1's parent
+                        NodeID parent_id = 0;
+
+                        auto& node_controller = dyn_inst->getNodeController();
+                        NodeID to_allocate = node_controller.tryAllocate();
+
+                        Fault fault = dyn_inst->initiateNodeCommand(new NodeAllocate(parent_id, to_allocate));
+                        if(fault != NoFault)
+                            return fault;
+
+                        fault = dyn_inst->initiateNodeCommand(new NodeAllocate(to_allocate, node_id));
+                        if(fault != NoFault)
+                            return fault;
+
+                        //if Rd is a cap.. handle here
+                        if(Rd_trv.getTag()) {
+                            node_id = Rd_trv.getRegVal().capVal().nodeId();
+                            fault = dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+                            if(fault != NoFault)
+                                return fault;
+                        }
+
+                        Rd_trv = Rs1_trv;
+                        Rd_trv.setTag(true);
+                        Rd_trv.getRegVal().capVal().setNodeId(to_allocate);
+                        Rd_trv.getRegVal().capVal().setType(CapType::REV);
                     }});
                 }
             }

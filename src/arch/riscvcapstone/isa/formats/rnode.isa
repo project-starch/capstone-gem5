@@ -33,13 +33,15 @@
 // to the constructor setting isNodeOp to true
 //
 
-def format RNodeOp(code, *opt_flags) {{
-    iop = InstObjParams(name, Name, 'RegNodeOp', code, opt_flags)
+def format RNodeOp(code, comp_code = {{ }}, *opt_flags) {{
+    iop = InstObjParams(name, Name, 'RegNodeOp', {'code': code,
+                        'comp_code': comp_code}, opt_flags)
     header_output = RNodeDeclare.subst(iop)
     decoder_output = RNodeConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (RNodeExecute.subst(iop)
-                   + RNodeInitiateAcc.subst(iop))
+                   + RNodeInitiateAcc.subst(iop)
+                   + RNodeCompleteAcc.subst(iop))
 }};
 
 def template RNodeDeclare {{
@@ -56,6 +58,9 @@ def template RNodeDeclare {{
         %(class_name)s(MachInst machInst);
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
         Fault initiateNodeAcc(ExecContext *, BaseCPU *cpu, Trace::InstRecord *) const override;
+        Fault completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
+                                gem5::RiscvcapstoneISA::o3::NodeCommand* node_command,
+                                Trace::InstRecord *traceData) const override;
         using %(base_class)s::generateDisassembly;
     };
 }};
@@ -88,6 +93,20 @@ def template RNodeInitiateAcc {{
         %(op_decl)s;
         %(op_rd)s;
         %(code)s;
+        %(op_wb)s;
+        return NoFault;
+    }
+}};
+
+def template RNodeCompleteAcc {{
+    Fault
+    %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        gem5::RiscvcapstoneISA::o3::NodeCommand* node_command,
+        Trace::InstRecord *traceData) const
+    {
+        %(op_decl)s;
+        %(op_rd)s;
+        %(comp_code)s;
         %(op_wb)s;
         return NoFault;
     }
