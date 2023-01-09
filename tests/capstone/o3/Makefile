@@ -11,7 +11,7 @@ GEM5_CONFIG?=config.py
 GEM5_CONFIG_FLAGS?=
 GEM5_TEST_TIMEOUT?=5
 
-GCC=riscv64-unknown-elf-gcc
+GCC=riscv64-unknown-linux-gnu-gcc
 
 all: $(TARGETS) hello-interp
 
