@@ -80,9 +80,9 @@ LSQUnit::WritebackEvent::process()
 
     assert(inst->savedRequest);
     inst->savedRequest->writebackDone();
-    if(!pkt->isRead()) {
-        delete pkt;
-    }
+    //if(!pkt->isRead()) {
+        //delete pkt;
+    //}
 }
 
 const char *
