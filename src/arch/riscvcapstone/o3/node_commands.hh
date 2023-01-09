@@ -184,8 +184,12 @@ struct NodeAllocate : NodeCommand {
     NodeID data;
 
     NodeID parentId;
+    bool asChild;
+
     NodeAllocate() : state(NCAllocate_LOAD_PARENT) {}
-    NodeAllocate(NodeID parent_id, NodeID to_allocate_id): parentId(parent_id), toAllocate(to_allocate_id), 
+    // If as_child is false, create a sibling to parent_id instead.
+    // This requires parent_id to be a leaf node
+    NodeAllocate(NodeID parent_id, NodeID to_allocate_id, bool as_child=true): parentId(parent_id), toAllocate(to_allocate_id), asChild(as_child),
     state(NCAllocate_LOAD_PARENT) {}
     NodeAllocate(DynInstPtr inst, NodeID parent_id, NodeID to_allocate_id):
         NodeCommand(inst),

@@ -130,7 +130,7 @@ NodeAllocate::handleResp(PacketPtr pkt) {
         case NCAllocate_LOAD:
             savedNode = pkt->getRaw<Node>();
             savedNode.prev = parentId;
-            savedNode.depth = parentDepth + 1;
+            savedNode.depth = parentDepth + (asChild ? 1 : 0);
             savedNode.next = nextNodeId;
             savedNode.state = Node::VALID;
             savedNode.counter = 0; // TODO: perhaps 1
