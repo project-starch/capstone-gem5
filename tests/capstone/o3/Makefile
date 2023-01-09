@@ -13,7 +13,7 @@ GEM5_TEST_TIMEOUT?=5
 
 GCC=riscv64-unknown-elf-gcc
 
-all: $(TARGETS)
+all: $(TARGETS) hello-interp
 
 $(TARGETS):%:$(STATIC_LIB).o %.o
 	$(GCC) -o $@ -nostdlib -static $^
@@ -21,17 +21,14 @@ $(TARGETS):%:$(STATIC_LIB).o %.o
 $(OBJECTS):%.o:%.S $(HEADERS)
 	$(GCC) -c -o $@ $<
 
+hello-interp:
+	$(MAKE) -C ..
+
 $(RUN_TARGETS):run-%:%
-	@if [ "$^" = hello-interp ]; then \
-		$(MAKE) -C ..; \
-	fi
 	$(info Running testcase $^)
 	timeout $(GEM5_TEST_TIMEOUT) $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
 
 $(DEBUG_TARGETS):debug-%:%
-	@if [ "$^" = hello-interp ]; then \
-		$(MAKE) -C ..; \
-	fi
 	gdb --args $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
 
 run: $(RUN_TARGETS)
