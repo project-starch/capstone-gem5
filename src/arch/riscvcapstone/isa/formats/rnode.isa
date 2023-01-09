@@ -186,10 +186,11 @@ def template RNodeMemDeclare {{
 }};
 
 def format RNodeStoreMemOp(check_code, post_check_code,
-                        ea_code, *opt_flags) {{
+                        ea_code, comp_code, *opt_flags) {{
     iop = InstObjParams(name, Name, 'RegNodeOp', 
                         {'check_code': check_code, 
-                        'post_check_code': post_check_code, 'ea_code': ea_code},
+                        'post_check_code': post_check_code, 'ea_code': ea_code,
+                        'comp_code': comp_code},
                          opt_flags)
     header_output = RNodeStoreMemDeclare.subst(iop)
     decoder_output = RNodeConstructor.subst(iop)
@@ -221,8 +222,6 @@ def template RNodeStoreMemInitiateAcc {{
 
         %(ea_code)s;
 
-        %(op_wb)s;
-
         return NoFault;
     }
 }};
@@ -241,6 +240,12 @@ def template RNodeStoreMemCompleteAcc {{
     %(class_name)s::completeAcc(PacketPtr pkt, ExecContext *xc,
                         Trace::InstRecord* traceData) const
     {
+        %(op_decl)s;
+        %(op_rd)s;
+
+        %(comp_code)s;
+
+        %(op_wb)s;
         return NoFault;
     }
 }};

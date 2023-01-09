@@ -636,30 +636,37 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        TagController& t = dyn_inst->getTagController();
+                        Fault fault = dyn_inst->initiateGetTag(EA);
+                        if(fault != NoFault)
+                            return fault;
 
-                        bool delayed;
+                        fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
+                                          memAccessFlags, nullptr);
+                            if (fault != NoFault)
+                                return fault;
+                    }}, {{
+                        //completeAcc code
 
-                        bool res_tag = t.getTag(dyn_inst, EA, delayed);
+                        using namespace gem5::RiscvcapstoneISA::o3;
 
-                        assert(!delayed); // FIXME: not supporting mem tag controller
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        bool res_tag = dyn_inst->getTagQueryRes(0);                   
+
+                        Addr EA = Rd_trv.getRegVal().capVal().cursor();    
 
                         if(res_tag) {
                             //if Rd has a capability AND Rs1 is scalar
                             //  clear tag bit from EA
 
                             if(Rs1_trv.getTag() == false)
-                                t.setTag(dyn_inst, EA, false);
+                                dyn_inst->initiateSetTag(EA, false);
                         }
 
-                        Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
-                                          memAccessFlags, nullptr);
-                            if (fault != NoFault)
-                                return fault;
-                        
                         if(Rs1_trv.getTag()) {
                             if(Rs1_trv.getRegVal().capVal().type() != 
-                                gem5::RiscvcapstoneISA::o3::CapType::NONLIN)
+                                CapType::NONLIN)
                                 Rs1_trv.setTag(false);
                         }
 

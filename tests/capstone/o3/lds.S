@@ -30,6 +30,12 @@ _start:
     
     CAPPRINT(a4)
 
+    li a6, 63
+    SDC(a3, a6)
+
+    LDC(a4, a3)
+    CAPPRINT(a4)
+
     j exit
 
 .global val
