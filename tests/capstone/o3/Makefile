@@ -3,8 +3,8 @@ STATIC_LIB=exit
 HEADERS=asm_insn.h
 OBJECTS=$(patsubst %.S,%.o,$(ASM_SOURCES))
 TARGETS=$(filter-out $(STATIC_LIB),$(patsubst %.S,%,$(ASM_SOURCES)))
-RUN_TARGETS=$(patsubst %,run-%,$(TARGETS)) run-hello
-DEBUG_TARGETS=$(patsubst %,debug-%,$(TARGETS)) debug-hello
+RUN_TARGETS=$(patsubst %,run-%,$(TARGETS)) run-hello run-hello-interp
+DEBUG_TARGETS=$(patsubst %,debug-%,$(TARGETS)) debug-hello debug-hello-interp
 GEM5?=gem5.opt
 GEM5_FLAGS?=
 GEM5_CONFIG?=config.py
@@ -22,10 +22,16 @@ $(OBJECTS):%.o:%.S $(HEADERS)
 	$(GCC) -c -o $@ $<
 
 $(RUN_TARGETS):run-%:%
-	@echo "Running testcase $^"
+	@if [ "$^" = hello-interp ]; then \
+		$(MAKE) -C ..; \
+	fi
+	$(info Running testcase $^)
 	timeout $(GEM5_TEST_TIMEOUT) $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
 
 $(DEBUG_TARGETS):debug-%:%
+	@if [ "$^" = hello-interp ]; then \
+		$(MAKE) -C ..; \
+	fi
 	gdb --args $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
 
 run: $(RUN_TARGETS)

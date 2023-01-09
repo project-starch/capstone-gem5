@@ -52,6 +52,7 @@
 #include "arch/riscvcapstone/o3/lsq.hh"
 #include "arch/riscvcapstone/o3/ncq.hh"
 #include "arch/riscvcapstone/o3/scoreboard.hh"
+#include "arch/riscvcapstone/o3/tag_controller.hh"
 #include "cpu/timebuf.hh"
 #include "debug/IEW.hh"
 #include "sim/probe/probe.hh"
@@ -496,6 +497,8 @@ class IEW
         /** Average number of woken instructions per writeback. */
         statistics::Formula wbFanout;
     } iewStats;
+  public:
+    TagController tagController;
 
 };
 

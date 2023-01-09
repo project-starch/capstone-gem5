@@ -83,6 +83,7 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
       wbCycle(0),
       wbWidth(params.wbWidth),
       numThreads(params.numThreads),
+      tagController(params.numThreads, 32),
       iewStats(cpu)
 {
     if (dispatchWidth > MaxWidth)

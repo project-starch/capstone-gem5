@@ -60,6 +60,7 @@
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
 #include "arch/riscvcapstone/o3/lsq_unit.hh"
 #include "arch/riscvcapstone/o3/node_controller.hh"
+#include "arch/riscvcapstone/o3/tag_controller.hh"
 #include "cpu/op_class.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/static_inst.hh"
@@ -363,6 +364,9 @@ class DynInst : public ExecContext, public RefCounted
     /** Node command queue index. */
     ssize_t ncqIdx = -1;
     typename NCQUnit::NCQIterator ncqIt;
+
+    ssize_t tqIdx = -1;
+    typename TagController::TQIterator tqIt;
 
 
     /////////////////////// TLB Miss //////////////////////
@@ -1221,6 +1225,21 @@ class DynInst : public ExecContext, public RefCounted
         return cpu->nodeController;
     }
 
+
+    bool getRegTag(StaticInst* si, int idx) {
+        const RegId& reg = si->srcRegIdx(idx);
+        return cpu->getRegTag(reg.index(), threadNumber);
+    }
+
+
+    void setRegTag(StaticInst* si, int idx, bool tag) {
+        const RegId& reg = si->destRegIdx(idx);
+        cpu->setRegTag(reg.index(), tag, threadNumber);
+    }
+
+    bool getMemTag(Addr addr);
+
+    void setMemTag(Addr addr, bool tag);
 };
 
 } // namespace RiscvcapstoneISA::o3

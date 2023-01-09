@@ -487,5 +487,17 @@ DynInst::initiateNodeCommand(NodeCommand* cmd) {
             cmd);
 }
 
+
+bool
+DynInst::getMemTag(Addr addr) {
+    return cpu->getMemTag(dynamic_cast<DynInstPtr::PtrType>(this), addr);
+}
+
+void
+DynInst::setMemTag(Addr addr, bool tag) {
+    cpu->setMemTag(dynamic_cast<DynInstPtr::PtrType>(this), addr, tag);
+}
+
+
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5

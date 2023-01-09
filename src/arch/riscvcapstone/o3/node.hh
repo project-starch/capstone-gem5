@@ -1,6 +1,8 @@
 #ifndef __CAPSTONE_NODE_H_
 #define __CAPSTONE_NODE_H_
 
+#include "arch/riscvcapstone/types.hh"
+
 namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {

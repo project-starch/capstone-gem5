@@ -42,6 +42,7 @@
 #ifndef __ARCH_RISCV_TYPES_HH__
 #define __ARCH_RISCV_TYPES_HH__
 
+#include "base/types.hh"
 #include "arch/riscvcapstone/pcstate.hh"
 
 namespace gem5
@@ -55,6 +56,27 @@ typedef uint64_t ExtMachInst;
 typedef uint64_t NodeID;
 
 const NodeID NODE_ID_INVALID = (NodeID)(-1ULL & ((1ULL << 31) - 1));
+
+struct SimpleAddrRange {
+    Addr start, end;
+    SimpleAddrRange() {}
+    SimpleAddrRange(Addr start, Addr end) : start(start), end(end) {}
+    bool operator < (const SimpleAddrRange& other) const {
+        if(start != other.start) {
+            return start < other.start;
+        }
+        return end < other.end;
+    }
+
+    bool operator == (const SimpleAddrRange& other) const {
+        return start == other.start &&
+            end == other.end;
+    }
+
+    bool contains(const Addr& addr) const {
+        return start <= addr && addr < end;
+    }
+};
 
 
 } // namespace RiscvcapstoneISA

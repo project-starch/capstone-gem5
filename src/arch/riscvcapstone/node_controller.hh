@@ -11,6 +11,7 @@
 #include "mem/port.hh"
 #include "params/NodeController.hh"
 #include "base/trace.hh"
+#include "arch/riscvcapstone/types.hh"
 #include "arch/riscvcapstone/cap_track.hh"
 #include "base/statistics.hh"
 
@@ -132,27 +133,6 @@ struct Node {
 };
 
 static_assert(sizeof(Node) == (CAPSTONE_NODE_SIZE >> 3));
-
-struct SimpleAddrRange {
-    Addr start, end;
-    SimpleAddrRange() {}
-    SimpleAddrRange(Addr start, Addr end) : start(start), end(end) {}
-    bool operator < (const SimpleAddrRange& other) const {
-        if(start != other.start) {
-            return start < other.start;
-        }
-        return end < other.end;
-    }
-
-    bool operator == (const SimpleAddrRange& other) const {
-        return start == other.start &&
-            end == other.end;
-    }
-
-    bool contains(const Addr& addr) const {
-        return start <= addr && addr < end;
-    }
-};
 
 typedef std::set<SimpleAddrRange> SimpleAddrRangeSet;
 

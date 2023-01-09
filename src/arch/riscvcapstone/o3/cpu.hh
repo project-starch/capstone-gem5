@@ -642,6 +642,33 @@ class CPU : public BaseCPU
     bool passedQuery(const DynInstPtr& inst) const {
         return iew.ncQueue.passedQuery(inst);
     }
+
+    void setMemTag(const DynInstPtr& inst, Addr addr, bool tag) {
+        iew.tagController.setTag(inst, addr, tag);
+    }
+
+    bool getMemTag(const DynInstPtr& inst, Addr addr) {
+        bool delayed = false;
+        bool tag = iew.tagController.getTag(inst, addr, delayed);
+        assert(!delayed);
+        return tag;
+    }
+
+    void setRegTag(RegIndex idx, bool tag, ThreadID thread_id) {
+        iew.tagController.setRegTag(idx, tag, thread_id);
+    }
+
+    bool getRegTag(RegIndex idx, ThreadID thread_id) const {
+        return iew.tagController.getRegTag(idx, thread_id);
+    }
+
+    void allocObject(const SimpleAddrRange& range) {
+        iew.tagController.allocObject(range);
+    }
+
+    void freeObject(Addr addr) {
+        iew.tagController.freeObject(addr);
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3
