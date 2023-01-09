@@ -179,6 +179,16 @@ class DynInst : public ExecContext, public RefCounted
         return tagQueries[idx].res_tag;
     }
 
+    int getMemReadN() const {
+        return memReadN;
+    }
+
+    PacketPtr getMemReadRes(int idx) const {
+        assert(idx < memReadN);
+        assert(memReadCompleted[idx]);
+        return memReads[idx].res_pkt;
+    }
+
   protected:
     enum Status
     {
@@ -1300,25 +1310,26 @@ class DynInst : public ExecContext, public RefCounted
 
     void checkQueryCompleted() {
         if(isQueryCompleted()) {
-            if(memReadN > 0) {
-                staticInst->completeAcc(memReads[0].res_pkt, this, traceData);
-                for(int i = 0; i < memReadN; i ++){
-                    bool saved = false;
-                    //delete memReads[i].res_pkt;
-                    for(auto it = savedRequest->_packets.begin();
-                            it != savedRequest->_packets.end();
-                            ++ it) {
-                        if(*it == memReads[i].res_pkt) {
-                            saved = true;
-                            break;
-                        }
+            //if(memReadN > 0) {
+            auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
+            rv_inst->completeAcc(this, traceData);
+            for(int i = 0; i < memReadN; i ++){
+                bool saved = false;
+                //delete memReads[i].res_pkt;
+                for(auto it = savedRequest->_packets.begin();
+                        it != savedRequest->_packets.end();
+                        ++ it) {
+                    if(*it == memReads[i].res_pkt) {
+                        saved = true;
+                        break;
                     }
-                    if(!saved) {
-                        delete memReads[i].res_pkt;
-                    }
-                    memReads[i].res_pkt = nullptr; // just to make sure 
                 }
+                if(!saved) {
+                    delete memReads[i].res_pkt;
+                }
+                memReads[i].res_pkt = nullptr; // just to make sure 
             }
+            //}
             cpu->iewInstToCommitIfExeced(dynamic_cast<DynInstPtr::PtrType>(this));
         }
     }
