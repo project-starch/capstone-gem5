@@ -311,7 +311,8 @@ LSQUnit::insert(const DynInstPtr &inst)
 
     if (inst->isLoad()) {
         insertLoad(inst);
-    } else {
+    }
+    if (inst->isStore() || inst->isAtomic()) {
         insertStore(inst);
     }
 
