@@ -282,6 +282,9 @@ MemDepUnit::insert(const DynInstPtr &inst)
     // for load-acquire store-release that could also be a barrier
     insertBarrierSN(inst);
 
+    if (inst->isLoad()) {
+        ++stats.insertedLoads;
+    } 
     if (inst->isStore() || inst->isAtomic()) {
         DPRINTF(MemDepUnit, "Inserting store/atomic PC %s [sn:%lli].\n",
                 inst->pcState(), inst->seqNum);
@@ -290,9 +293,8 @@ MemDepUnit::insert(const DynInstPtr &inst)
                 inst->threadNumber);
 
         ++stats.insertedStores;
-    } else if (inst->isLoad()) {
-        ++stats.insertedLoads;
-    } else {
+    } 
+    if (!inst->isLoad() && !inst->isStore() && !inst->isAtomic()) {
         panic("Unknown type! (most likely a barrier).");
     }
 }
@@ -304,6 +306,9 @@ MemDepUnit::insertNonSpec(const DynInstPtr &inst)
 
     // Might want to turn this part into an inline function or something.
     // It's shared between both insert functions.
+    if (inst->isLoad()) {
+        ++stats.insertedLoads;
+    } 
     if (inst->isStore() || inst->isAtomic()) {
         DPRINTF(MemDepUnit, "Inserting store/atomic PC %s [sn:%lli].\n",
                 inst->pcState(), inst->seqNum);
@@ -312,9 +317,8 @@ MemDepUnit::insertNonSpec(const DynInstPtr &inst)
                 inst->threadNumber);
 
         ++stats.insertedStores;
-    } else if (inst->isLoad()) {
-        ++stats.insertedLoads;
-    } else {
+    }
+    if (!inst->isLoad() && !inst->isStore() && !inst->isAtomic()) {
         panic("Unknown type! (most likely a barrier).");
     }
 }

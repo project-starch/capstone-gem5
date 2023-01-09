@@ -711,10 +711,10 @@ Rename::renameInsts(ThreadID tid)
 
         renameDestRegs(inst, inst->threadNumber);
 
-        if (inst->isAtomic() || inst->isStore()) {
-            storesInProgress[tid]++;
-        } else if (inst->isLoad()) {
+        if (inst->isLoad()) {
             loadsInProgress[tid]++;
+        } else if (inst->isAtomic() || inst->isStore()) {
+            storesInProgress[tid]++;
         }
 
         ++renamed_insts;

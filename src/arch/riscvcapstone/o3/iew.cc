@@ -1063,6 +1063,15 @@ IEW::dispatchInsts(ThreadID tid)
             add_to_iq = true;
 
             toRename->iewInfo[tid].dispatchedToLQ++;
+            
+            // some inst can involve both load and store
+            if(inst->isStore()) {
+                ldstQueue.insertStore(inst);
+
+                ++ iewStats.dispStoreInsts;
+                
+                toRename->iewInfo[tid].dispatchedToSQ++;
+            }
         } else if (inst->isStore()) {
             DPRINTF(IEW, "[tid:%i] Issue: Memory instruction "
                     "encountered, adding to LSQ.\n", tid);

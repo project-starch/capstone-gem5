@@ -559,12 +559,6 @@ decode QUADRANT default Unknown::unknown() {
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
 
-                        DPRINTFN("Aditya: in ldc %s\n", __func__);
-                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1) {
-                            DPRINTFN("Aditya: Rs1 no perms\n");
-                            return std::make_shared<IllegalInstFault>(
-                                    "Rs1 doesn't have the necessary perms", machInst);
-                        }
                     }}, {{
                         using namespace gem5::RiscvcapstoneISA::o3;
 
@@ -574,6 +568,7 @@ decode QUADRANT default Unknown::unknown() {
                         if(qry->validityError)
                             return std::make_shared<IllegalInstFault>(
                                 "Capability provided is not valid!", machInst);
+
                     }}, {{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
@@ -587,6 +582,11 @@ decode QUADRANT default Unknown::unknown() {
 
                         DPRINTFN("MemReads count = %d, tag query count = %d\n",
                                 dyn_inst->memReadN, dyn_inst->tagQueryN);
+
+
+                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1)
+                            return std::make_shared<IllegalInstFault>(
+                                    "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
                         Rd_trv.getRegVal() = Mem_rv;
 
