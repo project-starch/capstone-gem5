@@ -23,7 +23,7 @@ class BaseTagController {
     protected:
         struct TagOp { // tag changes
             Addr addr;
-            bool tagSet;
+            NodeID tagSet;
         };
 
         struct TagEntry {
@@ -37,7 +37,7 @@ class BaseTagController {
 
         int threadCount, queueSize;
 
-        std::unordered_set<Addr> taggedAddrs; // only the committed tags
+        std::unordered_map<Addr, NodeID> taggedAddrs; // only the committed tags
         std::vector<TagQueue> tagQueues; // uncommitted tags
 
         static bool aligned(Addr addr) {
@@ -53,9 +53,9 @@ class BaseTagController {
     public:
         using TQIterator = typename TagQueue::iterator;
 
-        bool getTag(const DynInstPtr& inst, Addr addr, bool& delayed);
-        virtual bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) = 0;
-        void setTag(const DynInstPtr& inst, Addr addr, bool tag);
+        NodeID getTag(const DynInstPtr& inst, Addr addr, bool& delayed);
+        virtual NodeID getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) = 0;
+        void setTag(const DynInstPtr& inst, Addr addr, NodeID tag);
         /**
          * Commit instructions before the given sequence number
          * */
@@ -74,19 +74,19 @@ class BaseTagController {
 class MockTagController : public BaseTagController {
     private:
         static const int REG_N = 32;
-        using RegTagMap = std::vector<bool>;
+        using RegTagMap = std::vector<NodeID>;
         std::vector<RegTagMap> regTagMaps;
     protected:
         bool writebackTagOp(DynInstPtr& inst, TagOp& tag_op) override;
     public:
         MockTagController(int thread_count, int queue_size);
         MockTagController(const MockTagController& other) = delete;
-        bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) override;
+        NodeID getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) override;
 
         void tick() override {}
 
-        bool getRegTag(RegIndex reg_idx, ThreadID thread_id) const;
-        void setRegTag(RegIndex reg_idx, bool tag, ThreadID thread_id);
+        NodeID getRegTag(RegIndex reg_idx, ThreadID thread_id) const;
+        void setRegTag(RegIndex reg_idx, NodeID tag, ThreadID thread_id);
 
         void allocObject(const SimpleAddrRange& range) { }
         void freeObject(Addr addr) { }

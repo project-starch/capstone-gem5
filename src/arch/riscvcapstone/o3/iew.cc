@@ -986,6 +986,13 @@ IEW::dispatchInsts(ThreadID tid)
             break;
         }
 
+        if((inst->isLoad() || inst->isStore() || inst->isAtomic()) &&
+                tagController.isFull(tid)) {
+            block(tid);
+            toRename->iewUnblock[tid] = false;
+            break;
+        }
+
         // hardware transactional memory
         // CPU needs to track transactional state in program order.
         const int numHtmStarts = ldstQueue.numHtmStarts(tid);
@@ -1013,6 +1020,8 @@ IEW::dispatchInsts(ThreadID tid)
 
             ldstQueue.insertStore(inst);
 
+            tagController.insertInstruction(inst);
+
             ++iewStats.dispStoreInsts;
 
             // AMOs need to be set as "canCommit()"
@@ -1032,6 +1041,7 @@ IEW::dispatchInsts(ThreadID tid)
             // Reserve a spot in the load store queue for this
             // memory access.
             ldstQueue.insertLoad(inst);
+            tagController.insertInstruction(inst);
 
             ++iewStats.dispLoadInsts;
 
@@ -1043,6 +1053,7 @@ IEW::dispatchInsts(ThreadID tid)
                     "encountered, adding to LSQ.\n", tid);
 
             ldstQueue.insertStore(inst);
+            tagController.insertInstruction(inst);
 
             ++iewStats.dispStoreInsts;
 
@@ -1481,6 +1492,7 @@ IEW::tick()
 
     ldstQueue.tick();
     ncQueue.tick();
+    tagController.tick();
     // FIXME: only for testing
     for(auto threads = activeThreads->begin(); threads != activeThreads->end();
             ++ threads) {
@@ -1537,6 +1549,8 @@ IEW::tick()
 
     ncQueue.cleanupCommands();
 
+    tagController.writeback();
+
     // Check the committed load/store signals to see if there's a load
     // or store to commit.  Also check if it's being told to execute a
     // nonspeculative instruction.
@@ -1558,6 +1572,8 @@ IEW::tick()
             ldstQueue.commitLoads(fromCommit->commitInfo[tid].doneSeqNum,tid);
 
             ncQueue.commitBefore(fromCommit->commitInfo[tid].doneSeqNum,tid);
+
+            tagController.commitBefore(fromCommit->commitInfo[tid].doneSeqNum,tid);
 
             updateLSQNextCycle = true;
             instQueue.commit(fromCommit->commitInfo[tid].doneSeqNum,tid);

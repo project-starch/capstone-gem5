@@ -20,7 +20,7 @@ BaseTagController::BaseTagController(int thread_count, int queue_size):
 }
 
 void
-BaseTagController::setTag(const DynInstPtr& inst, Addr addr, bool tag) {
+BaseTagController::setTag(const DynInstPtr& inst, Addr addr, NodeID tag) {
     assert(inst->tqIdx >= 0);
 
     if(!aligned(addr)) {
@@ -43,7 +43,7 @@ BaseTagController::commitBefore(InstSeqNum seq_num, ThreadID thread_id) {
 }
 
 
-bool
+NodeID
 BaseTagController::getTag(const DynInstPtr& inst, Addr addr,
         bool& delayed) {
     DPRINTF(TagController, "Tag controller get tag at %llx [sn:%u]\n",
@@ -55,7 +55,7 @@ BaseTagController::getTag(const DynInstPtr& inst, Addr addr,
         DPRINTF(TagController, "Unaligned address %llx, hence tag is 0\n",
             addr);
         delayed = false;
-        return false;
+        return NODE_ID_INVALID;
     }
 
     ThreadID thread_id = inst->threadNumber;
@@ -117,28 +117,34 @@ BaseTagController::writebackTagEntry(TagEntry& tag_entry) {
 
 MockTagController::MockTagController(int thread_count, int queue_size):
     BaseTagController(thread_count, queue_size),
-    regTagMaps(thread_count, RegTagMap(REG_N, false))
+    regTagMaps(thread_count, RegTagMap(REG_N))
 {
+    for(int i = 0; i < thread_count; i ++)
+        for(int j = 0; j < REG_N; j ++)
+            regTagMaps[i][j] = NODE_ID_INVALID;
 }
 
 
-bool
+NodeID
 MockTagController::getCommittedTag(const DynInstPtr& inst,
         Addr addr, bool& delayed) {
     delayed = false;
     // check the alignment
     if(!aligned(addr)) {
-        return false;
+        return NODE_ID_INVALID;
     }
-    return taggedAddrs.find(addr) != taggedAddrs.end();
+    auto it = taggedAddrs.find(addr);
+    if(it == taggedAddrs.end())
+        return NODE_ID_INVALID;
+    return it->second;
 }
 
 
 bool
 MockTagController::writebackTagOp(DynInstPtr& inst, TagOp& tag_op) {
     assert(aligned(tag_op.addr));
-    if(tag_op.tagSet) {
-        taggedAddrs.insert(tag_op.addr);
+    if(tag_op.tagSet != NODE_ID_INVALID) {
+        taggedAddrs[tag_op.addr] = tag_op.tagSet;
     } else {
         taggedAddrs.erase(tag_op.addr);
     }
@@ -147,14 +153,14 @@ MockTagController::writebackTagOp(DynInstPtr& inst, TagOp& tag_op) {
 }
 
 
-bool
+NodeID
 MockTagController::getRegTag(RegIndex reg_idx, ThreadID thread_id) const {
-    return regTagMaps[reg_idx][thread_id];
+    return regTagMaps[thread_id][reg_idx];
 }
 
 void
-MockTagController::setRegTag(RegIndex reg_idx, bool tag, ThreadID thread_id) {
-    regTagMaps[reg_idx][thread_id] = tag;
+MockTagController::setRegTag(RegIndex reg_idx, NodeID tag, ThreadID thread_id) {
+    regTagMaps[thread_id][reg_idx] = tag;
 }
 
 }

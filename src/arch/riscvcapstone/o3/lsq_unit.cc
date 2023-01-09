@@ -598,8 +598,20 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
 
     assert(!inst->isSquashed());
 
-    // TODO: check the destination register
-    // it is going to be overwritten
+    RiscvStaticInst* rv_inst = dynamic_cast<RiscvStaticInst*>(inst->staticInst.get());
+
+    Addr addr = rv_inst->getAddr(inst.get(), inst->traceData);
+
+    NodeID new_node_id = inst->getMemTag(addr); // store node id
+    if(new_node_id != NODE_ID_INVALID) {
+        // if yes, record the reg as a capability
+        panic_if(rv_inst->numDestRegs() != 1, "load instruction should have exactly 1 destination register");
+        inst->setRegTag(rv_inst, 0, new_node_id);
+        Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(new_node_id, 1));
+        assert(node_fault == NoFault);
+    }
+
+    // FIXME: would need a way to get the node for a dest register
 
     load_fault = inst->initiateAcc();
 
@@ -676,6 +688,31 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
     // Check the recently completed loads to see if any match this store's
     // address.  If so, then we have a memory ordering violation.
     typename LoadQueue::iterator loadIt = store_inst->lqIt;
+
+    RiscvStaticInst* rv_inst = dynamic_cast<RiscvStaticInst*>(store_inst->staticInst.get());
+
+    Addr addr = rv_inst->getAddr(store_inst.get(), store_inst->traceData);
+
+    // check the node to be written to the memory location
+
+    NodeID new_node_id = store_inst->getRegTag(rv_inst, 1); // store node id
+    if(new_node_id != NODE_ID_INVALID) {
+        // if yes, record the reg as a capability
+        panic_if(rv_inst->numSrcRegs() != 2, "store instruction should have exactly 2 destination registers");
+        store_inst->setMemTag(addr, new_node_id);
+        Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(new_node_id, 1));
+        assert(node_fault == NoFault);
+    }
+
+    // check the original node at the memory location
+    NodeID old_node_id = store_inst->getMemTag(addr);
+    if(old_node_id != NODE_ID_INVALID) {
+        Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(old_node_id, -1));
+        assert(node_fault == NoFault);
+    }
+
+    // set the new node for the overwritten memory location
+    store_inst->setMemTag(addr, new_node_id);
 
     Fault store_fault = store_inst->initiateAcc();
 

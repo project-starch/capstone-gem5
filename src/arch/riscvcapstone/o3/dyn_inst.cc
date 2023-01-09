@@ -488,13 +488,13 @@ DynInst::initiateNodeCommand(NodeCommand* cmd) {
 }
 
 
-bool
+NodeID
 DynInst::getMemTag(Addr addr) {
     return cpu->getMemTag(dynamic_cast<DynInstPtr::PtrType>(this), addr);
 }
 
 void
-DynInst::setMemTag(Addr addr, bool tag) {
+DynInst::setMemTag(Addr addr, NodeID tag) {
     cpu->setMemTag(dynamic_cast<DynInstPtr::PtrType>(this), addr, tag);
 }
 

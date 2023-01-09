@@ -1226,20 +1226,20 @@ class DynInst : public ExecContext, public RefCounted
     }
 
 
-    bool getRegTag(StaticInst* si, int idx) {
+    NodeID getRegTag(StaticInst* si, int idx) {
         const RegId& reg = si->srcRegIdx(idx);
         return cpu->getRegTag(reg.index(), threadNumber);
     }
 
 
-    void setRegTag(StaticInst* si, int idx, bool tag) {
+    void setRegTag(StaticInst* si, int idx, NodeID tag) {
         const RegId& reg = si->destRegIdx(idx);
         cpu->setRegTag(reg.index(), tag, threadNumber);
     }
 
-    bool getMemTag(Addr addr);
+    NodeID getMemTag(Addr addr);
 
-    void setMemTag(Addr addr, bool tag);
+    void setMemTag(Addr addr, NodeID tag);
 };
 
 } // namespace RiscvcapstoneISA::o3

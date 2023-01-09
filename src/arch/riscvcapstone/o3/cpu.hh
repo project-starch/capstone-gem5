@@ -639,26 +639,26 @@ class CPU : public BaseCPU
         return iew.ncQueue.pushCommand(inst, cmd);
     }
 
-    bool passedQuery(const DynInstPtr& inst) const {
+    NodeID passedQuery(const DynInstPtr& inst) const {
         return iew.ncQueue.passedQuery(inst);
     }
 
-    void setMemTag(const DynInstPtr& inst, Addr addr, bool tag) {
+    void setMemTag(const DynInstPtr& inst, Addr addr, NodeID tag) {
         iew.tagController.setTag(inst, addr, tag);
     }
 
-    bool getMemTag(const DynInstPtr& inst, Addr addr) {
+    NodeID getMemTag(const DynInstPtr& inst, Addr addr) {
         bool delayed = false;
-        bool tag = iew.tagController.getTag(inst, addr, delayed);
+        NodeID tag = iew.tagController.getTag(inst, addr, delayed);
         assert(!delayed);
         return tag;
     }
 
-    void setRegTag(RegIndex idx, bool tag, ThreadID thread_id) {
+    void setRegTag(RegIndex idx, NodeID tag, ThreadID thread_id) {
         iew.tagController.setRegTag(idx, tag, thread_id);
     }
 
-    bool getRegTag(RegIndex idx, ThreadID thread_id) const {
+    NodeID getRegTag(RegIndex idx, ThreadID thread_id) const {
         return iew.tagController.getRegTag(idx, thread_id);
     }
 
