@@ -669,6 +669,10 @@ class CPU : public BaseCPU
     void freeObject(Addr addr) {
         iew.tagController.freeObject(addr);
     }
+
+    SimpleAddrRange getObject(NodeID node_id) {
+        return iew.tagController.getObject(node_id);
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3

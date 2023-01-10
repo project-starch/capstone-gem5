@@ -603,20 +603,22 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
     Addr addr = rv_inst->getAddr(inst.get(), inst->traceData);
 
     NodeID new_node_id = inst->getMemTag(addr); // store node id
+    NodeID old_node_id = inst->getDestRegTag(rv_inst, 0);
     if(new_node_id != NODE_ID_INVALID) {
         // if yes, record the reg as a capability
         panic_if(rv_inst->numDestRegs() != 1, "load instruction should have exactly 1 destination register");
-        inst->setRegTag(rv_inst, 0, new_node_id);
         Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(new_node_id, 1));
         assert(node_fault == NoFault);
     }
 
-    // FIXME: would need a way to get the node for a dest register
+    if(old_node_id != NODE_ID_INVALID) {
+        Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(old_node_id, -1));
+        assert(node_fault == NoFault);
+    }
+
+    inst->setRegTag(rv_inst, 0, new_node_id);
 
     load_fault = inst->initiateAcc();
-
-    // TODO: check the new value of the destination register
-    // see if it is a capability
 
     if (load_fault == NoFault && !inst->readMemAccPredicate()) {
         assert(inst->readPredicate());
@@ -696,18 +698,17 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
     // check the node to be written to the memory location
 
     NodeID new_node_id = store_inst->getRegTag(rv_inst, 1); // store node id
+    NodeID old_node_id = store_inst->getMemTag(addr);
     if(new_node_id != NODE_ID_INVALID) {
         // if yes, record the reg as a capability
         panic_if(rv_inst->numSrcRegs() != 2, "store instruction should have exactly 2 destination registers");
-        store_inst->setMemTag(addr, new_node_id);
-        Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(new_node_id, 1));
+        Fault node_fault = store_inst->initiateNodeCommand(new NodeRcUpdate(new_node_id, 1));
         assert(node_fault == NoFault);
     }
 
     // check the original node at the memory location
-    NodeID old_node_id = store_inst->getMemTag(addr);
     if(old_node_id != NODE_ID_INVALID) {
-        Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(old_node_id, -1));
+        Fault node_fault = store_inst->initiateNodeCommand(new NodeRcUpdate(old_node_id, -1));
         assert(node_fault == NoFault);
     }
 

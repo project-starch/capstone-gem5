@@ -41,6 +41,7 @@
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 
 #include <algorithm>
+#include <iterator>
 
 #include "base/intmath.hh"
 #include "debug/DynInst.hh"
@@ -498,6 +499,54 @@ DynInst::setMemTag(Addr addr, NodeID tag) {
     cpu->setMemTag(dynamic_cast<DynInstPtr::PtrType>(this), addr, tag);
 }
 
+void 
+DynInst::updateTagsPreExec() {
+    // query the nodes of the source reigsters
+    sourceNodeN = 0;
+    size_t num_src = numSrcRegs();
+    for(int i = 0; i < num_src; i ++) {
+        NodeID node_id = getRegTag(staticInst.get(), i);
+        if(node_id != NODE_ID_INVALID) {
+            sourceNodes[sourceNodeN ++] = node_id;
+        }
+    }
+}
+
+void
+DynInst::updateTagsPostExec() {
+    // TODO: consider different register classes
+    // We are assuming that there are only integer instructions for now
+    size_t num_dst = numDestRegs();
+    for(int i = 0; i < num_dst; i ++){
+        NodeID old_node_id = getDestRegTag(staticInst.get(), i);
+        const PhysRegIdPtr reg = renamedDestIdx(i);
+        RegVal reg_val;
+        if(reg->is(RegClassType::InvalidRegClass)) {
+            reg_val = 0;
+        } else {
+            reg_val = cpu->getReg(reg);
+        }
+
+        NodeID new_node_id = NODE_ID_INVALID;
+        
+        for(int j = 0; j < sourceNodeN; j ++) {
+            if(cpu->getObject(sourceNodes[j]).contains(static_cast<Addr>(reg_val))) {
+                new_node_id = sourceNodes[j];
+                break;
+            }
+        }
+        
+        if(old_node_id != new_node_id) {
+            setRegTag(staticInst.get(), i, new_node_id);
+            if(new_node_id != NODE_ID_INVALID) { 
+                initiateNodeCommand(new NodeRcUpdate(new_node_id, 1));
+            }
+            if(old_node_id != NODE_ID_INVALID) {
+                initiateNodeCommand(new NodeRcUpdate(old_node_id, -1));
+            }
+        }
+    }
+}
 
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5

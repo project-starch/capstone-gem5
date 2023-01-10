@@ -1318,7 +1318,9 @@ IEW::executeInsts()
             // If we execute the instruction (even if it's a nop) the fault
             // will be replaced and we will lose it.
             if (inst->getFault() == NoFault) {
+                inst->updateTagsPreExec();
                 inst->execute();
+                inst->updateTagsPostExec();
                 if (!inst->readPredicate())
                     inst->forwardOldRegs();
             }

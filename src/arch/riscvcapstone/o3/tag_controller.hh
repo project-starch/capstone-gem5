@@ -90,6 +90,7 @@ class MockTagController : public BaseTagController {
 
         void allocObject(const SimpleAddrRange& range) { }
         void freeObject(Addr addr) { }
+        SimpleAddrRange getObject(NodeID node_id) { return SimpleAddrRange(0, 0); /* TODO */ }
 };
 
 using TagController = MockTagController;

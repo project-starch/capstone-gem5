@@ -147,6 +147,9 @@ class DynInst : public ExecContext, public RefCounted
     /** InstRecord that tracks this instructions. */
     Trace::InstRecord *traceData = nullptr;
 
+    NodeID sourceNodes[8];
+    int sourceNodeN;
+
   protected:
     enum Status
     {
@@ -1231,6 +1234,11 @@ class DynInst : public ExecContext, public RefCounted
         return cpu->getRegTag(reg.index(), threadNumber);
     }
 
+    NodeID getDestRegTag(StaticInst* si, int idx) {
+        const RegId& reg = si->destRegIdx(idx);
+        return cpu->getRegTag(reg.index(), threadNumber);
+    }
+
 
     void setRegTag(StaticInst* si, int idx, NodeID tag) {
         const RegId& reg = si->destRegIdx(idx);
@@ -1240,6 +1248,9 @@ class DynInst : public ExecContext, public RefCounted
     NodeID getMemTag(Addr addr);
 
     void setMemTag(Addr addr, NodeID tag);
+
+    void updateTagsPreExec();
+    void updateTagsPostExec();
 };
 
 } // namespace RiscvcapstoneISA::o3
