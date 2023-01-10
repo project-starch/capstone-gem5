@@ -534,7 +534,8 @@ decode QUADRANT default Unknown::unknown() {
 
                         assert(Rs1_trv.getTag());
 
-                        Rs1_trv.setTag(false);
+                        //TODO: is it needed?
+                        //Rs1_trv.setTag(false);
 
                         using namespace gem5::RiscvcapstoneISA::o3;
 
@@ -560,8 +561,8 @@ decode QUADRANT default Unknown::unknown() {
 
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-
                     }}, {{
+                        //TODO: Maybe don't need this (handled in commit stage)
                         using namespace gem5::RiscvcapstoneISA::o3;
 
                         NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
@@ -584,8 +585,11 @@ decode QUADRANT default Unknown::unknown() {
                         DPRINTFN("MemReads count = %d, tag query count = %d\n",
                                 dyn_inst->memReadN, dyn_inst->tagQueryN);
 
-
-                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1)
+                        //TODO: Maybe separate these statements
+                        //and introduce a new type(s) of fault
+                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1 ||
+                            !(EA >= Rs1_trv.getRegVal().capVal().start() &&
+                                EA <= Rs1_trv.getRegVal().capVal().end()))
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
@@ -599,27 +603,83 @@ decode QUADRANT default Unknown::unknown() {
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
                         bool tag_res = dyn_inst->getTagQueryRes(0);
+                        assert(tag_res);
 
-                        if(tag_res) {
-                            //if load result is a capability
-                            //if it's linear type
-                            //  clear tag bit from EA
-                            //  clear the mem location itself
+                        //if load result is a linear type
+                        //  clear tag bit from EA
+                        //  clear the mem location itself
+                        //otherwise do RcUpdate+1 on the node
 
-                            DPRINTFN("Aditya: load res is a cap");
-
-                            if(Rd_trv.getRegVal().capVal().type() != CapType::NONLIN) {
-                                dyn_inst->initiateSetTag(EA, false);
-                                //TODO: Write 0s here
-                                Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
-                                            memAccessFlags, nullptr);
-                                if (fault != NoFault)
-                                    return fault;
-                            }
+                        if(Rd_trv.getRegVal().capVal().type() != CapType::NONLIN) {
+                            dyn_inst->initiateSetTag(EA, false);
+                            //TODO: Write 0s here
+                            //Also, might not work
+                            //Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
+                            //            memAccessFlags, nullptr);
+                            //if (fault != NoFault)
+                            //    return fault;
+                        } else {
+                            NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                         }
-                        Rd_trv.setTag(tag_res);
+
+                        Rd_trv.setTag(true);
 
                         Rd_trv = Rd_trv;
+                    }});
+                    0x13: lds ({{
+                        Rd_trv; Rs1_trv;
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        assert(Rs1_trv.getTag());
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                    }}, {{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
+
+                        assert(qry);
+                        if(qry->validityError)
+                            return std::make_shared<IllegalInstFault>(
+                                "Capability provided is not valid!", machInst);
+                    }}, {{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+                    
+                        //TODO: retrieve tag bit to make sure it corresponds
+                        //with the called inst?
+
+                        DPRINTFN("MemReads count = %d, tag query count = %d\n",
+                                dyn_inst->memReadN, dyn_inst->tagQueryN);
+
+                        //TODO: Maybe separate these statements
+                        //and introduce a new type(s) of fault
+                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1 ||
+                            !(EA >= Rs1_trv.getRegVal().capVal().start() &&
+                                EA <= Rs1_trv.getRegVal().capVal().end()))
+                            return std::make_shared<IllegalInstFault>(
+                                    "Rs1 doesn't have the necessary perms", machInst);
+                    }}, {{
+                        Rd_trv.getRegVal() = Mem_rv;
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+                        Rd_trv.setTag(false);
+
+                        Rd_trv = Rd_trv;
+
+                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
                     }});
                 }
                 format RNodeStoreMemOp {
@@ -735,19 +795,6 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv.getRegVal().capVal().setNodeId(to_allocate);
 
                         Rs1_trv = Rs1_trv;
-                    }}, {{
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-
-                        //NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
-
-                        //assert(qry);
-                        //if(qry->validityError)
-                        //    return std::make_shared<IllegalInstFault>(
-                        //        "Capability provided is not valid!", machInst);
-
                     }});
                     0x12: spliti ({{
                         Rs1_trv;
@@ -764,46 +811,14 @@ decode QUADRANT default Unknown::unknown() {
                         Fault fault = dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                         if(fault != NoFault)
                             return fault;
-                        
-                        const RegVal& reg_val = Rs1_trv.getRegVal();
-                        DPRINTFN("split initiateacc Capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
-                                Rs1_trv.getTag(),
-                                reg_val.val.cap.start(), reg_val.val.cap.end(),
-                                reg_val.val.cap.cursor(),
-                                static_cast<unsigned int>(reg_val.val.cap.perm()),
-                                static_cast<unsigned int>(reg_val.val.cap.type()),
-                                reg_val.val.cap.nodeId());
-                    }}, {{
-                        const RegVal& reg_val = Rs1_trv.getRegVal();
-                        DPRINTFN("split completeacc Capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
-                                Rs1_trv.getTag(),
-                                reg_val.val.cap.start(), reg_val.val.cap.end(),
-                                reg_val.val.cap.cursor(),
-                                static_cast<unsigned int>(reg_val.val.cap.perm()),
-                                static_cast<unsigned int>(reg_val.val.cap.type()),
-                                reg_val.val.cap.nodeId());
-
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-
-                        NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
-
-                        assert(qry);
-                        if(qry->validityError)
-                            return std::make_shared<IllegalInstFault>(
-                                "Capability provided is not valid!", machInst);
-                        
-                        DPRINTFN("split after qry validation\n");
 
                         uint64_t start = Rs1_trv.getRegVal().capVal().start();
                         uint64_t end = Rs1_trv.getRegVal().capVal().end();
 
                         assert(Rs2_ud >= start && Rs2_ud <= end);
 
-                        NodeID node_id;
-                        Fault fault;
+                        //NodeID node_id;
+                        //Fault fault;
 
                         Rs1_trv.getRegVal().capVal().setBound(start, Rs2_ud);
                         
@@ -826,6 +841,8 @@ decode QUADRANT default Unknown::unknown() {
 
                         Rd_trv = Rs1_trv;
                         Rd_trv.getRegVal().capVal().setBound(Rs2_ud + 1, end);
+                        //TODO: Us or software?
+                        Rd_trv.getRegVal().capVal().setCursor(Rs2_ud + 1);
                         Rd_trv.getRegVal().capVal().setNodeId(to_allocate);
 
                         Rs1_trv = Rs1_trv;
