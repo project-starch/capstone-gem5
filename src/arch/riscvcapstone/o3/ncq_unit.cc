@@ -4,6 +4,7 @@
 #include "arch/riscvcapstone/o3/ncq.hh"
 #include "arch/riscvcapstone/o3/lsq.hh"
 #include "arch/riscvcapstone/o3/iew.hh"
+#include "arch/riscvcapstone/o3/cpu.hh"
 #include "debug/NCQ.hh"
 
 
@@ -11,12 +12,14 @@ namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
+class CPU;
 
 NCQUnit::NCQUnit(ThreadID thread_id, int queue_size,
-        NCQ* ncq, IEW* iew) :
+        CPU* cpu, NCQ* ncq, IEW* iew) :
     threadId(thread_id),
     ncQueue(queue_size),
     queueSize(queue_size),
+    cpu(cpu),
     ncq(ncq), iew(iew)
 {
 }
@@ -170,7 +173,10 @@ void
 NCQUnit::completeCommand(NodeCommandPtr node_command){
     DynInstPtr& inst = node_command->inst;
     DPRINTF(NCQ, "Command for instruction %u completed\n", inst->seqNum);
-    inst->completeNodeAcc(node_command);
+    Fault fault = inst->completeNodeAcc(node_command);
+    if(fault != NoFault) {
+        cpu->trap(fault, threadId, inst->staticInst); // FIXME: should be passed to commit instead
+    }
     ++ inst->ncqIt->completedCommands;
     if(inst->ncqIt->completed() &&
             inst->hasNodeWB()) {

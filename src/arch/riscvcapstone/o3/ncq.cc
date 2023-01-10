@@ -19,7 +19,8 @@ NCQ::NCQ(CPU* cpu, IEW* iew, int queue_size, int thread_num) :
     
     threads.reserve(thread_num);
     for(int i = 0; i < thread_num; i ++) {
-        threads.emplace_back(static_cast<ThreadID>(i), queue_size, this, iew);
+        threads.emplace_back(static_cast<ThreadID>(i), queue_size, cpu,
+                this, iew);
     }
 }
 

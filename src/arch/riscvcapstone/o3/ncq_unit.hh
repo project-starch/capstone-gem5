@@ -14,6 +14,7 @@ namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
+class CPU;
 class NCQ;
 class IEW;
 
@@ -56,6 +57,7 @@ class NCQUnit {
         int threadId;
         int queueSize;
 
+        CPU* cpu;
         NCQ* ncq;
         IEW* iew;
 
@@ -67,7 +69,7 @@ class NCQUnit {
         typedef typename CircularQueue<NCQEntry>::iterator NCQIterator;
         typedef typename std::vector<NodeCommandPtr>::iterator NodeCommandIterator;
 
-        NCQUnit(ThreadID thread_id, int queue_size, NCQ* ncq, IEW* iew);
+        NCQUnit(ThreadID thread_id, int queue_size, CPU* cpu, NCQ* ncq, IEW* iew);
         //NCQUnit(const NCQUnit&) = delete;
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
         void insertInstruction(const DynInstPtr& inst);

@@ -26,12 +26,14 @@ _start:
     CAPPRINT(a3)
 
     MREV(a5, a3)
+
+    CAPPRINT(a5)
     REVOKE(a5)
 
     #SPLIT(a6,a3,a5)
 
     #CAPPRINT(a6)
-    #CAPPRINT(a3)
+    CAPPRINT(a3)
 
     LDC(a4, a3)
     

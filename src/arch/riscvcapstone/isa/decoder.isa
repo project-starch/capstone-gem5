@@ -711,25 +711,11 @@ decode QUADRANT default Unknown::unknown() {
                         Fault fault = dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                         if(fault != NoFault)
                             return fault;
-                    }}, {{
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-
-                        //NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
-
-                        //assert(qry);
-                        //if(qry->validityError)
-                        //    return std::make_shared<IllegalInstFault>(
-                        //        "Capability provided is not valid!", machInst);
-
-                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
 
                         auto& node_controller = dyn_inst->getNodeController();
                         NodeID to_allocate = node_controller.tryAllocate();
 
-                        Fault fault = dyn_inst->initiateNodeCommand(new NodeAllocate(node_id, to_allocate));
+                        fault = dyn_inst->initiateNodeCommand(new NodeAllocate(node_id, to_allocate));
                         if(fault != NoFault)
                             return fault;
 
@@ -749,6 +735,19 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv.getRegVal().capVal().setNodeId(to_allocate);
 
                         Rs1_trv = Rs1_trv;
+                    }}, {{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        //NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
+
+                        //assert(qry);
+                        //if(qry->validityError)
+                        //    return std::make_shared<IllegalInstFault>(
+                        //        "Capability provided is not valid!", machInst);
+
                     }});
                     0x12: spliti ({{
                         Rs1_trv;
