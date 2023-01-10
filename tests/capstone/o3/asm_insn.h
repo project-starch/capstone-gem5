@@ -17,6 +17,8 @@
 #define LCC(rd,rs1)             .insn r 0x5B, 0x1, 0xd, rd, rs1, x0
 #define SDC(rd,rs1)             .insn r 0x5B, 0x1, 0xf, rd, rs1, x0
 #define DROPI(reg)              .insn r 0x5B, 0x1, 0x10, x0, reg, x0
+#define MREV(rd,rs1)            .insn r 0x5B, 0x1, 0x11, rd, rs1, x0
+#define SPLIT(rd,rs1,rs2)       .insn r 0x5B, 0x1, 0x12, rd, rs1, rs2
 
 // Test instructions for node ops
 #define QUERY(reg)              .insn r 0x5B, 0x0, 0x0, x0, reg, x0
