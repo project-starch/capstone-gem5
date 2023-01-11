@@ -473,7 +473,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         NodeID new_node_id = o3_cpu->nodeController.tryAllocate();
                         assert(new_node_id != NODE_ID_INVALID);
-                        //dyn_inst->initiateNodeCommand(new o3::NodeAllocate(NODE_ID_INVALID, new_node_id));
+                        dyn_inst->initiateNodeCommand(new o3::NodeAllocate(NODE_ID_INVALID, new_node_id));
                         dyn_inst->setRegTag(this, 0, new_node_id);
 
                         Addr base = static_cast<Addr>(Rs1);
