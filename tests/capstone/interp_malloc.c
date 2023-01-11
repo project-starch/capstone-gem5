@@ -12,7 +12,11 @@ void __real_free(void* ptr);
 void* __wrap_malloc(size_t size) {
     void* obj = __real_malloc(size);
     if(obj) {
-        return (void*)syscall(SYSCALL_NOTIFYMALLOC, obj, size);
+        void* res;
+        asm(".insn r 0x5B, 0x0, 0x5, %0, %1, %2" 
+                : "=r" (res)
+                : "r" (obj), "r"(size));
+        return res;
     }
     return NULL;
 }
@@ -20,7 +24,8 @@ void* __wrap_malloc(size_t size) {
 void __wrap_free(void* ptr) {
     __real_free(ptr);
     if(ptr) {
-        syscall(SYSCALL_NOTIFYFREE, ptr);
+        asm(".insn r 0x5B, 0x0, 0x6, x0, %0, x0"
+                : : "r" (ptr));
     }
 }
 

@@ -31,6 +31,56 @@
 //
 // Test nodeops operation instructions
 //
+
+
+
+def template TestDeclare {{
+    /**
+     * Static instruction class for "%(mnemonic)s".
+     */
+    class %(class_name)s : public %(base_class)s
+    {
+        private:
+            RegId srcRegIdxArr[2]; RegId destRegIdxArr[1];
+
+        public:
+        /// Constructor.
+        %(class_name)s(ExtMachInst machInst);
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        Fault initiateNodeAcc(ExecContext *, BaseCPU *,
+                              Trace::InstRecord *) const override;
+        Fault completeNodeAcc(ExecContext *, BaseCPU *,
+                              gem5::RiscvcapstoneISA::o3::NodeCommand *,
+                              Trace::InstRecord *) const override;
+    };
+}};
+
+def template TestConstructor {{
+    %(class_name)s::%(class_name)s(ExtMachInst machInst):
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
+    {
+        setRegIdxArrays(
+            reinterpret_cast<RegIdArrayPtr>(
+                &std::remove_pointer_t<decltype(this)>::srcRegIdxArr),
+            reinterpret_cast<RegIdArrayPtr>(
+                &std::remove_pointer_t<decltype(this)>::destRegIdxArr));
+
+        setSrcRegIdx(_numSrcRegs++,
+                     ((RS1) == 0) ? RegId() : RegId(IntRegClass, RS1));
+        setSrcRegIdx(_numSrcRegs++,
+                     ((RS2) == 0) ? RegId() : RegId(IntRegClass, RS2));
+
+        setDestRegIdx(_numDestRegs++,
+                     ((RD) == 0) ? RegId() : RegId(IntRegClass, RD));
+
+        flags[IsInteger] = true;
+        isNodeOp = true;
+        //hasNodeWB = true;
+    }
+}};
+
+
 def format QueryTest(code, *opt_flags) {{
     regs = ['srcRegIdx(0)']
     iop = InstObjParams(name, Name, 'RevokeClass',
@@ -96,48 +146,17 @@ def format RevokeTest(code, *opt_flags) {{
                   + TestRevokeCompleteAcc.subst(iop))
 }};
 
-def template TestDeclare {{
-    /**
-     * Static instruction class for "%(mnemonic)s".
-     */
-    class %(class_name)s : public %(base_class)s
-    {
-        private:
-            RegId srcRegIdxArr[2]; RegId destRegIdxArr[1];
 
-        public:
-        /// Constructor.
-        %(class_name)s(ExtMachInst machInst);
-
-        Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateNodeAcc(ExecContext *, BaseCPU *,
-                              Trace::InstRecord *) const override;
-        Fault completeNodeAcc(ExecContext *, BaseCPU *,
-                              gem5::RiscvcapstoneISA::o3::NodeCommand *,
-                              Trace::InstRecord *) const override;
-    };
-}};
-
-def template TestConstructor {{
-    %(class_name)s::%(class_name)s(ExtMachInst machInst):
-        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
-    {
-        setRegIdxArrays(
-            reinterpret_cast<RegIdArrayPtr>(
-                &std::remove_pointer_t<decltype(this)>::srcRegIdxArr),
-            reinterpret_cast<RegIdArrayPtr>(
-                &std::remove_pointer_t<decltype(this)>::destRegIdxArr));
-
-        setSrcRegIdx(_numSrcRegs++,
-                     ((RS1) == 0) ? RegId() : RegId(IntRegClass, RS1));
-        setSrcRegIdx(_numSrcRegs++,
-                     ((RS2) == 0) ? RegId() : RegId(IntRegClass, RS2));
-
-        setDestRegIdx(_numDestRegs++,
-                     ((RD) == 0) ? RegId() : RegId(IntRegClass, RD));
-
-        flags[IsInteger] = true;
-        isNodeOp = true;
-        //hasNodeWB = true;
-    }
+def format AuxOp(code, initiate_node_acc_code, 
+        complete_node_acc_code, *opt_flags) {{
+    iop = InstObjParams(name, Name, 'RevokeClass', {'code': code,
+            'initiate_node_acc_code': initiate_node_acc_code,
+            'complete_node_acc_code': complete_node_acc_code}, 
+            opt_flags)
+    header_output = TestDeclare.subst(iop)
+    decoder_output = TestConstructor.subst(iop)
+    decode_block = BasicDecode.subst(iop)
+    exec_output = (TestExecute.subst(iop)
+                  + TestInitiateAcc.subst(iop)
+                  + TestCompleteAcc.subst(iop))
 }};

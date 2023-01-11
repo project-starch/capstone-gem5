@@ -1229,18 +1229,18 @@ class DynInst : public ExecContext, public RefCounted
     }
 
 
-    NodeID getRegTag(StaticInst* si, int idx) {
+    NodeID getRegTag(const StaticInst* si, int idx) {
         const RegId& reg = si->srcRegIdx(idx);
         return cpu->getRegTag(reg.index(), threadNumber);
     }
 
-    NodeID getDestRegTag(StaticInst* si, int idx) {
+    NodeID getDestRegTag(const StaticInst* si, int idx) {
         const RegId& reg = si->destRegIdx(idx);
         return cpu->getRegTag(reg.index(), threadNumber);
     }
 
 
-    void setRegTag(StaticInst* si, int idx, NodeID tag) {
+    void setRegTag(const StaticInst* si, int idx, NodeID tag) {
         const RegId& reg = si->destRegIdx(idx);
         cpu->setRegTag(reg.index(), tag, threadNumber);
     }
@@ -1251,6 +1251,14 @@ class DynInst : public ExecContext, public RefCounted
 
     void updateTagsPreExec();
     void updateTagsPostExec();
+
+    void allocObject(const SimpleAddrRange& range) {
+        cpu->allocObject(range, threadNumber);
+    }
+
+    void freeObject(Addr addr) {
+        cpu->freeObject(addr, threadNumber);
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3

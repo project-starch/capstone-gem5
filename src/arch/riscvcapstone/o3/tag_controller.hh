@@ -88,8 +88,8 @@ class MockTagController : public BaseTagController {
         NodeID getRegTag(RegIndex reg_idx, ThreadID thread_id) const;
         void setRegTag(RegIndex reg_idx, NodeID tag, ThreadID thread_id);
 
-        void allocObject(const SimpleAddrRange& range) { }
-        void freeObject(Addr addr) { }
+        void allocObject(const SimpleAddrRange& range, ThreadID thread_id) { }
+        void freeObject(Addr addr, ThreadID thread_id) { }
         SimpleAddrRange getObject(NodeID node_id) { return SimpleAddrRange(0, 0); /* TODO */ }
 };
 

@@ -50,6 +50,7 @@
 
 #include "config/the_isa.hh"
 #include "cpu/checker/cpu.hh"
+#include "arch/riscvcapstone/faults.hh"
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/fu_pool.hh"
 #include "arch/riscvcapstone/o3/limits.hh"
@@ -978,7 +979,7 @@ IEW::dispatchInsts(ThreadID tid)
         }
 
         // Check NSQ
-        if(inst->isNodeOp() && ncQueue.isFull(tid)) {
+        if(ncQueue.isFull(tid)) {
             DPRINTF(IEW, "[tid:%i] Issue: NCQ has become full.\n", tid);
             DPRINTF(NCQ, "[tid:%i] NCQ has become full.\n", tid);
             block(tid);
@@ -1010,9 +1011,7 @@ IEW::dispatchInsts(ThreadID tid)
         // Otherwise issue the instruction just fine.
 
 
-        if(inst->isNodeOp()) {
-            ncQueue.insertInstruction(inst);
-        }
+        ncQueue.insertInstruction(inst);
 
         if (inst->isAtomic()) {
             DPRINTF(IEW, "[tid:%i] Issue: Memory instruction "
@@ -1241,6 +1240,8 @@ IEW::executeInsts()
                 // AMOs are treated like store requests
                 fault = ldstQueue.executeStore(inst);
 
+                inst->setNodeInitiated();
+
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {
                     // A hw page table walk is currently going on; the
@@ -1254,6 +1255,8 @@ IEW::executeInsts()
                 // Loads will mark themselves as executed, and their writeback
                 // event adds the instruction to the queue to commit
                 fault = ldstQueue.executeLoad(inst);
+
+                inst->setNodeInitiated();
 
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {
@@ -1270,6 +1273,8 @@ IEW::executeInsts()
                 }
             } else if (inst->isStore()) {
                 fault = ldstQueue.executeStore(inst);
+
+                inst->setNodeInitiated();
 
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {
@@ -1321,6 +1326,7 @@ IEW::executeInsts()
                 inst->updateTagsPreExec();
                 inst->execute();
                 inst->updateTagsPostExec();
+                inst->setNodeInitiated();
                 if (!inst->readPredicate())
                     inst->forwardOldRegs();
             }
@@ -1495,11 +1501,6 @@ IEW::tick()
     ldstQueue.tick();
     ncQueue.tick();
     tagController.tick();
-    // FIXME: only for testing
-    for(auto threads = activeThreads->begin(); threads != activeThreads->end();
-            ++ threads) {
-        assert(!ncQueue.isFull(*threads));
-    }
 
     sortInsts();
 

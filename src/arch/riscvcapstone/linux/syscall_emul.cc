@@ -20,7 +20,7 @@ notifymallocFunc(SyscallDesc* desc, ThreadContext* tc,
  //   o3::CPU* o3_cpu = dynamic_cast<o3::CPU*>(tc->getCpuPtr());    
     // TODO: there should be more graceful solutions
     if(cpu) {
-        cpu->allocObject(SimpleAddrRange((Addr)addr, (Addr)(addr + size)));
+        //cpu->allocObject(SimpleAddrRange((Addr)addr, (Addr)(addr + size)));
     //} else if(o3_cpu) {
         //o3_cpu->getNodeController()->
             //allocObject(SimpleAddrRange((Addr)addr, (Addr)(addr + size)));
@@ -41,7 +41,7 @@ notifyfreeFunc(SyscallDesc* desc, ThreadContext* tc,
         dynamic_cast<CPU*>(tc->getCpuPtr());
     //o3::CPU* o3_cpu = dynamic_cast<o3::CPU*>(tc->getCpuPtr());    
     if(cpu) {
-        cpu->freeObject((Addr)addr);
+        //cpu->freeObject((Addr)addr);
     //} else if(o3_cpu) {
         //o3_cpu->getNodeController()->freeObject((Addr)addr);
     } else {

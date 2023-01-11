@@ -197,3 +197,56 @@ def template TestDropCompleteAcc {{
         return NoFault;
     }
 }};
+
+
+def template TestInitiateAcc {{
+    Fault
+    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        Trace::InstRecord *traceData) const
+    {
+        %(op_decl)s;
+        %(op_rd)s;
+            
+        %(initiate_node_acc_code)s;
+
+        %(op_wb)s;
+
+        return NoFault;
+    }
+}};
+
+
+def template TestCompleteAcc {{
+    Fault
+    %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
+        gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
+        Trace::InstRecord *traceData) const
+    {
+        %(op_decl)s;
+        %(op_rd)s;
+
+        %(complete_node_acc_code)s;
+
+        %(op_wb)s;
+    }
+}};
+
+def template TestExecute {{
+    Fault
+    %(class_name)s::execute(
+        ExecContext *xc, Trace::InstRecord *traceData) const
+    {
+        %(op_decl)s;
+        %(op_rd)s;
+
+        %(code)s;
+
+        %(op_wb)s;
+
+        return NoFault;
+    }
+}};
+
+
+
+
