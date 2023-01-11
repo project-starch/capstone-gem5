@@ -59,5 +59,8 @@
 // RNodeOp
 ##include "rnode.isa"
 
+// Tag Access
+##include "tags.isa"
+
 // Include the unknown
 ##include "unknown.isa"

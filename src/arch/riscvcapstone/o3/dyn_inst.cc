@@ -526,9 +526,21 @@ DynInst::initiateGetTag(Addr addr) {
     ++ tagQueryN;
     if(!delayed) {
         ++ completedTagQueryN;
+        checkQueryCompleted();
     }
 
     return NoFault;
+}
+
+void
+DynInst::completeTagQuery(Addr addr, bool tag) {
+    int i;
+    for(i = 0; i < tagQueryN && tagQueries[i].addr != addr; i ++);
+    assert(i < tagQueryN);
+    assert(!tagQueryCompleted[i]);
+    tagQueryCompleted[i] = true;
+    ++ completedTagQueryN;
+    checkQueryCompleted();
 }
 
 Fault

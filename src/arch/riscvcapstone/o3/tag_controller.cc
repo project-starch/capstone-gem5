@@ -240,6 +240,7 @@ MemoryTagController::handleResp(PacketPtr pkt) {
         bool tag = pkt->getRaw<bool>();
         iew->instToCommitIfExeced(inst);
 
+        inst->completeTagQuery(tag_op.addr, tag);
         // TODO: handle fault and 
         // check whether the instruction execution is complete
     }

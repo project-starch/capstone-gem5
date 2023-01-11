@@ -668,6 +668,8 @@ decode QUADRANT default Unknown::unknown() {
                                 EA <= Rs1_trv.getRegVal().capVal().end()))
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
+
+                        dyn_inst->initiateSetTag(EA, true);
                     }}, {{
                         Rd_trv.getRegVal() = Mem_rv;
 
@@ -678,8 +680,6 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv.setTag(false);
 
                         Rd_trv = Rd_trv;
-
-                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
                     }});
                 }
                 format RNodeStoreMemOp {
@@ -914,6 +914,28 @@ decode QUADRANT default Unknown::unknown() {
                                 static_cast<unsigned int>(reg_val.val.cap.perm()),
                                 static_cast<unsigned int>(reg_val.val.cap.type()),
                                 reg_val.val.cap.nodeId());
+                    }});
+                }
+                format TagAccessStore {
+                    0xb: tagset ({{
+                        EA = Rs1_ud;
+
+                        dyn_inst->initiateSetTag(EA, Rs2_ud ? true : false);
+
+                        DPRINTFN("aditya initiate tagset\n");
+                    }});
+                }
+                format TagAccess {
+                    0xc: tagget ({{
+                        EA = Rs1_ud;
+                        uint64_t _dd = Rs2;
+
+                        dyn_inst->initiateGetTag(EA);
+
+                        DPRINTFN("aditya initiate tagget\n");
+                    }}, {{
+                        DPRINTFN("tag = %u\n",
+                                    dyn_inst->getTagQueryRes(0));
                     }});
                 }
             }

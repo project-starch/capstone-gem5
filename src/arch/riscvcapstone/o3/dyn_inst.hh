@@ -1306,6 +1306,8 @@ class DynInst : public ExecContext, public RefCounted
         return cpu->getTagController();
     }
 
+    void completeTagQuery(Addr addr, bool tag);
+
     void checkQueryCompleted() {
         if(isQueryCompleted()) {
             //if(memReadN > 0) {

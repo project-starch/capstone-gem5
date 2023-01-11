@@ -36,6 +36,11 @@
 #define CAPBOUND(rd,rs1,rs2)    .insn r 0x5B, 0x0, 0x9, rd, rs1, rs2
 #define CAPPRINT(rs1)           .insn r 0x5B, 0x0, 0xa, x0, rs1, x0
 
+// Test instructions for tag manipulation
+#define TAGSET(rs1,rs2)         .insn r 0x5B, 0x0, 0xb, x0, rs1, rs2
+#define TAGGET(rs1,rs2)         .insn r 0x5B, 0x0, 0xc, x0, rs1, rs2
+#define SD(rs1,rs2)             .insn r 0x43, 0x2, 0x0, x0, rs1, rs2
+
 #define NODE_ID_INVALID ((-1) & ((1 << 31) - 1))
 
 // Capability-related constants
