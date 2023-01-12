@@ -1252,8 +1252,8 @@ class DynInst : public ExecContext, public RefCounted
     void updateTagsPreExec();
     void updateTagsPostExec();
 
-    void allocObject(const SimpleAddrRange& range) {
-        cpu->allocObject(range, threadNumber);
+    void allocObject(NodeID node_id, const SimpleAddrRange& range) {
+        cpu->allocObject(node_id, range, threadNumber);
     }
 
     void freeObject(Addr addr) {

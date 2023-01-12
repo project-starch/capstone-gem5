@@ -81,6 +81,7 @@ class MockTagController : public BaseTagController {
         static const int REG_N = 32;
         using RegTagMap = std::vector<NodeID>;
         std::vector<RegTagMap> regTagMaps;
+        std::unordered_map<NodeID, SimpleAddrRange> objectMap;
     protected:
         bool writebackTagOp(DynInstPtr& inst, TagOp& tag_op) override;
     public:
@@ -93,9 +94,9 @@ class MockTagController : public BaseTagController {
         NodeID getRegTag(RegIndex reg_idx, ThreadID thread_id) const;
         void setRegTag(RegIndex reg_idx, NodeID tag, ThreadID thread_id);
 
-        void allocObject(const SimpleAddrRange& range, ThreadID thread_id) { }
-        void freeObject(Addr addr, ThreadID thread_id) { }
-        SimpleAddrRange getObject(NodeID node_id) { return SimpleAddrRange(0, 0); /* TODO */ }
+        void allocObject(NodeID node_id, const SimpleAddrRange& range, ThreadID thread_id);
+        void freeObject(Addr addr, ThreadID thread_id);
+        SimpleAddrRange getObject(NodeID node_id);
 };
 
 using TagController = MockTagController;

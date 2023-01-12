@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "capstone_asm.h"
 
 void* do_whatever(void* f) {
     return f;
@@ -43,7 +44,11 @@ int main(int argc, char* argv[])
     printf("Hello gem5!\n");
     fflush(stdout);
     void* s = malloc(15);
+    printf("Print tag below\n");
+    fflush(stdout);
+    print_tag(s);
     void* c = (void*)((uintptr_t)do_whatever(s) + 2);
+    print_tag(c);
     good(c);
     free(s);
     s = malloc(4);

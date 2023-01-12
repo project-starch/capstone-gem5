@@ -662,8 +662,8 @@ class CPU : public BaseCPU
         return iew.tagController.getRegTag(idx, thread_id);
     }
 
-    void allocObject(const SimpleAddrRange& range, ThreadID thread_id) {
-        iew.tagController.allocObject(range, thread_id);
+    void allocObject(NodeID node_id, const SimpleAddrRange& range, ThreadID thread_id) {
+        iew.tagController.allocObject(node_id, range, thread_id);
     }
 
     void freeObject(Addr addr, ThreadID thread_id) {

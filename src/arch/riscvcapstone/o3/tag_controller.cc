@@ -174,6 +174,21 @@ MockTagController::setRegTag(RegIndex reg_idx, NodeID tag, ThreadID thread_id) {
     regTagMaps[thread_id][reg_idx] = tag;
 }
 
+void
+MockTagController::allocObject(NodeID node_id, const SimpleAddrRange& range, ThreadID thread_id) {
+    objectMap[node_id] = range;
+}
+
+void
+MockTagController::freeObject(Addr addr, ThreadID thread_id) {
+    // nothing needs to be done
+}
+
+SimpleAddrRange
+MockTagController::getObject(NodeID node_id) {
+    return objectMap[node_id];
+}
+
 }
 }
 }
