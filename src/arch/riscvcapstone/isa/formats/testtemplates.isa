@@ -206,7 +206,7 @@ def template TestInitiateAcc {{
     {
         %(op_decl)s;
         %(op_rd)s;
-            
+
         %(initiate_node_acc_code)s;
 
         %(op_wb)s;
@@ -222,12 +222,9 @@ def template TestCompleteAcc {{
         gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
         Trace::InstRecord *traceData) const
     {
-        %(op_decl)s;
-        %(op_rd)s;
-
         %(complete_node_acc_code)s;
 
-        %(op_wb)s;
+        return NoFault;
     }
 }};
 
@@ -236,13 +233,7 @@ def template TestExecute {{
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
-        %(op_decl)s;
-        %(op_rd)s;
-
         %(code)s;
-
-        %(op_wb)s;
-
         return NoFault;
     }
 }};
