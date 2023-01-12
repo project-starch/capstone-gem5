@@ -17,6 +17,7 @@ parser.add_argument('--tcache-size', type=str, default='8kB', help='size of the 
 parser.add_argument('--checkpoint-period', type=int, default=0, help='interval between checkpoints')
 parser.add_argument('--checkpoint-folder', type=str, default='./checkpoints', help='where to store the checkpoints')
 parser.add_argument('--cpu', type=str, default='simple', help='CPU model (atomic, simple, o3)')
+parser.add_argument('--mocktag', action='store_true', help='use mock tag')
 
 if '--' not in sys.argv:
     sys.stderr.write('Usage: fast-forward.py [flags] -- <commands>')
@@ -108,7 +109,7 @@ system.membus = SystemXBar()
 system.cpu.icache = L1ICache()
 system.cpu.dcache = L1DCache()
 
-if 'tcache_port' in system.cpu._ports:
+if 'tcache_port' in system.cpu._ports and not args.mocktag:
     system.cpu.tcache = TCache()
     system.cpu.tcache_port = system.cpu.tcache.cpu_side
     system.cpu.tcache.mem_side = system.l2bus.cpu_side_ports

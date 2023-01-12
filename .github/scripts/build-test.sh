@@ -15,7 +15,6 @@ fi
 
 GEM5=$(pwd)/build/RISCVCapstone/gem5.opt
 GEM5_CONFIG=$(pwd)/configs/capstone/fast-forward.py
-GEM5_CONFIG_FLAGS="--cpu=o3"
 
 
 build_and_run() {
@@ -56,11 +55,13 @@ build_and_run() {
 print_prompt "Build and run with the mock tag controller"
 
 BUILD_FLAGS="--uncompressed --mocktag"
+GEM5_CONFIG_FLAGS="--cpu=o3 --mocktag"
 build_and_run
 
 print_prompt "Build and run with the memory-backed tag controller"
 
 BUILD_FLAGS="--uncompressed"
+GEM5_CONFIG_FLAGS="--cpu=o3"
 build_and_run
 
 
