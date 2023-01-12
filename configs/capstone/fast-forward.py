@@ -108,10 +108,13 @@ system.membus = SystemXBar()
 system.cpu.icache = L1ICache()
 system.cpu.dcache = L1DCache()
 
-if 'tcache_port' in system.cpu.__dict__:
+try:
     system.cpu.tcache = TCache()
-    system.cpu.tcache.mem_side = system.l2bus.cpu_side_ports
     system.cpu.tcache_port = system.cpu.tcache.cpu_side
+    system.cpu.tcache.mem_side = system.l2bus.cpu_side_ports
+except:
+    pass
+
 
 system.l2bus.mem_side_ports = system.l2cache.cpu_side
 system.l2cache.mem_side = system.membus.cpu_side_ports

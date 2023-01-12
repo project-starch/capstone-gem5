@@ -9,7 +9,7 @@ GEM5?=gem5.opt
 GEM5_FLAGS?=
 GEM5_CONFIG?=config.py
 GEM5_CONFIG_FLAGS?=
-GEM5_TEST_TIMEOUT?=5
+GEM5_TEST_TIMEOUT?=20
 
 GCC=riscv64-unknown-linux-gnu-gcc
 

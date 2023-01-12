@@ -238,12 +238,16 @@ MemoryTagController::handleResp(PacketPtr pkt) {
     } else{
         DPRINTF(TagController, "tag controller query response\n");
         bool tag = pkt->getRaw<bool>();
-        iew->instToCommitIfExeced(inst);
 
         inst->completeTagQuery(tag_op.addr, tag);
+        //iew->instToCommitIfExeced(inst);
         // TODO: handle fault and 
         // check whether the instruction execution is complete
     }
+    
+    ongoingRequests.erase(it);
+
+    return true;
 }
 
 void

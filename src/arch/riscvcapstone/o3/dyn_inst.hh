@@ -177,6 +177,10 @@ class DynInst : public ExecContext, public RefCounted
         return tagQueries[idx].res_tag;
     }
 
+    bool isMemReadComplete() const {
+        return memReadN == completedMemReadN;
+    }
+
     int getMemReadN() const {
         return memReadN;
     }
@@ -812,7 +816,8 @@ class DynInst : public ExecContext, public RefCounted
 
     bool isQueryCompleted() const {
         return completedTagQueryN == tagQueryN &&
-            completedMemReadN == memReadN;
+            completedMemReadN == memReadN &&
+            isExecuted();
     }
 
     /** Marks the result as ready. */

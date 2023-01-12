@@ -1278,6 +1278,11 @@ IEW::executeInsts()
                 // event adds the instruction to the queue to commit
                 fault = ldstQueue.executeLoad(inst);
 
+                if(inst->isMemReadComplete()) {
+                    inst->setExecuted(); // we already keep track of the request count
+                                     // can set to executed
+                }
+
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {
                     // A hw page table walk is currently going on; the
@@ -1350,8 +1355,8 @@ IEW::executeInsts()
             // instructions that require wb still need to wait
             if(!inst->hasNodeWB()) {
                 inst->setNodeExecuted();
-                instToCommitIfExeced(inst);
             }
+            instToCommitIfExeced(inst);
         } else {
             inst->setNodeExecuted();
             instToCommitIfExeced(inst);

@@ -539,6 +539,7 @@ DynInst::completeTagQuery(Addr addr, bool tag) {
     assert(i < tagQueryN);
     assert(!tagQueryCompleted[i]);
     tagQueryCompleted[i] = true;
+    tagQueries[i].res_tag = tag;
     ++ completedTagQueryN;
     checkQueryCompleted();
 }
