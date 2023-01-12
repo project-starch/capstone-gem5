@@ -439,6 +439,8 @@ IEW::squash(ThreadID tid)
 
     // Tell the LDSTQ to start squashing.
     ldstQueue.squash(fromCommit->commitInfo[tid].doneSeqNum, tid);
+    ncQueue.squash(fromCommit->commitInfo[tid].doneSeqNum, tid);
+    tagController.squash(fromCommit->commitInfo[tid].doneSeqNum, tid);
     updatedQueues = true;
 
     // Clear the skid buffer in case it has any data in it.

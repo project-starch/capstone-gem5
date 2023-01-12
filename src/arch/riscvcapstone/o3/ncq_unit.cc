@@ -225,6 +225,15 @@ NCQUnit::passedQuery(const DynInstPtr& inst) const {
     return true;
 }
 
+void
+NCQUnit::squash(const InstSeqNum &squashed_num) {
+    while(!ncQueue.empty() && ncQueue.back().inst->seqNum > squashed_num) {
+        ncQueue.back().inst->setSquashed();
+        ncQueue.back().clear();
+        ncQueue.pop_back();
+    }
+}
+
 
 }
 }
