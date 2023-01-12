@@ -30,6 +30,10 @@ class BaseTagController {
             DynInstPtr inst;
             std::list<TagOp> ops;
             bool canWB;
+
+            void clear() {
+                inst = DynInstPtr();
+            }
         };
 
         //using TagQueue = CircularQueue<TagEntry>;
@@ -59,8 +63,9 @@ class BaseTagController {
         /**
          * Commit instructions before the given sequence number
          * */
-        void commitBefore(InstSeqNum seq_num, ThreadID thread_id);
+        void commitBefore(const InstSeqNum& seq_num, ThreadID thread_id);
         virtual void tick() = 0;
+        virtual void squash(const InstSeqNum& seq_num, ThreadID thread_id);
         virtual void writeback();
         // insert instruction during dispatch (in-order)
         virtual void insertInstruction(const DynInstPtr& inst);

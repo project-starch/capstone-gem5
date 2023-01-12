@@ -39,6 +39,10 @@ struct NCQEntry {
         }
     }
 
+    void clear() {
+        inst = DynInstPtr();
+    }
+
     // all commands have been finished
     bool completed() const {
         return completedCommands == commands.size();
@@ -81,6 +85,8 @@ class NCQUnit {
         bool handleCacheResp(PacketPtr pkt);
         bool passedQuery(const DynInstPtr& inst) const;
         void cleanupCommands();
+
+        void squash(const InstSeqNum &squashed_num);
 };
 
 }

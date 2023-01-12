@@ -97,6 +97,8 @@ class NCQ {
 
         bool passedQuery(const DynInstPtr& inst) const;
         void cleanupCommands();
+
+        void squash(const InstSeqNum& squashed_num, ThreadID thread_id);
 };
 
 }

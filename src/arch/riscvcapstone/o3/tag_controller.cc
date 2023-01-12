@@ -33,12 +33,23 @@ BaseTagController::setTag(const DynInstPtr& inst, Addr addr, NodeID tag) {
 }
 
 void
-BaseTagController::commitBefore(InstSeqNum seq_num, ThreadID thread_id) {
+BaseTagController::commitBefore(const InstSeqNum& seq_num, ThreadID thread_id) {
     TagQueue& tag_queue = tagQueues[thread_id];
 
     for(TagQueue::iterator it = tag_queue.begin();
         it != tag_queue.end() && it->inst->seqNum <= seq_num; ++ it) {
         it->canWB = true;
+    }
+}
+
+void
+BaseTagController::squash(const InstSeqNum& seq_num, ThreadID thread_id) {
+    TagQueue& tag_queue = tagQueues[thread_id];
+
+    while(!tag_queue.empty() && tag_queue.back().inst->seqNum > seq_num){
+        tag_queue.back().inst->setSquashed();
+        tag_queue.back().clear();
+        tag_queue.pop_back();
     }
 }
 
