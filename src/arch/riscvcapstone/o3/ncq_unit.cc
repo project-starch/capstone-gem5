@@ -77,6 +77,8 @@ NCQUnit::cleanupCommands(){
     while(!ncQueue.empty()) {
         auto& front = ncQueue.front();
         if(front.canWB && front.completed()) {
+            front.inst->ncqIdx = -1;
+            front.clear();
             ncQueue.pop_front();
         } else{
             break;
@@ -159,7 +161,10 @@ NCQUnit::writebackCommands(){
                 // record which command the packet originates from
                 // to deliver the packet back once the response if received
                 assert(packetIssuers.find(pkt->id) == packetIssuers.end());
-                packetIssuers[pkt->id] = nc_ptr;
+                packetIssuers[pkt->id] = PacketRecord {
+                    .inst = it->inst, 
+                    .cmd = nc_ptr
+                };
             } else if(nc_ptr->status == NodeCommand::COMPLETED) {
                 completeCommand(nc_ptr);
             }
@@ -191,12 +196,17 @@ bool
 NCQUnit::handleCacheResp(PacketPtr pkt) {
     auto it = packetIssuers.find(pkt->id);
     assert(it != packetIssuers.end());
-    NodeCommandPtr node_cmd = it->second;
-    assert(node_cmd);
-    packetIssuers.erase(it);
+    PacketRecord& packet_record = it->second;
+    NodeCommandPtr node_cmd = packet_record.cmd;
+    if(packet_record.inst->ncqIdx < 0) {
+        packetIssuers.erase(it);
+        delete pkt;
+        return true;
+    }
     DPRINTF(NCQ, "Node cache response received for instruction %u, cmd beforeCommit = %u\n",
-            it->second->inst->seqNum, it->second->beforeCommit());
-    node_cmd->handleResp(pkt);
+            packet_record.inst->seqNum, node_cmd->beforeCommit());
+    packetIssuers.erase(it);
+    node_cmd->handleResp(pkt); // node_cmd is expected to handle the freeing of pkt
     DPRINTF(NCQ, "Command handler new status = %u\n", static_cast<unsigned int>(node_cmd->status));
     if(node_cmd->status == NodeCommand::COMPLETED) {
         completeCommand(node_cmd);
@@ -228,8 +238,10 @@ NCQUnit::passedQuery(const DynInstPtr& inst) const {
 void
 NCQUnit::squash(const InstSeqNum &squashed_num) {
     while(!ncQueue.empty() && ncQueue.back().inst->seqNum > squashed_num) {
-        ncQueue.back().inst->setSquashed();
-        ncQueue.back().clear();
+        NCQEntry& back = ncQueue.back();
+        back.inst->setSquashed();
+        back.inst->ncqIdx = -1;
+        back.clear();
         ncQueue.pop_back();
     }
 }

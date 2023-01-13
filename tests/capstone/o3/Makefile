@@ -1,3 +1,5 @@
+SHELL:=/bin/bash
+
 ASM_SOURCES=$(wildcard *.S)
 STATIC_LIB=exit
 HEADERS=asm_insn.h
@@ -22,18 +24,21 @@ $(OBJECTS):%.o:%.S $(HEADERS)
 	$(GCC) -c -o $@ $<
 
 $(RUN_TARGETS):run-%:%
-	@echo "Running testcase $^"; \
-		if [ -f $^.out ]; then \
-			echo "Testing against expected output"; \
-			TMP_FILE=$$(mktemp); \
-			(timeout $(GEM5_TEST_TIMEOUT) $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^ 2>&1 | tee $$TMP_FILE); \
-			grep -q "$$(cat $^.out)" $$TMP_FILE; \
-		else \
-			echo "Testing against exit code"; \
-			timeout $(GEM5_TEST_TIMEOUT) $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^ 2>&1 | tee $$TEMP_FILE; \
-		fi
-			
-
+	$(info Running testcase $^)
+	@tmpfile=$$(mktemp); \
+	timeout $(GEM5_TEST_TIMEOUT) $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^ 2>&1 | tee $$tmpfile; \
+	outcode=$${PIPESTATUS[0]}; \
+	if [ -f $^.code ]; then \
+		expected="$$(cat $^.code)"; \
+	else \
+		expected=0; \
+	fi; \
+	if [ -f $^.out ]; then \
+		grep -q "$$(cat $^.out)" $$tmpfile; \
+	else \
+		test $$outcode -eq "$$expected"; \
+	fi;
+	
 $(DEBUG_TARGETS):debug-%:%
 	gdb --args $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
 

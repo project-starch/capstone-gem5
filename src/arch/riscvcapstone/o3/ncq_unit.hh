@@ -42,6 +42,10 @@ struct NCQEntry {
 
     void clear() {
         inst = DynInstPtr();
+        for(auto cmd : commands) {
+            delete cmd;
+        }
+        commands.clear();
     }
 
     // all commands have been finished
@@ -56,6 +60,10 @@ struct NCQEntry {
  * */
 class NCQUnit {
     private:
+        struct PacketRecord {
+            DynInstPtr inst;
+            NodeCommandPtr cmd;
+        };
 
         CircularQueue<NCQEntry> ncQueue;
         int threadId;
@@ -67,7 +75,7 @@ class NCQUnit {
 
         NodeCommandsOrdering ncOrder;
 
-        std::unordered_map<PacketId, NodeCommandPtr> packetIssuers;
+        std::unordered_map<PacketId, PacketRecord> packetIssuers;
 
     public:
         typedef typename CircularQueue<NCQEntry>::iterator NCQIterator;

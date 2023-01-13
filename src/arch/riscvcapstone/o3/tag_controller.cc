@@ -114,7 +114,7 @@ BaseTagController::writeback() {
             ++ tq_it) {
         for(; !tq_it->empty() && tq_it->front().canWB &&
                 writebackTagEntry(tq_it->front());
-                tq_it->pop_front());
+                tq_it->front().clear(), tq_it->pop_front());
     }
 }
 
