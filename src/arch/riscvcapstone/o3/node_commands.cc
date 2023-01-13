@@ -164,6 +164,8 @@ NodeAllocate::handleResp(PacketPtr pkt) {
         default:
             panic("Unrecognised state in node allocation!");
     }
+
+    delete pkt;
 }
 
 
@@ -193,6 +195,8 @@ NodeQuery::handleResp(PacketPtr pkt) {
             static_cast<unsigned int>(node.prev),
             static_cast<unsigned int>(node.next),
             node.counter);
+
+    delete pkt;
 }
 
 bool
@@ -289,6 +293,7 @@ NodeRevoke::handleResp(PacketPtr pkt) {
             status = COMPLETED;
             break;
     }
+    delete pkt;
 }
 
 void
@@ -313,6 +318,7 @@ NodeRcUpdate::handleResp(PacketPtr pkt) {
         default:
             panic("unrecognised state in RcUpdate!");
     }
+    delete pkt;
 }
 
 
@@ -426,23 +432,26 @@ LockedNodeCommand::handleResp(PacketPtr pkt) {
             lockState = ACQUIRED;
         }
 
+        delete pkt;
+
         // otherwise, the lock was unavailable
     } else if(lockState == ACQUIRED) {
         if(rawCommand->status == COMPLETED) {
             // the lock has been released
             lockState = RELEASED;
             completed = true;
+            delete pkt;
         } else {
             rawCommand->handleResp(pkt);
         }
+    } else {
+        delete pkt;
     }
     if(completed){
         status = COMPLETED;
     } else {
         status = TO_RESUME;
     }
-
-    delete pkt;
 }
 
 PacketPtr
@@ -535,6 +544,7 @@ NodeDrop::handleResp(PacketPtr pkt) {
         default:
             panic("Unrecognised state in drop!");
     }
+    delete pkt;
 }
 
 }

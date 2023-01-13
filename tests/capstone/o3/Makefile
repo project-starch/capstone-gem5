@@ -1,3 +1,5 @@
+SHELL:=/bin/bash
+
 ASM_SOURCES=$(wildcard *.S)
 STATIC_LIB=exit
 HEADERS=asm_insn.h
@@ -9,7 +11,7 @@ GEM5?=gem5.opt
 GEM5_FLAGS?=
 GEM5_CONFIG?=config.py
 GEM5_CONFIG_FLAGS?=
-GEM5_TEST_TIMEOUT?=50
+GEM5_TEST_TIMEOUT?=5
 
 GCC=riscv64-unknown-linux-gnu-gcc
 
@@ -26,8 +28,20 @@ hello-interp:
 
 $(RUN_TARGETS):run-%:%
 	$(info Running testcase $^)
-	timeout $(GEM5_TEST_TIMEOUT) $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
-
+	@tmpfile=$$(mktemp); \
+	timeout $(GEM5_TEST_TIMEOUT) $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^ | tee $$tmpfile; \
+	outcode=$${PIPESTATUS[0]}; \
+	if [ -f $^.code ]; then \
+		expected="$$(cat $^.code)"; \
+	else \
+		expected=0; \
+	fi; \
+	if [ -f $^.out ]; then \
+		grep -q "$$(cat $^.out)" $$tmpfile; \
+	else \
+		test $$outcode -eq "$$expected"; \
+	fi;
+	
 $(DEBUG_TARGETS):debug-%:%
 	gdb --args $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
 
