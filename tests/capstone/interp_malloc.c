@@ -12,9 +12,8 @@ void __real_free(void* ptr);
 void* __wrap_malloc(size_t size) {
     void* obj = __real_malloc(size);
     if(obj) {
-        void* res;
-        asm(".insn r 0x5B, 0x0, 0x5, %0, %1, %2; \r\n" 
-                ".insn r 0x5B, 0x0, 0x7, x0, %0, x0"
+        void* res = obj;
+        asm(".insn r 0x5B, 0x0, 0x5, %0, %1, %2" 
                 : "=r" (res)
                 : "r" (obj), "r"(size));
         return res;

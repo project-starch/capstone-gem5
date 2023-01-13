@@ -1230,19 +1230,26 @@ class DynInst : public ExecContext, public RefCounted
 
 
     NodeID getRegTag(const StaticInst* si, int idx) {
-        const RegId& reg = si->srcRegIdx(idx);
-        return cpu->getRegTag(reg.index(), threadNumber);
+        if(renamedSrcIdx(idx)->is(IntRegClass)) {
+            return cpu->getRegTag(renamedSrcIdx(idx)->index(), threadNumber);
+        } else {
+            return NODE_ID_INVALID;
+        }
     }
 
     NodeID getDestRegTag(const StaticInst* si, int idx) {
-        const RegId& reg = si->destRegIdx(idx);
-        return cpu->getRegTag(reg.index(), threadNumber);
+        if(renamedDestIdx(idx)->is(IntRegClass)) {
+            return cpu->getRegTag(renamedDestIdx(idx)->index(), threadNumber);
+        } else {
+            return NODE_ID_INVALID;
+        }
     }
 
 
     void setRegTag(const StaticInst* si, int idx, NodeID tag) {
-        const RegId& reg = si->destRegIdx(idx);
-        cpu->setRegTag(reg.index(), tag, threadNumber);
+        if(renamedDestIdx(idx)->is(IntRegClass)) {
+            cpu->setRegTag(renamedDestIdx(idx)->index(), tag, threadNumber);
+        }
     }
 
     NodeID getMemTag(Addr addr);

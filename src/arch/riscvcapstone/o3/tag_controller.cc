@@ -47,6 +47,9 @@ BaseTagController::squash(const InstSeqNum& seq_num, ThreadID thread_id) {
     TagQueue& tag_queue = tagQueues[thread_id];
 
     while(!tag_queue.empty() && tag_queue.back().inst->seqNum > seq_num){
+        DPRINTF(TagController, "Instruction %llu at %llx squashed in the tag controller\n",
+                tag_queue.back().inst->seqNum,
+                tag_queue.back().inst->pcState().instAddr());
         tag_queue.back().inst->setSquashed();
         tag_queue.back().clear();
         tag_queue.pop_back();
@@ -57,9 +60,6 @@ BaseTagController::squash(const InstSeqNum& seq_num, ThreadID thread_id) {
 NodeID
 BaseTagController::getTag(const DynInstPtr& inst, Addr addr,
         bool& delayed) {
-    DPRINTF(TagController, "Tag controller get tag at %llx [sn:%u]\n",
-            addr, inst->seqNum);
-
     assert(inst->tqIdx >= 0);
 
     if(!aligned(addr)) {

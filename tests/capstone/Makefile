@@ -14,10 +14,10 @@ hello: interp_malloc.o hello.o
 revoke: interp_malloc.o revoke.o
 	$(CC) -Wl,--wrap=malloc -Wl,--wrap=free -static -o revoke interp_malloc.o revoke.o
 
-interp_malloc.o: interp_malloc.c
+interp_malloc.o: interp_malloc.c capstone_asm.h
 	$(CC) -o interp_malloc.o  -c interp_malloc.c
 
-hello.o: hello.c
+hello.o: hello.c capstone_asm.h
 	$(CC) -o hello.o  -c hello.c
 
 revoke.o: revoke.c

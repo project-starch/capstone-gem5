@@ -80,6 +80,17 @@ def template TestConstructor {{
     }
 }};
 
+def template AuxOpConstructor {{
+    %(class_name)s::%(class_name)s(ExtMachInst machInst):
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
+    {
+
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+        isNodeOp = true;
+    }
+}};
+
 
 def format QueryTest(code, *opt_flags) {{
     regs = ['srcRegIdx(0)']
@@ -154,7 +165,7 @@ def format AuxOp(code, initiate_node_acc_code,
             'complete_node_acc_code': complete_node_acc_code}, 
             opt_flags)
     header_output = TestDeclare.subst(iop)
-    decoder_output = TestConstructor.subst(iop)
+    decoder_output = AuxOpConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (TestExecute.subst(iop)
                   + TestInitiateAcc.subst(iop)

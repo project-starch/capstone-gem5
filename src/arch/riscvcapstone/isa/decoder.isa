@@ -480,6 +480,11 @@ decode QUADRANT default Unknown::unknown() {
                         size_t size = static_cast<size_t>(Rs2);
                         dyn_inst->allocObject(new_node_id, SimpleAddrRange(base, base + size));
 
+                        // TODO: need to check the old value
+                        DPRINTFN("Tag at reg %llu changed -> %llx\n",
+                                dyn_inst->renamedDestIdx(0)->index(),
+                                new_node_id);
+
                         Rd = Rs1;
                     }}, {{ }});
                     0x6: free ({{ }}, {{
@@ -503,7 +508,8 @@ decode QUADRANT default Unknown::unknown() {
                         assert(dyn_inst);
                         NodeID node_id = dyn_inst->getRegTag(this, 0);
 
-                        DPRINTFN("gettag = %llu\n", node_id);
+                        DPRINTFN("gettag = %llu (value = %llx) pc = %llx\n", node_id, _dummy,
+                                dyn_inst->pcState().instAddr());
                     }}, {{ }});
                 }
             }

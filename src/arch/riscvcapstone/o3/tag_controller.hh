@@ -78,7 +78,7 @@ class BaseTagController {
 
 class MockTagController : public BaseTagController {
     private:
-        static const int REG_N = 32;
+        static const int REG_N = 256;
         using RegTagMap = std::vector<NodeID>;
         std::vector<RegTagMap> regTagMaps;
         std::unordered_map<NodeID, SimpleAddrRange> objectMap;

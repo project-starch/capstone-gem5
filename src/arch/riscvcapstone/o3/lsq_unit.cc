@@ -604,19 +604,23 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
 
     NodeID new_node_id = inst->getMemTag(addr); // store node id
     NodeID old_node_id = inst->getDestRegTag(rv_inst, 0);
-    if(new_node_id != NODE_ID_INVALID) {
-        // if yes, record the reg as a capability
-        panic_if(rv_inst->numDestRegs() != 1, "load instruction should have exactly 1 destination register");
-        Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(new_node_id, 1));
-        assert(node_fault == NoFault);
-    }
+    if(old_node_id != new_node_id) {
+        DPRINTF(LSQUnit, "Tag at reg %llu changed %llu -> %llu\n", inst->renamedDestIdx(0)->index(),
+                old_node_id, new_node_id);
+        if(new_node_id != NODE_ID_INVALID) {
+            // if yes, record the reg as a capability
+            panic_if(rv_inst->numDestRegs() != 1, "load instruction should have exactly 1 destination register");
+            Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(new_node_id, 1));
+            assert(node_fault == NoFault);
+        }
 
-    if(old_node_id != NODE_ID_INVALID) {
-        Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(old_node_id, -1));
-        assert(node_fault == NoFault);
-    }
+        if(old_node_id != NODE_ID_INVALID) {
+            Fault node_fault = inst->initiateNodeCommand(new NodeRcUpdate(old_node_id, -1));
+            assert(node_fault == NoFault);
+        }
 
-    inst->setRegTag(rv_inst, 0, new_node_id);
+        inst->setRegTag(rv_inst, 0, new_node_id);
+    }
 
     load_fault = inst->initiateAcc();
 
@@ -699,21 +703,24 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
 
     NodeID new_node_id = store_inst->getRegTag(rv_inst, 1); // store node id
     NodeID old_node_id = store_inst->getMemTag(addr);
-    if(new_node_id != NODE_ID_INVALID) {
-        // if yes, record the reg as a capability
-        panic_if(rv_inst->numSrcRegs() != 2, "store instruction should have exactly 2 destination registers");
-        Fault node_fault = store_inst->initiateNodeCommand(new NodeRcUpdate(new_node_id, 1));
-        assert(node_fault == NoFault);
-    }
+    if(old_node_id != new_node_id) {
+        DPRINTF(LSQUnit, "Tag at %llx changed %llu -> %llu\n", addr, old_node_id, new_node_id);
+        if(new_node_id != NODE_ID_INVALID) {
+            // if yes, record the reg as a capability
+            panic_if(rv_inst->numSrcRegs() != 2, "store instruction should have exactly 2 destination registers");
+            Fault node_fault = store_inst->initiateNodeCommand(new NodeRcUpdate(new_node_id, 1));
+            assert(node_fault == NoFault);
+        }
 
-    // check the original node at the memory location
-    if(old_node_id != NODE_ID_INVALID) {
-        Fault node_fault = store_inst->initiateNodeCommand(new NodeRcUpdate(old_node_id, -1));
-        assert(node_fault == NoFault);
-    }
+        // check the original node at the memory location
+        if(old_node_id != NODE_ID_INVALID) {
+            Fault node_fault = store_inst->initiateNodeCommand(new NodeRcUpdate(old_node_id, -1));
+            assert(node_fault == NoFault);
+        }
 
-    // set the new node for the overwritten memory location
-    store_inst->setMemTag(addr, new_node_id);
+        // set the new node for the overwritten memory location
+        store_inst->setMemTag(addr, new_node_id);
+    }
 
     Fault store_fault = store_inst->initiateAcc();
 

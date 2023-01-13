@@ -44,15 +44,18 @@ int main(int argc, char* argv[])
     printf("Hello gem5!\n");
     fflush(stdout);
     void* s = malloc(15);
+    PRINT_TAG(s);
     printf("Print tag below\n");
+    PRINT_TAG(s);
     fflush(stdout);
-    print_tag(s);
+    PRINT_TAG(s);
     void* c = (void*)((uintptr_t)do_whatever(s) + 2);
-    print_tag(c);
+    PRINT_TAG(s);
     good(c);
     free(s);
     s = malloc(4);
     *(volatile char*)s = 0;
+    PRINT_TAG(s);
     free(s);
     /*asm volatile ("li a0, 10\n\t"*/
             /*"call malloc\n\t"*/
