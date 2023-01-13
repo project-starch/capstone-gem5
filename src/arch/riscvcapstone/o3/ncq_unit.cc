@@ -211,8 +211,10 @@ NCQUnit::passedQuery(const DynInstPtr& inst) const {
             ++ it) {
         NodeCommandPtr& node_command = *it;
         if(node_command->beforeCommit() &&
-                (node_command->status != NodeCommand::COMPLETED ||
-                 node_command->error())) {
+                node_command->status != NodeCommand::COMPLETED) {
+        //if(node_command->beforeCommit() &&
+                //(node_command->status != NodeCommand::COMPLETED ||
+                 //node_command->error())) {
             return false;
         }
     }

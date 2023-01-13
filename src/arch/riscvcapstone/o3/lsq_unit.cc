@@ -585,6 +585,17 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
 }
 
 
+void
+LSQUnit::issueCapChecks(const DynInstPtr& inst, Addr addr) {
+    auto rv_inst = dynamic_cast<RiscvStaticInst*>(inst->staticInst.get());
+    int num_src_regs = inst->numSrcRegs();
+    for(int i = 0; i < num_src_regs; i ++){
+        NodeID node_id = inst->getRegTag(rv_inst, i);
+        if(node_id != NODE_ID_INVALID && cpu->getObject(node_id).contains(addr)) {
+            inst->initiateNodeCommand(new NodeQuery(node_id));
+        }
+    }
+}
 
 
 Fault
@@ -604,6 +615,9 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
 
     NodeID new_node_id = inst->getMemTag(addr); // store node id
     NodeID old_node_id = inst->getDestRegTag(rv_inst, 0);
+
+    issueCapChecks(inst, addr);
+
     if(old_node_id != new_node_id) {
         DPRINTF(LSQUnit, "Tag at reg %llu changed %llu -> %llu\n", inst->renamedDestIdx(0)->index(),
                 old_node_id, new_node_id);
@@ -700,6 +714,8 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
     Addr addr = rv_inst->getAddr(store_inst.get(), store_inst->traceData);
 
     // check the node to be written to the memory location
+
+    issueCapChecks(store_inst, addr);
 
     NodeID new_node_id = store_inst->getRegTag(rv_inst, 1); // store node id
     NodeID old_node_id = store_inst->getMemTag(addr);

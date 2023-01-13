@@ -541,6 +541,8 @@ class LSQUnit
         statistics::Distribution loadToUse;
     } stats;
 
+    void issueCapChecks(const DynInstPtr& inst, Addr addr);
+
   public:
     /** Executes the load at the given index. */
     Fault read(LSQRequest *request, ssize_t load_idx);
