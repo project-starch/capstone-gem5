@@ -1319,7 +1319,7 @@ IEW::executeInsts()
                     // Send this instruction to commit, also make sure iew
                     // stage realizes there is activity.
                     inst->setExecuted();
-                    instToCommit(inst);
+                    instToCommitIfExeced(inst);
                     activityThisCycle();
                 }
 
@@ -1343,7 +1343,7 @@ IEW::executeInsts()
                 instToCommitIfExeced(inst);
             } else{
                 inst->setExecuted();
-                instToCommit(inst);
+                instToCommitIfExeced(inst);
             }
 
         }
