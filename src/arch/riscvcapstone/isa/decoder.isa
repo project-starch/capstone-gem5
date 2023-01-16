@@ -669,7 +669,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
 
-                        dyn_inst->initiateSetTag(EA, true);
+                        //dyn_inst->initiateSetTag(EA, true);
                     }}, {{
                         Rd_trv.getRegVal() = Mem_rv;
 
@@ -678,6 +678,9 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
                         Rd_trv.setTag(false);
+
+                        //Addr EA = Rs1_trv.getRegVal().capVal().cursor();
+                        //dyn_inst->initiateSetTag(EA, true);
 
                         Rd_trv = Rd_trv;
                     }});
@@ -709,9 +712,15 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                 "Capability provided is not valid!", machInst);
                     }}, {{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
                         Addr EA = Rd_trv.getRegVal().capVal().cursor();
 
                         Mem_rv = Rs1_trv.getRegVal();
+                        Mem_rv.capVal().setBound(0,0);
+                        Mem_rv.capVal().setPerm(CapPerm::NA);
+                        Mem_rv.capVal().setType(CapType::LIN);
+                        Mem_rv.capVal().setNodeId(0);
 
                         using namespace gem5::RiscvcapstoneISA::o3;
 
@@ -734,9 +743,9 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        bool res_tag = dyn_inst->getTagQueryRes(0);                   
+                        bool res_tag = dyn_inst->getTagQueryRes(0);
 
-                        Addr EA = Rd_trv.getRegVal().capVal().cursor();    
+                        Addr EA = Rd_trv.getRegVal().capVal().cursor();
 
                         if(res_tag) {
                             //if Rd has a capability AND Rs1 is scalar
@@ -746,14 +755,20 @@ decode QUADRANT default Unknown::unknown() {
                                 dyn_inst->initiateSetTag(EA, false);
                         }
 
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+
                         if(Rs1_trv.getTag()) {
                             if(Rs1_trv.getRegVal().capVal().type() != 
-                                CapType::NONLIN)
+                                CapType::NONLIN) {
+                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
                                 Rs1_trv.setTag(false);
+                            } else {
+                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                            }
                         }
 
                         Rs1_trv = Rs1_trv;
-                    }});
+                    }}, IsStore);
                 }
                 format RNodeOp {
                     0x11: mrev ({{
