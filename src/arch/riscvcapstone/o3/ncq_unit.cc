@@ -218,7 +218,7 @@ NCQUnit::handleCacheResp(PacketPtr pkt) {
 bool
 NCQUnit::passedQuery(const DynInstPtr& inst) const {
     assert(inst->threadNumber == threadId);
-    if(!inst->isNodeOp()) // no associated command
+    if(!inst->hasNodeOp()) // no associated command
         return true;
     assert(inst->ncqIdx != -1);
     auto& commands = inst->ncqIt->commands;

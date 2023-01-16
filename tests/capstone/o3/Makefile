@@ -7,6 +7,7 @@ OBJECTS=$(patsubst %.S,%.o,$(ASM_SOURCES))
 TARGETS=$(filter-out $(STATIC_LIB),$(patsubst %.S,%,$(ASM_SOURCES)))
 RUN_TARGETS=$(patsubst %,run-%,$(TARGETS))
 DEBUG_TARGETS=$(patsubst %,debug-%,$(TARGETS))
+MEMCHECK_TARGETS=$(patsubst %,memcheck-%,$(TARGETS))
 GEM5?=gem5.opt
 GEM5_FLAGS?=
 GEM5_CONFIG?=config.py
@@ -41,6 +42,9 @@ $(RUN_TARGETS):run-%:%
 	
 $(DEBUG_TARGETS):debug-%:%
 	gdb --args $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
+
+$(MEMCHECK_TARGETS):memcheck-%:%
+	valgrind $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
 
 run: $(RUN_TARGETS)
 

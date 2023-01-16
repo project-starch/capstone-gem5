@@ -118,15 +118,10 @@ class DynInst : public ExecContext, public RefCounted
     /** Executes the instruction.*/
     Fault execute();
 
-    Fault initiateNodeAcc();
-
     Fault completeNodeAcc(NodeCommandPtr node_command);
 
-    /** Initiates the access.  Only valid for memory operations. */
-    Fault initiateAcc();
-
     /** Completes the access.  Only valid for memory operations. */
-    Fault completeAcc(PacketPtr pkt);
+    Fault completeMemAcc(PacketPtr pkt);
 
     /** The sequence number of the instruction. */
     InstSeqNum seqNum = 0;
@@ -649,12 +644,20 @@ class DynInst : public ExecContext, public RefCounted
     bool isHtmStop() const { return staticInst->isHtmStop(); }
     bool isHtmCancel() const { return staticInst->isHtmCancel(); }
     bool isHtmCmd() const { return staticInst->isHtmCmd(); }
-    bool isNodeOp() const { 
+    bool hasNodeOp() const { 
         auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
         if(rvStaticInst == nullptr) {
             return false;
         }
-        return rvStaticInst->isNodeOp;
+        return rvStaticInst->hasNodeOp;
+    }
+
+    bool hasTagReq() const {
+        auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
+        if(rvStaticInst == nullptr) {
+            return false;
+        }
+        return rvStaticInst->hasTagReq;
     }
 
     bool hasNodeWB() const { 
@@ -845,7 +848,7 @@ class DynInst : public ExecContext, public RefCounted
     void clearIssued() { status.reset(Issued); }
 
     /** Sets this instruction as executed. */
-    void setExecuted() { status.set(Executed); }
+    void setExecuted() { status.set(Executed); checkQueryCompleted(); }
 
     void setNodeExecuted() { status.set(NodeExecuted); }
 
@@ -1313,31 +1316,9 @@ class DynInst : public ExecContext, public RefCounted
 
     void completeTagQuery(Addr addr, bool tag);
 
-    void checkQueryCompleted() {
-        if(isQueryCompleted()) {
-            //if(memReadN > 0) {
-            auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
-            rv_inst->completeAcc(this, traceData);
-            for(int i = 0; i < memReadN; i ++){
-                bool saved = false;
-                //delete memReads[i].res_pkt;
-                for(auto it = savedRequest->_packets.begin();
-                        it != savedRequest->_packets.end();
-                        ++ it) {
-                    if(*it == memReads[i].res_pkt) {
-                        saved = true;
-                        break;
-                    }
-                }
-                if(!saved) {
-                    delete memReads[i].res_pkt;
-                }
-                memReads[i].res_pkt = nullptr; // just to make sure 
-            }
-            //}
-            cpu->iewInstToCommitIfExeced(dynamic_cast<DynInstPtr::PtrType>(this));
-        }
-    }
+    void completeMemRead(int idx, PacketPtr pkt);
+
+    void checkQueryCompleted();
 };
 
 } // namespace RiscvcapstoneISA::o3

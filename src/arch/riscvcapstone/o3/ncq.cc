@@ -30,6 +30,12 @@ NCQ::insertInstruction(const DynInstPtr& inst) {
     threads[inst->threadNumber].insertInstruction(inst);
 }
 
+Fault
+NCQ::postExecCheck(const DynInstPtr& inst) {
+    assert(inst->threadNumber >= 0 && inst->threadNumber < threadNum);
+    return threads[inst->threadNumber].postExecCheck(inst);
+}
+
 void
 NCQ::tick() {
     ncachePort.tick();
@@ -48,12 +54,6 @@ bool
 NCQ::isFull(ThreadID thread_id) {
     assert(thread_id >= 0 && thread_id < threadNum);
     return threads[thread_id].isFull();
-}
-
-Fault
-NCQ::executeNodeOp(const DynInstPtr& inst) {
-    DPRINTF(NCQ, "Executing node op insn %u\n", inst->seqNum);
-    return inst->initiateNodeAcc();
 }
 
 void
@@ -157,7 +157,6 @@ NCQ::cleanupCommands() {
         thread.cleanupCommands();
     }
 }
-
 
 void 
 NCQ::squash(const InstSeqNum& squashed_num, ThreadID thread_id) {

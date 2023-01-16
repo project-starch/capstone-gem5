@@ -353,21 +353,6 @@ DynInst::execute()
 }
 
 Fault
-DynInst::initiateNodeAcc() {
-    auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
-    assert(rvStaticInst != nullptr);
-
-    bool no_squash_from_TC = thread->noSquashFromTC;
-    thread->noSquashFromTC = true;
-
-    Fault fault = rvStaticInst->initiateNodeAcc(this, cpu, traceData);
-
-    thread->noSquashFromTC = no_squash_from_TC;
-
-    return fault;
-}
-
-Fault
 DynInst::completeNodeAcc(NodeCommandPtr node_command) {
     auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
     assert(rvStaticInst != nullptr);
@@ -384,24 +369,7 @@ DynInst::completeNodeAcc(NodeCommandPtr node_command) {
 }
 
 Fault
-DynInst::initiateAcc()
-{
-    // @todo: Pretty convoluted way to avoid squashing from happening
-    // when using the TC during an instruction's execution
-    // (specifically for instructions that have side-effects that use
-    // the TC).  Fix this.
-    bool no_squash_from_TC = thread->noSquashFromTC;
-    thread->noSquashFromTC = true;
-
-    fault = staticInst->initiateAcc(this, traceData);
-
-    thread->noSquashFromTC = no_squash_from_TC;
-
-    return fault;
-}
-
-Fault
-DynInst::completeAcc(PacketPtr pkt)
+DynInst::completeMemAcc(PacketPtr pkt)
 {
     // @todo: Pretty convoluted way to avoid squashing from happening
     // when using the TC during an instruction's execution
@@ -421,20 +389,12 @@ DynInst::completeAcc(PacketPtr pkt)
         int i;
         for(i = 0; i < memReadN && !pkt->matchAddr(memReads[i].addr, false);
                 i ++);
-        assert(i < memReadN);
-        memReads[i].res_pkt = pkt;
-        assert(!memReadCompleted[i]);
-        memReadCompleted[i] = true;
-
-        assert(completedMemReadN < memReadN);
-        ++ completedMemReadN;
-
-        checkQueryCompleted();
+        completeMemRead(i, pkt);
     } else{
-        fault = staticInst->completeAcc(pkt, this, traceData);
+        completeMemRead(0, pkt);
+        //fault = staticInst->completeAcc(pkt, this, traceData);
     }
     thread->noSquashFromTC = no_squash_from_TC;
-
 
     return fault;
 }
@@ -533,6 +493,17 @@ DynInst::initiateGetTag(Addr addr) {
 }
 
 void
+DynInst::completeMemRead(int idx, PacketPtr pkt) {
+    assert(idx >= 0 && idx < memReadN);
+    assert(!memReadCompleted[idx]);
+
+    memReads[idx].res_pkt = pkt;
+    memReadCompleted[idx] = true;
+    ++ completedMemReadN;
+    checkQueryCompleted();
+}
+
+void
 DynInst::completeTagQuery(Addr addr, bool tag) {
     int i;
     for(i = 0; i < tagQueryN && tagQueries[i].addr != addr; i ++);
@@ -549,6 +520,33 @@ DynInst::initiateSetTag(Addr addr, bool tag) {
     getTagController().setTag(dynamic_cast<DynInstPtr::PtrType>(this),
             addr, tag);
     return NoFault;
+}
+
+void
+DynInst::checkQueryCompleted() {
+    if(isQueryCompleted()) {
+        //if(memReadN > 0) {
+        auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
+        rv_inst->completeAcc(this, traceData);
+        for(int i = 0; i < memReadN; i ++){
+            bool saved = false;
+            //delete memReads[i].res_pkt;
+            for(auto it = savedRequest->_packets.begin();
+                    it != savedRequest->_packets.end();
+                    ++ it) {
+                if(*it == memReads[i].res_pkt) {
+                    saved = true;
+                    break;
+                }
+            }
+            if(!saved) {
+                delete memReads[i].res_pkt;
+            }
+            memReads[i].res_pkt = nullptr; // just to make sure 
+        }
+        //}
+        cpu->iewInstToCommitIfExeced(dynamic_cast<DynInstPtr::PtrType>(this));
+    }
 }
 
 } // namespace RiscvcapstoneISA::o3

@@ -6,15 +6,6 @@ def template TestRevokeExecute {{
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
-        return NoFault;
-    }
-}};
-
-def template TestRevokeInitiateAcc {{
-    Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        Trace::InstRecord *traceData) const
-    {
         using namespace gem5::RiscvcapstoneISA::o3;
 
         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
@@ -41,15 +32,6 @@ def template TestQueryExecute {{
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
-        return NoFault;
-    }
-}};
-
-def template TestQueryInitiateAcc {{
-    Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        Trace::InstRecord *traceData) const
-    {
         using namespace gem5::RiscvcapstoneISA::o3;
 
         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
@@ -75,15 +57,6 @@ def template TestRcUpdateExecute {{
     Fault
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
-    {
-        return NoFault;
-    }
-}};
-
-def template TestRcUpdateInitiateAcc {{
-    Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        Trace::InstRecord *traceData) const
     {
         using namespace gem5::RiscvcapstoneISA::o3;
 
@@ -114,16 +87,6 @@ def template TestAllocExecute {{
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
-        return NoFault;
-    }
-}};
-
-def template TestAllocInitiateAcc {{
-    Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        Trace::InstRecord *traceData) const
-    {
-
         using namespace gem5::RiscvcapstoneISA::o3;
 
         DPRINTFN("Testalloc parent id = %lu\n", xc->getRegOperand(this, 0));
@@ -167,15 +130,6 @@ def template TestDropExecute {{
     Fault
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
-    {
-        return NoFault;
-    }
-}};
-
-def template TestDropInitiateAcc {{
-    Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        Trace::InstRecord *traceData) const
     {
         using namespace gem5::RiscvcapstoneISA::o3;
 

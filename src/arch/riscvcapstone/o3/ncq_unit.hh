@@ -97,6 +97,10 @@ class NCQUnit {
         void cleanupCommands();
 
         void squash(const InstSeqNum &squashed_num);
+
+        Fault postExecCheck(const DynInstPtr& inst) {
+            return NoFault;
+        }
 };
 
 }

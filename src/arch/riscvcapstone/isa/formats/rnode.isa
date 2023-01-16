@@ -30,7 +30,7 @@
 //
 // Format for ops touching node tree
 // Similar to a basic ROp, just adding a statement
-// to the constructor setting isNodeOp to true
+// to the constructor setting hasNodeOp to true
 //
 
 def format RNodeOp(code, comp_code = {{ }}, *opt_flags) {{
@@ -40,7 +40,6 @@ def format RNodeOp(code, comp_code = {{ }}, *opt_flags) {{
     decoder_output = RNodeConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (RNodeExecute.subst(iop)
-                   + RNodeInitiateAcc.subst(iop)
                    + RNodeCompleteAcc.subst(iop))
 }};
 
@@ -57,7 +56,6 @@ def template RNodeDeclare {{
         /// Constructor.
         %(class_name)s(MachInst machInst);
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateNodeAcc(ExecContext *, BaseCPU *cpu, Trace::InstRecord *) const override;
         Fault completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
                                 gem5::RiscvcapstoneISA::o3::NodeCommand* node_command,
                                 Trace::InstRecord *traceData) const override;
@@ -72,22 +70,13 @@ def template RNodeConstructor {{
         %(set_reg_idx_arr)s;
         %(constructor)s;
 
-        isNodeOp = true;
+        hasNodeOp = true;
     }
 }};
 
 def template RNodeExecute {{
     Fault
-    %(class_name)s::execute(
-        ExecContext *xc, Trace::InstRecord *traceData) const
-    {
-        return NoFault;
-    }
-}};
-
-def template RNodeInitiateAcc {{
-    Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
+    %(class_name)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
         %(op_decl)s;
@@ -121,32 +110,27 @@ def format RNodeMemOp(check_code, post_check_code,
     header_output = RNodeMemDeclare.subst(iop)
     decoder_output = RNodeConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (RNodeExecute.subst(iop)
-                   + RNodeMemInitiateAcc.subst(iop)
+    exec_output = (RNodeMemExecute.subst(iop)
                    + RNodeMemCompleteAcc.subst(iop))
 }};
 
-def template RNodeMemInitiateAcc {{
+def template RNodeMemExecute {{
     Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
+    %(class_name)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
-        %(op_src_decl)s;
-        %(op_rd)s;
 
-        %(check_code)s;
+        using namespace gem5::RiscvcapstoneISA::o3;
 
-        return NoFault;
-    }
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
 
-    Fault
-    %(class_name)s::initiateAcc(ExecContext *xc,
-        Trace::InstRecord *traceData) const
-    {
         %(op_decl)s;
         %(op_rd)s;
 
         %(ea_code)s;
+
+        %(check_code)s;
 
         initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
 
@@ -160,6 +144,10 @@ def template RNodeMemCompleteAcc {{
                         gem5::RiscvcapstoneISA::o3::NodeCommand* node_command,
                         Trace::InstRecord* traceData) const
     {
+        using namespace gem5::RiscvcapstoneISA::o3;
+
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
         %(post_check_code)s;
         return NoFault;
     }
@@ -168,6 +156,11 @@ def template RNodeMemCompleteAcc {{
     %(class_name)s::completeAcc(PacketPtr pkt, ExecContext *xc,
                         Trace::InstRecord* traceData) const
     {
+        using namespace gem5::RiscvcapstoneISA::o3;
+
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
+
         %(op_decl)s;
         %(op_rd)s;
 
@@ -194,8 +187,6 @@ def template RNodeMemDeclare {{
         /// Constructor.
         %(class_name)s(MachInst machInst);
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateNodeAcc(ExecContext *, BaseCPU *, Trace::InstRecord *) const override;
-        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
         Fault completeNodeAcc(ExecContext *, BaseCPU *,
                               gem5::RiscvcapstoneISA::o3::NodeCommand *,
                               Trace::InstRecord *) const override;
@@ -214,32 +205,25 @@ def format RNodeStoreMemOp(check_code, post_check_code,
     header_output = RNodeStoreMemDeclare.subst(iop)
     decoder_output = RNodeConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (RNodeExecute.subst(iop)
-                   + RNodeStoreMemInitiateAcc.subst(iop)
+    exec_output = (RNodeStoreExecute.subst(iop)
                    + RNodeStoreMemCompleteAcc.subst(iop))
 }};
 
-def template RNodeStoreMemInitiateAcc {{
+def template RNodeStoreExecute {{
     Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
+    %(class_name)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
-        %(op_src_decl)s;
-        %(op_rd)s;
+        using namespace gem5::RiscvcapstoneISA::o3;
 
-        %(check_code)s;
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
 
-        return NoFault;
-    }
-
-    Fault
-    %(class_name)s::initiateAcc(ExecContext *xc,
-        Trace::InstRecord *traceData) const
-    {
         %(op_decl)s;
         %(op_rd)s;
 
         %(ea_code)s;
+        %(check_code)s;
 
         return NoFault;
     }
@@ -251,6 +235,10 @@ def template RNodeStoreMemCompleteAcc {{
                         gem5::RiscvcapstoneISA::o3::NodeCommand* node_command,
                         Trace::InstRecord* traceData) const
     {
+        using namespace gem5::RiscvcapstoneISA::o3;
+
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
         %(post_check_code)s;
         return NoFault;
     }
@@ -259,6 +247,10 @@ def template RNodeStoreMemCompleteAcc {{
     %(class_name)s::completeAcc(PacketPtr pkt, ExecContext *xc,
                         Trace::InstRecord* traceData) const
     {
+        using namespace gem5::RiscvcapstoneISA::o3;
+
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
         %(op_decl)s;
         %(op_rd)s;
 
@@ -283,8 +275,6 @@ def template RNodeStoreMemDeclare {{
         /// Constructor.
         %(class_name)s(MachInst machInst);
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateNodeAcc(ExecContext *, BaseCPU *, Trace::InstRecord *) const override;
-        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
         Fault completeNodeAcc(ExecContext *, BaseCPU *,
                               gem5::RiscvcapstoneISA::o3::NodeCommand *,
                               Trace::InstRecord *) const override;

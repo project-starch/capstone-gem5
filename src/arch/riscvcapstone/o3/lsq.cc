@@ -233,6 +233,7 @@ LSQ::insertStore(const DynInstPtr &store_inst)
     thread[tid].insertStore(store_inst);
 }
 
+#if(0)
 Fault
 LSQ::executeLoad(const DynInstPtr &inst)
 {
@@ -248,6 +249,7 @@ LSQ::executeStore(const DynInstPtr &inst)
 
     return thread[tid].executeStore(inst);
 }
+#endif
 
 void
 LSQ::commitLoads(InstSeqNum &youngest_inst, ThreadID tid)
@@ -1537,6 +1539,13 @@ LSQ::write(LSQRequest* request, uint8_t *data, ssize_t store_idx)
     ThreadID tid = cpu->contextToThread(request->req()->contextId());
 
     return thread.at(tid).write(request, data, store_idx);
+}
+
+Fault
+LSQ::postExecCheck(const DynInstPtr& inst) {
+    ThreadID tid = inst->threadNumber;
+
+    return thread.at(tid).postExecCheck(inst);
 }
 
 } // namespace RiscvcapstoneISA::o3

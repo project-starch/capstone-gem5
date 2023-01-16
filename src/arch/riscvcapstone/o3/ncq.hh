@@ -72,8 +72,6 @@ class NCQ {
 
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
 
-        Fault executeNodeOp(const DynInstPtr& inst);
-
         void commitBefore(InstSeqNum seq_num, ThreadID thread_id);
         void writebackCommands();
         void writebackCommands(ThreadID thread_id);
@@ -99,6 +97,8 @@ class NCQ {
         void cleanupCommands();
 
         void squash(const InstSeqNum& squashed_num, ThreadID thread_id);
+
+        Fault postExecCheck(const DynInstPtr& inst);
 };
 
 }

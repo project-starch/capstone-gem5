@@ -590,6 +590,7 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
 
 
 
+#if(0)
 Fault
 LSQUnit::executeLoad(const DynInstPtr &inst)
 {
@@ -612,11 +613,13 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
     if (load_fault == NoFault && !inst->readMemAccPredicate()) {
         assert(inst->readPredicate());
         inst->setExecuted();
-        inst->completeAcc(nullptr);
+        inst->completeMemAcc(nullptr);
         iewStage->instToCommitIfExeced(inst);
         iewStage->activityThisCycle();
         return NoFault;
     }
+
+    assert(!inst->isTranslationDelayed());
 
     if (inst->isTranslationDelayed() && load_fault == NoFault)
         return load_fault;
@@ -724,6 +727,7 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
     return checkViolations(loadIt, store_inst);
 
 }
+#endif
 
 void
 LSQUnit::commitLoad()
@@ -1092,45 +1096,41 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
         return;
     }
 
-    if (!inst->isExecuted()) {
-        inst->setExecuted();
+    if (inst->fault == NoFault) {
+        // Complete access to copy data to proper place.
+        inst->completeMemAcc(pkt);
+    } else {
+        // If the instruction has an outstanding fault, we cannot complete
+        // the access as this discards the current fault.
 
-        if (inst->fault == NoFault) {
-            // Complete access to copy data to proper place.
-            inst->completeAcc(pkt);
-        } else {
-            // If the instruction has an outstanding fault, we cannot complete
-            // the access as this discards the current fault.
+        // If we have an outstanding fault, the fault should only be of
+        // type ReExec or - in case of a SplitRequest - a partial
+        // translation fault
 
-            // If we have an outstanding fault, the fault should only be of
-            // type ReExec or - in case of a SplitRequest - a partial
-            // translation fault
+        // Unless it's a hardware transactional memory fault
+        auto htm_fault = std::dynamic_pointer_cast<
+            GenericHtmFailureFault>(inst->fault);
 
-            // Unless it's a hardware transactional memory fault
-            auto htm_fault = std::dynamic_pointer_cast<
-                GenericHtmFailureFault>(inst->fault);
+        if (!htm_fault) {
+            assert(dynamic_cast<ReExec*>(inst->fault.get()) != nullptr ||
+                    inst->savedRequest->isPartialFault());
 
-            if (!htm_fault) {
-                assert(dynamic_cast<ReExec*>(inst->fault.get()) != nullptr ||
-                       inst->savedRequest->isPartialFault());
-
-            } else if (!pkt->htmTransactionFailedInCache()) {
-                // Situation in which the instruction has a hardware
-                // transactional memory fault but not the packet itself. This
-                // can occur with ldp_uop microops since access is spread over
-                // multiple packets.
-                DPRINTF(HtmCpu,
-                        "%s writeback with HTM failure fault, "
-                        "however, completing packet is not aware of "
-                        "transaction failure. cause=%s htmUid=%u\n",
-                        inst->staticInst->getName(),
-                        htmFailureToStr(htm_fault->getHtmFailureFaultCause()),
-                        htm_fault->getHtmUid());
-            }
-
-            DPRINTF(LSQUnit, "Not completing instruction [sn:%lli] access "
-                    "due to pending fault.\n", inst->seqNum);
+        } else if (!pkt->htmTransactionFailedInCache()) {
+            // Situation in which the instruction has a hardware
+            // transactional memory fault but not the packet itself. This
+            // can occur with ldp_uop microops since access is spread over
+            // multiple packets.
+            DPRINTF(HtmCpu,
+                    "%s writeback with HTM failure fault, "
+                    "however, completing packet is not aware of "
+                    "transaction failure. cause=%s htmUid=%u\n",
+                    inst->staticInst->getName(),
+                    htmFailureToStr(htm_fault->getHtmFailureFaultCause()),
+                    htm_fault->getHtmUid());
         }
+
+        DPRINTF(LSQUnit, "Not completing instruction [sn:%lli] access "
+                "due to pending fault.\n", inst->seqNum);
     }
 
     // Need to insert instruction into queue to commit
@@ -1654,6 +1654,76 @@ LSQUnit::getStoreHeadSeqNum()
         return storeQueue.front().instruction()->seqNum;
     else
         return 0;
+}
+
+Fault
+LSQUnit::postExecCheck(const DynInstPtr& inst) {
+    // TODO: deal with instructions with both read and write
+    assert(!inst->isLoad() || !inst->isStore());
+    if(inst->isLoad()) {
+        int mem_read_n = inst->getMemReadN();
+        if(mem_read_n == 0) {
+            return NoFault;
+        }
+        assert(mem_read_n == 1); // only supporting one read for now
+        if(!inst->readMemAccPredicate()) {
+            assert(inst->readPredicate());
+            inst->completeMemRead(0, nullptr);
+            iewStage->activityThisCycle();
+            return NoFault;
+        }
+
+        if(!inst->readPredicate()) {
+            inst->forwardOldRegs();
+            DPRINTF(LSQUnit, "Load [sn:%lli] not executed from %s\n",
+                    inst->seqNum,
+                    "predication");
+            iewStage->activityThisCycle();
+        } else if(inst->effAddrValid()) {
+            auto it = inst->lqIt;
+            ++it;
+
+            if (checkLoads) {
+                return checkViolations(it, inst);
+            }
+        }
+
+        return NoFault;
+    } else if(inst->isStore()) {
+        if(!inst->readPredicate()) {
+            DPRINTF(LSQUnit, "Store [sn:%lli] not executed from predication\n",
+                    inst->seqNum);
+            inst->forwardOldRegs();
+            return NoFault;
+        }
+
+        ssize_t store_idx = inst->sqIdx;
+        if(storeQueue[store_idx].size() == 0) {
+            DPRINTF(LSQUnit,"Fault on Store PC %s, [sn:%lli], Size = 0\n",
+                    inst->pcState(), inst->seqNum);
+
+            if (inst->isAtomic()) {
+                // If the instruction faulted, then we need to send it along
+                // to commit without the instruction completing.
+                if (!(inst->hasRequest() && inst->strictlyOrdered()) ||
+                        inst->isAtCommit()) {
+                    // inst->setExecuted(); // what does this achieve
+                }
+                iewStage->instToCommit(inst);
+                iewStage->activityThisCycle();
+            }
+        }
+
+        if (inst->isStoreConditional() || inst->isAtomic()) {
+            // Store conditionals and Atomics need to set themselves as able to
+            // writeback if we haven't had a fault by here.
+            storeQueue[store_idx].canWB() = true;
+
+            ++storesToWB;
+        }
+
+        return checkViolations(inst->lqIt, inst);
+    }
 }
 
 } // namespace RiscvcapstoneISA::o3

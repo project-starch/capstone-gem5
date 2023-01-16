@@ -552,12 +552,7 @@ decode QUADRANT default Unknown::unknown() {
                     0xe: ldc ({{
                         Rd_trv; Rs1_trv;
 
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
                         assert(Rs1_trv.getTag());
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
 
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
@@ -572,11 +567,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                 "Capability provided is not valid!", machInst);
                     }}, {{
-                        using namespace gem5::RiscvcapstoneISA::o3;
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
 
                         Fault fault = dyn_inst->initiateGetTag(EA);
                         if(fault != NoFault)
@@ -596,9 +587,6 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv.getRegVal() = Mem_rv;
 
                         using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
 
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
@@ -630,18 +618,11 @@ decode QUADRANT default Unknown::unknown() {
                     0x13: lds ({{
                         Rd_trv; Rs1_trv;
 
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
                         assert(Rs1_trv.getTag());
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
 
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
                         NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
 
                         assert(qry);
@@ -649,12 +630,8 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                 "Capability provided is not valid!", machInst);
                     }}, {{
-                        using namespace gem5::RiscvcapstoneISA::o3;
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-                    
                         //TODO: retrieve tag bit to make sure it corresponds
                         //with the called inst?
 
@@ -673,10 +650,6 @@ decode QUADRANT default Unknown::unknown() {
                     }}, {{
                         Rd_trv.getRegVal() = Mem_rv;
 
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
                         Rd_trv.setTag(false);
 
                         Rd_trv = Rd_trv;
@@ -686,12 +659,7 @@ decode QUADRANT default Unknown::unknown() {
                     0xf: sdc ({{
                         Rd_trv; Rs1_trv;
 
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
                         assert(Rd_trv.getTag());
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
 
                         NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
@@ -713,11 +681,6 @@ decode QUADRANT default Unknown::unknown() {
 
                         Mem_rv = Rs1_trv.getRegVal();
 
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-
                         Fault fault = dyn_inst->initiateGetTag(EA);
                         if(fault != NoFault)
                             return fault;
@@ -728,11 +691,6 @@ decode QUADRANT default Unknown::unknown() {
                                 return fault;
                     }}, {{
                         //completeAcc code
-
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
 
                         bool res_tag = dyn_inst->getTagQueryRes(0);                   
 

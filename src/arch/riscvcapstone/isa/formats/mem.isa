@@ -45,7 +45,6 @@ def template LoadStoreDeclare {{
         %(class_name)s(ExtMachInst machInst);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
         Addr getAddr(ExecContext *, Trace::InstRecord *) const override;
         Fault completeAcc(PacketPtr, ExecContext *,
                           Trace::InstRecord *) const override;
@@ -104,6 +103,7 @@ def template LoadExecute {{
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
+        /*
         Addr EA;
 
         %(op_decl)s;
@@ -122,14 +122,8 @@ def template LoadExecute {{
         %(op_wb)s;
 
         return NoFault;
-    }
-}};
+        */
 
-def template LoadInitiateAcc {{
-    Fault
-    %(class_name)s::initiateAcc(ExecContext *xc,
-        Trace::InstRecord *traceData) const
-    {
         Addr EA;
 
         %(op_src_decl)s;
@@ -138,7 +132,9 @@ def template LoadInitiateAcc {{
 
         return initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
     }
+}};
 
+def template LoadInitiateAcc {{
     Addr
     %(class_name)s::getAddr(ExecContext *xc,
         Trace::InstRecord *traceData) const {
@@ -175,6 +171,7 @@ def template StoreExecute {{
     %(class_name)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
+        /*
         Addr EA;
 
         %(op_decl)s;
@@ -195,14 +192,7 @@ def template StoreExecute {{
         %(op_wb)s;
 
         return NoFault;
-    }
-}};
-
-def template StoreInitiateAcc {{
-    Fault
-    %(class_name)s::initiateAcc(ExecContext *xc,
-        Trace::InstRecord *traceData) const
-    {
+        */
         Addr EA;
 
         %(op_decl)s;
@@ -222,7 +212,9 @@ def template StoreInitiateAcc {{
 
         return NoFault;
     }
+}};
 
+def template StoreInitiateAcc {{
     Addr
     %(class_name)s::getAddr(ExecContext *xc,
         Trace::InstRecord *traceData) const {

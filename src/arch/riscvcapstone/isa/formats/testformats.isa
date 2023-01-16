@@ -40,7 +40,6 @@ def format QueryTest(code, *opt_flags) {{
     decoder_output = TestConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (TestQueryExecute.subst(iop)
-                  + TestQueryInitiateAcc.subst(iop)
                   + TestQueryCompleteAcc.subst(iop))
 }};
 
@@ -53,7 +52,6 @@ def format DropTest(code, *opt_flags) {{
     decoder_output = TestConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (TestDropExecute.subst(iop)
-                  + TestDropInitiateAcc.subst(iop)
                   + TestDropCompleteAcc.subst(iop))
 }};
 
@@ -66,7 +64,6 @@ def format RcUpdateTest(code, *opt_flags) {{
     decoder_output = TestConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (TestRcUpdateExecute.subst(iop)
-                  + TestRcUpdateInitiateAcc.subst(iop)
                   + TestRcUpdateCompleteAcc.subst(iop))
 }};
 
@@ -79,7 +76,6 @@ def format AllocTest(code, *opt_flags) {{
     decoder_output = TestConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (TestAllocExecute.subst(iop)
-                  + TestAllocInitiateAcc.subst(iop)
                   + TestAllocCompleteAcc.subst(iop))
 }};
 
@@ -92,7 +88,6 @@ def format RevokeTest(code, *opt_flags) {{
     decoder_output = TestConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (TestRevokeExecute.subst(iop)
-                  + TestRevokeInitiateAcc.subst(iop)
                   + TestRevokeCompleteAcc.subst(iop))
 }};
 
@@ -110,8 +105,6 @@ def template TestDeclare {{
         %(class_name)s(ExtMachInst machInst);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateNodeAcc(ExecContext *, BaseCPU *,
-                              Trace::InstRecord *) const override;
         Fault completeNodeAcc(ExecContext *, BaseCPU *,
                               gem5::RiscvcapstoneISA::o3::NodeCommand *,
                               Trace::InstRecord *) const override;
@@ -137,7 +130,7 @@ def template TestConstructor {{
                      ((RD) == 0) ? RegId() : RegId(IntRegClass, RD));
 
         flags[IsInteger] = true;
-        isNodeOp = true;
+        hasNodeOp = true;
         //hasNodeWB = true;
     }
 }};

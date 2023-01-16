@@ -45,7 +45,6 @@ def format Exception(code, *opt_flags) {{
     decoder_output = RevokeConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (ExceptExecute.subst(iop)
-                  + ExceptInitiateAcc.subst(iop)
                   + ExceptCompleteAcc.subst(iop))
 }};
 
@@ -60,48 +59,40 @@ def template ExceptExecute {{
 
         {
             gem5::RiscvcapstoneISA::o3::DynInst *ptr =
-                    dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
+                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
             Rs1 = ptr->cpuId();
             DPRINTFN("In Except! cpuId = %d\n", Rs1);
-        }
 
-        return NoFault;
-    }
-}};
+            const RegId regId = srcRegIdx(0);
+            const RegIndex regIdx = regId.index();
 
-def template ExceptInitiateAcc {{
-    Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        Trace::InstRecord *traceData) const
-    {
-        const RegId regId = srcRegIdx(0);
-        const RegIndex regIdx = regId.index();
+            ThreadContext *tcBase = xc->tcBase();
+            int threadId = tcBase->threadId();
 
-        ThreadContext *tcBase = xc->tcBase();
-        int threadId = tcBase->threadId();
-
-        gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
+            gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
                 dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
 
-        gem5::RiscvcapstoneISA::CapLoc regLoc =
-                    gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
+            gem5::RiscvcapstoneISA::CapLoc regLoc =
+                gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
 
-        /* TODO: Add actual method to retrieve node ID from the capability */
-        gem5::RiscvcapstoneISA::NodeID nodeId = 0;
+            /* TODO: Add actual method to retrieve node ID from the capability */
+            gem5::RiscvcapstoneISA::NodeID nodeId = 0;
 
-        gem5::RiscvcapstoneISA::o3::NodeQuery qry =
-                    gem5::RiscvcapstoneISA::o3::NodeQuery(dyn_inst, nodeId);
+            gem5::RiscvcapstoneISA::o3::NodeQuery qry =
+                gem5::RiscvcapstoneISA::o3::NodeQuery(dyn_inst, nodeId);
 
-        gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
+            gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
 
-        auto o3cpu = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU *>(cpu);
+            dyn_inst->initiateNodeCommand(cmd);
 
-        o3cpu->pushNodeCommand(dyn_inst, cmd);
+            //TODO: Actually switch the domain
+            //Call and Except body same until now
+            //Maybe switch domain in completeAcc instead
+            //and have same initiateAcc for except and call?
 
-        //TODO: Actually switch the domain
-        //Call and Except body same until now
-        //Maybe switch domain in completeAcc instead
-        //and have same initiateAcc for except and call?
+            return NoFault;
+
+        }
 
         return NoFault;
     }

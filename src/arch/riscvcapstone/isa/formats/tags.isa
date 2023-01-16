@@ -38,7 +38,6 @@ def format TagAccess(code = {{ }}, comp_code = {{ }}, *opt_flags) {{
     decoder_output = TagAccessConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (TagAccessExecute.subst(iop)
-                   + TagAccessInitiateAcc.subst(iop)
                    + TagAccessCompleteAcc.subst(iop))
 }};
 
@@ -49,7 +48,6 @@ def format TagAccessStore(code = {{ }}, comp_code = {{ }}, *opt_flags) {{
     decoder_output = TagAccessStoreConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (TagAccessExecute.subst(iop)
-                   + TagAccessInitiateAcc.subst(iop)
                    + TagAccessCompleteAcc.subst(iop))
 }};
 
@@ -68,7 +66,6 @@ def template TagAccessDeclare {{
         %(class_name)s(ExtMachInst machInst);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
         Fault completeAcc(PacketPtr, ExecContext *,
                           Trace::InstRecord *) const override;
     };
@@ -101,15 +98,6 @@ def template TagAccessExecute {{
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
-        return NoFault;
-    }
-}};
-
-def template TagAccessInitiateAcc {{
-    Fault
-    %(class_name)s::initiateAcc(ExecContext *xc,
-        Trace::InstRecord *traceData) const
-    {
         Addr EA;
 
         %(op_src_decl)s;
@@ -125,6 +113,7 @@ def template TagAccessInitiateAcc {{
         return NoFault;
     }
 }};
+
 
 def template TagAccessCompleteAcc {{
     Fault
