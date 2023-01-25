@@ -526,8 +526,10 @@ void
 DynInst::checkQueryCompleted() {
     if(isQueryCompleted()) {
         //if(memReadN > 0) {
-        auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
-        rv_inst->completeAcc(this, traceData);
+        if(fault == NoFault) {
+            auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
+            rv_inst->completeAcc(this, traceData);
+        }
         for(int i = 0; i < memReadN; i ++){
             bool saved = false;
             //delete memReads[i].res_pkt;

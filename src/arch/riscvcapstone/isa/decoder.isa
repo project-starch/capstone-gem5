@@ -645,8 +645,6 @@ decode QUADRANT default Unknown::unknown() {
                                 EA <= Rs1_trv.getRegVal().capVal().end()))
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
-
-                        dyn_inst->initiateSetTag(EA, true);
                     }}, {{
                         Rd_trv.getRegVal() = Mem_rv;
 

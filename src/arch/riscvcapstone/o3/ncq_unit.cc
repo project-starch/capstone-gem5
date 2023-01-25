@@ -91,7 +91,8 @@ NCQUnit::writebackCommands(){
     // not doing lots of reordering right now
     for(NCQIterator it = ncQueue.begin();
             it != ncQueue.end() && ncq->canSend(); ++ it) {
-        if(!it->inst->isNodeInitiated() || it->completed())
+        //if(!it->inst->isNodeInitiated() || it->completed())
+        if(it->completed())
             // not doing anything for instructions not yet executed
             continue;
         std::vector<NodeCommandPtr>& commands = it->commands;
