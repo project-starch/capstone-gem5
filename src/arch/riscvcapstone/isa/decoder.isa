@@ -557,15 +557,6 @@ decode QUADRANT default Unknown::unknown() {
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
-                        //TODO: Maybe don't need this (handled in commit stage)
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
-
-                        assert(qry);
-                        if(qry->validityError)
-                            return std::make_shared<IllegalInstFault>(
-                                "Capability provided is not valid!", machInst);
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 

@@ -1659,7 +1659,7 @@ LSQUnit::getStoreHeadSeqNum()
 Fault
 LSQUnit::postExecCheck(const DynInstPtr& inst) {
     // TODO: deal with instructions with both read and write
-    assert(!inst->isLoad() || !inst->isStore());
+    // assert(!inst->isLoad() || !inst->isStore());
     if(inst->isLoad()) {
         int mem_read_n = inst->getMemReadN();
         if(mem_read_n == 0) {
@@ -1689,7 +1689,9 @@ LSQUnit::postExecCheck(const DynInstPtr& inst) {
         }
 
         return NoFault;
-    } else if(inst->isStore()) {
+    } 
+
+    if(inst->isStore()) {
         if(!inst->readPredicate()) {
             DPRINTF(LSQUnit, "Store [sn:%lli] not executed from predication\n",
                     inst->seqNum);

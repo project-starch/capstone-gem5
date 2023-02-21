@@ -713,7 +713,9 @@ Rename::renameInsts(ThreadID tid)
 
         if (inst->isLoad()) {
             loadsInProgress[tid]++;
-        } else if (inst->isAtomic() || inst->isStore()) {
+        } 
+
+        if (inst->isAtomic() || inst->isStore()) {
             storesInProgress[tid]++;
         }
 

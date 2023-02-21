@@ -8,8 +8,8 @@ _start:
     li a1, CAP_TYPE_LIN
     CAPTYPE(a3, a1)
 
-    #li a1, CAP_PERM_RW
-    li a1, 0
+    li a1, CAP_PERM_RW
+    # li a1, 0
     CAPPERM(a3, a1)
 
     li a1, 0
@@ -31,11 +31,14 @@ _start:
     
     CAPPRINT(a4)
 
-#    li a6, 63
-#    SDC(a3, a6)
-#
-#    LDC(a4, a3)
-#    CAPPRINT(a4)
+    li a6, 63
+    SDC(a3, a6)
+
+    LDS(a4, a3)
+    CAPPRINT(a4)
+    
+    # LDC(a4, a3)
+    # CAPPRINT(a4)
 
     j exit
 

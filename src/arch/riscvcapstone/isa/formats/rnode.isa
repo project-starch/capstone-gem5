@@ -74,6 +74,22 @@ def template RNodeConstructor {{
     }
 }};
 
+
+
+def template RNodeStoreConstructor {{
+    %(class_name)s::%(class_name)s(MachInst machInst)
+        : %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+
+        hasNodeOp = true;
+        flags[IsStore] = true;
+        flags[IsLoad] = false;
+    }
+}};
+
+
 def template RNodeExecute {{
     Fault
     %(class_name)s::execute(ExecContext *xc,
@@ -203,7 +219,7 @@ def format RNodeStoreMemOp(check_code, post_check_code,
                         'comp_code': comp_code},
                          opt_flags)
     header_output = RNodeStoreMemDeclare.subst(iop)
-    decoder_output = RNodeConstructor.subst(iop)
+    decoder_output = RNodeStoreConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (RNodeStoreExecute.subst(iop)
                    + RNodeStoreMemCompleteAcc.subst(iop))
