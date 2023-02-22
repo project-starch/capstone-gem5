@@ -1,6 +1,5 @@
+//Try to store a capability to a given address
 #include "asm_insn.h"
-
-
 
 .global _start
 _start: 
