@@ -384,9 +384,11 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        assert(Rs1_trv.getTag() && Rs1_trv.getRegVal().capVal().type() == CapType::REV);
+                        RegVal& reg_val = Rs1_trv.getRegVal();
+
+                        assert(Rs1_trv.getTag() && reg_val.capVal().type() == CapType::REV);
                         
-                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        NodeID node_id = reg_val.capVal().nodeId();
 
                         DPRINTFN("Revoke: node_id = %lu\n", node_id);
 
@@ -394,7 +396,10 @@ decode QUADRANT default Unknown::unknown() {
                         if(fault != NoFault)
                             return fault;
 
-                        Rs1_trv.getRegVal().capVal().setType(CapType::LIN);
+                        uint64_t base = reg_val.capVal().start();
+
+                        Rs1_trv.getRegVal().capVal().setType(CapType::UNINIT);
+                        Rs1_trv.getRegVal().capVal().setCursor(base);
                         
                         Rs1_trv = Rs1_trv;
                     }});
@@ -427,29 +432,33 @@ decode QUADRANT default Unknown::unknown() {
                         Rd = (Rs1 < Rs2);
                     }});
                     0x6: tighten ({{
-                        /* TODO: do we perform checks here if new perms are actually 
-                         * tighter than current perms?
-                         */
-
                         RegVal& rdv = Rd_trv.getRegVal();
                         assert(Rd_trv.getTag());
 
                         using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
                         CapPerm temp = static_cast<CapPerm>(Rs1);
                         assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
+
+                        if(temp > rdv.capVal().perm()) {
+                            return std::make_shared<IllegalInstFault>(
+                                    "Cannot increase permissions!", machInst);
+                        }
                         rdv.capVal().setPerm(temp);
                         Rd_trv = Rd_trv;
                     }});
                     0x7: delin ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
                         RegVal& rdv = Rd_trv.getRegVal();
-                        assert(Rd_trv.getTag());
+                        assert(Rd_trv.getTag() && !(rdv.capVal().type() == CapType::UNINIT));
 
-                        rdv.capVal().setType(gem5::RiscvcapstoneISA::o3::CapType::NONLIN);
+                        rdv.capVal().setType(CapType::NONLIN);
                         Rd_trv = Rd_trv;
                     }});
                     0x8: scc ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
                         RegVal& reg_val = Rd_trv.getRegVal();
-                        assert(Rd_trv.getTag());
+                        assert(Rd_trv.getTag() && !(reg_val.capVal().type() == CapType::UNINIT ||
+                                                    reg_val.capVal().type() == CapType::SEALED));
 
                         uint64_t start = reg_val.val.cap.start();
                         uint64_t end = reg_val.val.cap.end();
@@ -458,11 +467,15 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rd_trv;
                     }});
                     0x9: init ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
                         RegVal& rdv = Rd_trv.getRegVal();
-                        assert(Rd_trv.getTag());
+                        assert(Rd_trv.getTag() && rdv.capVal().type() == CapType::UNINIT &&
+                                rdv.capVal().cursor() == rdv.capVal().end());
 
-                        rdv.capVal().setType(gem5::RiscvcapstoneISA::o3::CapType::LIN);
+                        rdv.capVal().setType(CapType::LIN);
 
+                        //Maybe let the programmer do this part?
                         uint64_t start = rdv.capVal().start();
                         rdv.capVal().setCursor(start);
                         Rd_trv = Rd_trv;
@@ -633,7 +646,8 @@ decode QUADRANT default Unknown::unknown() {
                         //and introduce a new type(s) of fault
                         if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1 ||
                             !(EA >= Rs1_trv.getRegVal().capVal().start() &&
-                                EA <= Rs1_trv.getRegVal().capVal().end()))
+                                EA <= Rs1_trv.getRegVal().capVal().end()) ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::UNINIT)
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
