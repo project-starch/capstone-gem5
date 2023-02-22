@@ -663,6 +663,8 @@ class LSQ
     /** Constructs an LSQ with the given parameters. */
     LSQ(CPU *cpu_ptr, IEW *iew_ptr, const CapstoneBaseO3CPUParams &params);
 
+    Fault postExecCheck(const DynInstPtr& inst);
+
     /** Returns the name of the LSQ. */
     std::string name() const;
 
@@ -687,11 +689,13 @@ class LSQ
     /** Inserts a store into the LSQ. */
     void insertStore(const DynInstPtr &store_inst);
 
+#if(0)
     /** Executes a load. */
     Fault executeLoad(const DynInstPtr &inst);
 
     /** Executes a store. */
     Fault executeStore(const DynInstPtr &inst);
+#endif
 
     /**
      * Commits loads up until the given sequence number for a specific thread.

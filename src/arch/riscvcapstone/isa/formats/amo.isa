@@ -60,7 +60,6 @@ def template AtomicMemOpRMWDeclare {{
         %(class_name)sRMW(ExtMachInst machInst, %(class_name)s *_p);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
         Addr getAddr(ExecContext *, Trace::InstRecord *) const override;
         Fault completeAcc(PacketPtr, ExecContext *,
                           Trace::InstRecord *) const override;
@@ -93,7 +92,6 @@ def template LRSCMicroDeclare {{
         %(class_name)sMicro(ExtMachInst machInst, %(class_name)s *_p);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
         Addr getAddr(ExecContext *, Trace::InstRecord *) const override;
         Fault completeAcc(PacketPtr, ExecContext *,
                           Trace::InstRecord *) const override;
@@ -239,6 +237,14 @@ def template LoadReservedExecute {{
     {
         Addr EA;
 
+        %(op_src_decl)s;
+        %(op_rd)s;
+        %(ea_code)s;
+
+        return initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
+        /*
+        Addr EA;
+
         %(op_decl)s;
         %(op_rd)s;
         %(ea_code)s;
@@ -254,6 +260,7 @@ def template LoadReservedExecute {{
         %(op_wb)s;
 
         return NoFault;
+        */
     }
 }};
 
@@ -261,6 +268,25 @@ def template StoreCondExecute {{
     Fault %(class_name)s::%(class_name)sMicro::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
+        Addr EA;
+
+        %(op_decl)s;
+        %(op_rd)s;
+        %(ea_code)s;
+
+        %(memacc_code)s;
+
+        {
+            Fault fault = writeMemTimingLE(xc, traceData, Mem, EA,
+                memAccessFlags, nullptr);
+            if (fault != NoFault)
+                return fault;
+        }
+
+        %(op_wb)s;
+
+        return NoFault;
+        /*
         Addr EA;
         uint64_t result;
 
@@ -284,7 +310,7 @@ def template StoreCondExecute {{
         %(postacc_code)s;
         %(op_wb)s;
 
-        return NoFault;
+        return NoFault; */
     }
 }};
 
@@ -292,6 +318,7 @@ def template AtomicMemOpRMWExecute {{
     Fault %(class_name)s::%(class_name)sRMW::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
+        /*
         Addr EA;
 
         %(op_decl)s;
@@ -312,26 +339,25 @@ def template AtomicMemOpRMWExecute {{
         %(postacc_code)s;
         %(op_wb)s;
 
-        return NoFault;
-    }
-}};
+        return NoFault;*/
 
-// initiateAcc() templates
-
-def template LoadReservedInitiateAcc {{
-    Fault
-    %(class_name)s::%(class_name)sMicro::initiateAcc(ExecContext *xc,
-        Trace::InstRecord *traceData) const
-    {
         Addr EA;
 
         %(op_src_decl)s;
         %(op_rd)s;
         %(ea_code)s;
 
-        return initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
-    }
+        %(amoop_code)s;
 
+        assert(amo_op);
+
+        return initiateMemAMO(xc, traceData, EA, Mem, memAccessFlags, amo_op);
+    }
+}};
+
+// initiateAcc() templates
+
+def template LoadReservedInitiateAcc {{
     Addr
     %(class_name)s::%(class_name)sMicro::getAddr(ExecContext *xc,
         Trace::InstRecord *traceData) const {
@@ -346,30 +372,6 @@ def template LoadReservedInitiateAcc {{
 }};
 
 def template StoreCondInitiateAcc {{
-    Fault
-    %(class_name)s::%(class_name)sMicro::initiateAcc(ExecContext *xc,
-        Trace::InstRecord *traceData) const
-    {
-        Addr EA;
-
-        %(op_decl)s;
-        %(op_rd)s;
-        %(ea_code)s;
-
-        %(memacc_code)s;
-
-        {
-            Fault fault = writeMemTimingLE(xc, traceData, Mem, EA,
-                memAccessFlags, nullptr);
-            if (fault != NoFault)
-                return fault;
-        }
-
-        %(op_wb)s;
-
-        return NoFault;
-    }
-
     Addr
     %(class_name)s::%(class_name)sMicro::getAddr(ExecContext *xc,
         Trace::InstRecord *traceData) const {
@@ -384,23 +386,6 @@ def template StoreCondInitiateAcc {{
 }};
 
 def template AtomicMemOpRMWInitiateAcc {{
-    Fault
-    %(class_name)s::%(class_name)sRMW::initiateAcc(ExecContext *xc,
-        Trace::InstRecord *traceData) const
-    {
-        Addr EA;
-
-        %(op_src_decl)s;
-        %(op_rd)s;
-        %(ea_code)s;
-
-        %(amoop_code)s;
-
-        assert(amo_op);
-
-        return initiateMemAMO(xc, traceData, EA, Mem, memAccessFlags, amo_op);
-    }
-
     Addr
     %(class_name)s::%(class_name)sRMW::getAddr(ExecContext *xc,
         Trace::InstRecord *traceData) const {

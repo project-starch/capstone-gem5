@@ -70,6 +70,8 @@ class BaseTagController {
         // insert instruction during dispatch (in-order)
         virtual void insertInstruction(const DynInstPtr& inst);
 
+        virtual Fault postExecCheck(const DynInstPtr& inst) { return NoFault; }
+
         bool isFull(ThreadID thread_id) {
             assert(thread_id >= 0 && thread_id < threadCount);
             return tagQueues[thread_id].full();

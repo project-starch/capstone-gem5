@@ -40,7 +40,6 @@ def format Revoke(code, *opt_flags) {{
     decoder_output = RevokeConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (RevokeExecute.subst(iop)
-                  + RevokeInitiateAcc.subst(iop)
                   + RevokeCompleteAcc.subst(iop))
 }};
 
@@ -58,8 +57,6 @@ def template RevokeDeclare {{
         %(class_name)s(ExtMachInst machInst);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateNodeAcc(ExecContext *, BaseCPU *,
-                              Trace::InstRecord *) const override;
         Fault completeNodeAcc(ExecContext *, BaseCPU *,
                               gem5::RiscvcapstoneISA::o3::NodeCommand *,
                               Trace::InstRecord *) const override;
@@ -80,7 +77,7 @@ def template RevokeConstructor {{
                  ((RS1) == 0) ? RegId() : RegId(IntRegClass, RS1));
 
     flags[IsInteger] = true;
-    isNodeOp = true;
+    hasNodeOp = true;
     }
 }};
 
@@ -98,27 +95,19 @@ def template RevokeExecute {{
             //        dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
             //Rs1 = ptr->cpuId();
             DPRINTFN("In revoke! Rs1 = %d\n", Rs1);
+            using namespace gem5::RiscvcapstoneISA::o3;
+
+            uint64_t Rs1;
+            Rs1 = xc->getRegOperand(this, 0);
+
+            auto dyn_inst = dynamic_cast<DynInst*>(xc);
+            assert(dyn_inst);
+            return dyn_inst->initiateNodeCommand(new LockedNodeCommand(
+                        std::make_unique<NodeRevoke>(static_cast<NodeID>(Rs1))
+                        ));
         }
 
         return NoFault;
-    }
-}};
-
-def template RevokeInitiateAcc {{
-    Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        Trace::InstRecord *traceData) const
-    {
-        using namespace gem5::RiscvcapstoneISA::o3;
-
-        uint64_t Rs1;
-        Rs1 = xc->getRegOperand(this, 0);
-
-        auto dyn_inst = dynamic_cast<DynInst*>(xc);
-        assert(dyn_inst);
-        return dyn_inst->initiateNodeCommand(new LockedNodeCommand(
-                    std::make_unique<NodeRevoke>(static_cast<NodeID>(Rs1))
-        ));
     }
 }};
 

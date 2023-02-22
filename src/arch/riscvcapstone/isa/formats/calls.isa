@@ -40,7 +40,6 @@ def format Calls(code, *opt_flags) {{
     decoder_output = CallsConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (CallsExecute.subst(iop)
-                  + CallsInitiateAcc.subst(iop)
                   + CallsCompleteAcc.subst(iop))
 }};
 
@@ -58,8 +57,6 @@ def template CallsDeclare {{
         %(class_name)s(ExtMachInst machInst);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault initiateNodeAcc(ExecContext *, BaseCPU *,
-                              Trace::InstRecord *) const override;
         Fault completeNodeAcc(ExecContext *, BaseCPU *,
                               gem5::RiscvcapstoneISA::o3::NodeCommand *,
                               Trace::InstRecord *) const override;
@@ -81,7 +78,7 @@ def template CallsConstructor {{
     setSrcRegIdx(_numSrcRegs++,
                  ((RD) == 0) ? RegId() : RegId(IntRegClass, RD));
     flags[IsInteger] = true;
-    isNodeOp = true;
+    hasNodeOp = true;
     }
 }};
 
@@ -96,45 +93,36 @@ def template CallsExecute {{
 
         {
             gem5::RiscvcapstoneISA::o3::DynInst *ptr =
-                    dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
+                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
             Rs1 = ptr->cpuId();
             DPRINTFN("In calls! cpuId = %d\n", Rs1);
-        }
 
-        return NoFault;
-    }
-}};
+            const RegId regId = srcRegIdx(1);
+            const RegIndex regIdx = regId.index();
 
-def template CallsInitiateAcc {{
-    Fault
-    %(class_name)s::initiateNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        Trace::InstRecord *traceData) const
-    {
-        const RegId regId = srcRegIdx(1);
-        const RegIndex regIdx = regId.index();
+            ThreadContext *tcBase = xc->tcBase();
+            int threadId = tcBase->threadId();
 
-        ThreadContext *tcBase = xc->tcBase();
-        int threadId = tcBase->threadId();
-
-        gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
+            gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
                 dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
 
-        gem5::RiscvcapstoneISA::CapLoc regLoc =
-                    gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
+            gem5::RiscvcapstoneISA::CapLoc regLoc =
+                gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
 
-        /* TODO: Add actual method to retrieve node ID from the capability */
-        gem5::RiscvcapstoneISA::NodeID nodeId = 0;
+            /* TODO: Add actual method to retrieve node ID from the capability */
+            gem5::RiscvcapstoneISA::NodeID nodeId = 0;
 
-        gem5::RiscvcapstoneISA::o3::NodeQuery qry =
-                    gem5::RiscvcapstoneISA::o3::NodeQuery(dyn_inst, nodeId);
+            gem5::RiscvcapstoneISA::o3::NodeQuery qry =
+                gem5::RiscvcapstoneISA::o3::NodeQuery(dyn_inst, nodeId);
 
-        gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
+            gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
 
-        auto o3cpu = dynamic_cast<gem5::RiscvcapstoneISA::o3::CPU *>(cpu);
+            dyn_inst->initiateNodeCommand(cmd);
 
-        o3cpu->pushNodeCommand(dyn_inst, cmd);
+            //TODO: Actually switch the domain and pass Rs1 to it
 
-        //TODO: Actually switch the domain and pass Rs1 to it
+            return NoFault;
+        }
 
         return NoFault;
     }

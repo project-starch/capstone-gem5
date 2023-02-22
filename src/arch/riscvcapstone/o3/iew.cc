@@ -582,10 +582,14 @@ IEW::cacheUnblocked()
 
 void
 IEW::instToCommitIfExeced(const DynInstPtr& inst) {
-    if(inst->isQueryCompleted() && inst->isExecuted() &&
-            inst->isNodeExecuted()) {
+    if(inst->isQueryCompleted()) {
+    //if(inst->isQueryCompleted() && inst->isNodeExecuted()) {
         instToCommit(inst);
     }
+    //if(inst->isQueryCompleted() && inst->isExecuted() &&
+            //inst->isNodeExecuted()) {
+        //instToCommit(inst);
+    //}
 }
 
 void
@@ -995,7 +999,7 @@ IEW::dispatchInsts(ThreadID tid)
         }
 
         // Check NSQ
-        if(inst->isNodeOp() && ncQueue.isFull(tid)) {
+        if(inst->hasNodeOp() && ncQueue.isFull(tid)) {
             DPRINTF(IEW, "[tid:%i] Issue: NCQ has become full.\n", tid);
             DPRINTF(NCQ, "[tid:%i] NCQ has become full.\n", tid);
             block(tid);
@@ -1028,7 +1032,7 @@ IEW::dispatchInsts(ThreadID tid)
         // Otherwise issue the instruction just fine.
 
 
-        if(inst->isNodeOp()) {
+        if(inst->hasNodeOp()) {
             ncQueue.insertInstruction(inst);
         }
 
@@ -1249,7 +1253,7 @@ IEW::executeInsts()
             continue;
         }
 
-        Fault fault = NoFault;
+        Fault fault = inst->getFault();
 
         // TODO: examine operand registers and update the reference counts
 
@@ -1257,15 +1261,30 @@ IEW::executeInsts()
         // Note that if the instruction faults, it will be handled
         // at the commit stage.
         
-        if (inst->isMemRef()) {
+
+        if(fault == NoFault) {
+            DPRINTF(IEW, "Execute instruction %i\n", inst->seqNum);
+            fault = inst->execute();
+            if(inst->isMemRef()) {
+                DPRINTF(IEW, "Memref fault = %d\n", fault == NoFault);
+            } else {
+                DPRINTF(IEW, "NonMemRef fault = %d\n", fault == NoFault);
+            }
+        }
+
+        if (fault == NoFault && inst->isMemRef()) {
+            fault = ldstQueue.postExecCheck(inst);
+
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
 
+#if(0)
             // Tell the LDSTQ to execute this instruction (if it is a load).
             if (inst->isAtomic()) {
                 // AMOs are treated like store requests
                 fault = ldstQueue.executeStore(inst);
 
+                assert(!inst->isTranslationDelayed());
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {
                     // A hw page table walk is currently going on; the
@@ -1329,27 +1348,29 @@ IEW::executeInsts()
             } else {
                 panic("Unexpected memory type!\n");
             }
-
-        } else {
-            // If the instruction has already faulted, then skip executing it.
-            // Such case can happen when it faulted during ITLB translation.
-            // If we execute the instruction (even if it's a nop) the fault
-            // will be replaced and we will lose it.
-            if (inst->getFault() == NoFault) {
-                inst->execute();
-                if (!inst->readPredicate())
-                    inst->forwardOldRegs();
-                inst->setExecuted();
-                instToCommitIfExeced(inst);
-            } else{
-                inst->setExecuted();
-                instToCommitIfExeced(inst);
-            }
-
+#endif
         }
 
-        if(inst->isNodeOp()) {
-            // TODO: we might consider removing isNodeOp altogether considering 
+        if(fault == NoFault && inst->hasNodeOp()) {
+            fault = ncQueue.postExecCheck(inst);
+        } else if(fault == NoFault) {
+            inst->setNodeExecuted();
+        }
+
+        if(fault == NoFault && inst->hasTagReq()) {
+            fault = tagController.postExecCheck(inst);
+        }
+
+        if(fault != NoFault) {
+            //cpu->trap(fault, inst->threadNumber, inst->staticInst); // shouldn't do this
+        }
+
+        inst->setExecuted();
+
+
+#if(0)
+        if(inst->hasNodeOp()) {
+            // TODO: we might consider removing hasNodeOp altogether considering 
             // how prevalent it is that an instruction needs to issue node commands
             fault = ncQueue.executeNodeOp(inst);
             inst->setNodeInitiated();
@@ -1363,6 +1384,7 @@ IEW::executeInsts()
             inst->setNodeExecuted();
             instToCommitIfExeced(inst);
         }
+#endif
 
         updateExeInstStats(inst);
 

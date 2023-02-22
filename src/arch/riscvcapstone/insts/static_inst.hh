@@ -103,7 +103,8 @@ class RiscvStaticInst : public StaticInst
     {}
 
   public:
-    bool isNodeOp = false;
+    bool hasNodeOp = false;
+    bool hasTagReq = true; // TODO: a hack
     bool hasNodeWB = false;
       
     ExtMachInst machInst;
@@ -155,7 +156,7 @@ class RiscvStaticInst : public StaticInst
         return 0;
     }
 
-    virtual Fault initiateNodeAcc(ExecContext* xc, BaseCPU* cpu, Trace::InstRecord *traceData) const {
+    virtual Fault initiateAcc(ExecContext *xc, Trace::InstRecord *traceData) const {
         return NoFault;
     }
 

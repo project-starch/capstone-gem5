@@ -28,6 +28,8 @@ _start:
     MREV(a5, a3)
 
     CAPPRINT(a5)
+    CAPPRINT(a3)
+
     REVOKE(a5)
 
     #SPLIT(a6,a3,a5)
@@ -35,7 +37,7 @@ _start:
     #CAPPRINT(a6)
     CAPPRINT(a3)
 
-    LDC(a4, a3)
+    LDS(a4, a3)
     
     CAPPRINT(a4)
 
