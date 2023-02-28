@@ -210,30 +210,33 @@ NCQUnit::handleCacheResp(PacketPtr pkt) {
     node_cmd->handleResp(pkt); // node_cmd is expected to handle the freeing of pkt
     DPRINTF(NCQ, "Command handler new status = %u\n", static_cast<unsigned int>(node_cmd->status));
     if(node_cmd->status == NodeCommand::COMPLETED) {
+        DPRINTF(NCQ ,"Completed node command (type = %d)\n", (int)node_cmd->getType());
         completeCommand(node_cmd);
     }
 
     return true;
 }
 
-bool
+QueryResult
 NCQUnit::passedQuery(const DynInstPtr& inst) const {
     assert(inst->threadNumber == threadId);
     if(!inst->hasNodeOp()) // no associated command
-        return true;
+        return QueryResult::PASSED;
     assert(inst->ncqIdx != -1);
     auto& commands = inst->ncqIt->commands;
     for(auto it = commands.begin();
             it != commands.end();
             ++ it) {
         NodeCommandPtr& node_command = *it;
-        if(node_command->beforeCommit() &&
-                (node_command->status != NodeCommand::COMPLETED ||
-                 node_command->error())) {
-            return false;
+        if(node_command->beforeCommit()) {
+            if(node_command->status != NodeCommand::COMPLETED) {
+                return QueryResult::PENDING;
+            } else if(node_command->error()) {
+                return QueryResult::FAILED;
+            }
         }
     }
-    return true;
+    return QueryResult::PASSED;
 }
 
 void

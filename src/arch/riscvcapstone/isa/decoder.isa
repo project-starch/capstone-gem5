@@ -614,12 +614,7 @@ decode QUADRANT default Unknown::unknown() {
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
-                        NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
 
-                        assert(qry);
-                        if(qry->validityError)
-                            return std::make_shared<IllegalInstFault>(
-                                "Capability provided is not valid!", machInst);
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
@@ -645,7 +640,7 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                 }
                 format RNodeStoreMemOp {
-                    0xf: sdc ({{
+                    0xf: sdc ({{ // check_code
                         Rd_trv; Rs1_trv;
 
                         assert(Rd_trv.getTag());
@@ -656,16 +651,7 @@ decode QUADRANT default Unknown::unknown() {
                         if (static_cast<int>(Rd_trv.getRegVal().capVal().perm()) < 2)
                             return std::make_shared<IllegalInstFault>(
                                     "Rd doesn't have the necessary perms", machInst);
-                    }}, {{
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        NodeQuery *qry = dynamic_cast<NodeQuery *>(node_command);
-
-                        assert(qry);
-                        if(qry->validityError)
-                            return std::make_shared<IllegalInstFault>(
-                                "Capability provided is not valid!", machInst);
-                    }}, {{
+                    }}, {{ // ea_code
                         Addr EA = Rd_trv.getRegVal().capVal().cursor();
 
                         Mem_rv = Rs1_trv.getRegVal();
@@ -678,26 +664,14 @@ decode QUADRANT default Unknown::unknown() {
                                           memAccessFlags, nullptr);
                             if (fault != NoFault)
                                 return fault;
-                    }}, {{
+                    }}, {{ // comp_code
                         //completeAcc code
-
-                        bool res_tag = dyn_inst->getTagQueryRes(0);                   
 
                         Addr EA = Rd_trv.getRegVal().capVal().cursor();    
 
-                        if(res_tag) {
-                            //if Rd has a capability AND Rs1 is scalar
-                            //  clear tag bit from EA
-
-                            if(Rs1_trv.getTag() == false)
-                                dyn_inst->initiateSetTag(EA, false);
-                        }
-
-                        if(Rs1_trv.getTag()) {
-                            if(Rs1_trv.getRegVal().capVal().type() != 
-                                CapType::NONLIN)
-                                Rs1_trv.setTag(false);
-                        }
+                        dyn_inst->initiateSetTag(EA, Rs1_trv.getTag());
+                        if(Rs1_trv.getTag() && Rs1_trv.getRegVal().capVal().type() != CapType::NONLIN)
+                            Rs1_trv.setTag(false);
 
                         Rs1_trv = Rs1_trv;
                     }});

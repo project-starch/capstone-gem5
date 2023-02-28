@@ -74,6 +74,8 @@ class Packet;
 
 namespace RiscvcapstoneISA::o3
 {
+    class NodeCommand;
+    typedef NodeCommand* NodeCommandPtr;
 
     const int MAX_QUERY_N = 4;
 
@@ -149,9 +151,10 @@ class DynInst : public ExecContext, public RefCounted
         bool res_tag;
     };
     
-    //NodeCommandPtr nodeQueries[MAX_QUERY_N];
-    //bool nodeQueryCompleted[MAX_QUERY_N];
-    //int nodeQueryN = 0, completedNodeQueryN = 0;
+    // note that here we only include the queries but not the updates
+    NodeCommandPtr nodeQueries[MAX_QUERY_N];
+    bool nodeQueryCompleted[MAX_QUERY_N];
+    int nodeQueryN = 0, completedNodeQueryN = 0;
 
     TagQueryRecord tagQueries[MAX_QUERY_N];
     bool tagQueryCompleted[MAX_QUERY_N];
@@ -165,6 +168,11 @@ class DynInst : public ExecContext, public RefCounted
     MemReadRecord memReads[MAX_QUERY_N];
     bool memReadCompleted[MAX_QUERY_N];
     int memReadN = 0, completedMemReadN = 0;
+    
+    
+    // NodeCommandPtr nodeCommands[MAX_QUERY_N];
+    // bool nodeCommandCompleted[MAX_QUERY_N];
+    // int nodeCommandN = 0, completedNodeCommandN = 0;
 
     bool getTagQueryRes(int idx) const {
         assert(idx < tagQueryN);

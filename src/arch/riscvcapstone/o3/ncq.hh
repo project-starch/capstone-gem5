@@ -93,7 +93,7 @@ class NCQ {
         bool trySendPacket(PacketPtr pkt, ThreadID thread_id);
         bool handleCacheResp(PacketPtr pkt);
 
-        bool passedQuery(const DynInstPtr& inst) const;
+        QueryResult passedQuery(const DynInstPtr& inst) const;
         void cleanupCommands();
 
         void squash(const InstSeqNum& squashed_num, ThreadID thread_id);

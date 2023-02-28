@@ -196,8 +196,7 @@ NodeQuery::handleResp(PacketPtr pkt) {
 
 bool
 NodeQuery::error() {
-    return false; // TODO: ignore errors for now
-    //return validityError;
+    return validityError;
 }
 
 PacketPtr

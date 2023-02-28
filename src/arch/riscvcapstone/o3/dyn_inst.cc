@@ -358,14 +358,15 @@ DynInst::completeNodeAcc(NodeCommandPtr node_command) {
     assert(rvStaticInst != nullptr);
 
     bool no_squash_from_TC = thread->noSquashFromTC;
-    thread->noSquashFromTC = true;
-
-    Fault fault = rvStaticInst->completeNodeAcc(this, cpu, 
-            node_command, traceData);
+    
+    if(node_command->beforeCommit()) {
+        // if this is a query
+        // TODO: might need to check the validity?
+    }
 
     thread->noSquashFromTC = no_squash_from_TC;
 
-    return fault;
+    return NoFault;
 }
 
 Fault
@@ -465,6 +466,11 @@ class NodeCommand;
 Fault
 DynInst::initiateNodeCommand(NodeCommand* cmd) {
     cmd->setInst(dynamic_cast<DynInstPtr::PtrType>(this));
+    if(cmd->beforeCommit()) {
+        // if this is a query
+        // then add to the query list
+        nodeQueries[nodeQueryN ++] = cmd;
+    }
     return cpu->pushNodeCommand(dynamic_cast<DynInstPtr::PtrType>(this),
             cmd);
 }

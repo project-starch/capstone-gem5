@@ -18,6 +18,12 @@ class CPU;
 class NCQ;
 class IEW;
 
+enum class QueryResult {
+    PENDING,
+    PASSED,
+    FAILED
+};
+
 struct NCQEntry {
     DynInstPtr inst;
     // TODO: might consider maintaining different types of commands in
@@ -93,7 +99,7 @@ class NCQUnit {
         bool isFull();
     
         bool handleCacheResp(PacketPtr pkt);
-        bool passedQuery(const DynInstPtr& inst) const;
+        QueryResult passedQuery(const DynInstPtr& inst) const;
         void cleanupCommands();
 
         void squash(const InstSeqNum &squashed_num);

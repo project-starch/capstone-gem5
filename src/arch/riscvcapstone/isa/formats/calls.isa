@@ -39,8 +39,7 @@ def format Calls(code, *opt_flags) {{
     header_output = CallsDeclare.subst(iop)
     decoder_output = CallsConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (CallsExecute.subst(iop)
-                  + CallsCompleteAcc.subst(iop))
+    exec_output = CallsExecute.subst(iop)
 }};
 
 def template CallsDeclare {{
@@ -57,9 +56,6 @@ def template CallsDeclare {{
         %(class_name)s(ExtMachInst machInst);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault completeNodeAcc(ExecContext *, BaseCPU *,
-                              gem5::RiscvcapstoneISA::o3::NodeCommand *,
-                              Trace::InstRecord *) const override;
     };
 }};
 
@@ -124,16 +120,6 @@ def template CallsExecute {{
             return NoFault;
         }
 
-        return NoFault;
-    }
-}};
-
-def template CallsCompleteAcc {{
-    Fault
-    %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
-        Trace::InstRecord *traceData) const
-    {
         return NoFault;
     }
 }};

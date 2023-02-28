@@ -56,6 +56,7 @@
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/limits.hh"
 #include "arch/riscvcapstone/o3/thread_state.hh"
+#include "arch/riscvcapstone/faults.hh"
 #include "cpu/timebuf.hh"
 #include "debug/Activity.hh"
 #include "debug/Commit.hh"
@@ -1190,14 +1191,24 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         return false;
     }
 
-    // Check if the associated node queries, if any, have been completed and passed
-    // the validity check
-    if(!cpu->passedQuery(head_inst)) {
-        return false;
-    }
-
     // Check if the instruction caused a fault.  If so, trap.
     Fault inst_fault = head_inst->getFault();
+    
+    
+    // Check if the associated node queries, if any, have been completed and passed
+    // the validity check
+    if(inst_fault == NoFault) {
+        QueryResult query_result = cpu->passedQuery(head_inst);
+        if (query_result == QueryResult::PENDING)
+        {
+            return false;
+        }
+        else if (query_result == QueryResult::FAILED)
+        {
+            inst_fault = std::make_shared<IllegalInstFault>(
+                "Capability provided is not valid", head_inst);
+        }
+    }
 
     // hardware transactional memory
     // if a fault occurred within a HTM transaction

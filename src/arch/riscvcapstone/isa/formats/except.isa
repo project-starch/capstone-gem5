@@ -98,12 +98,3 @@ def template ExceptExecute {{
     }
 }};
 
-def template ExceptCompleteAcc {{
-    Fault
-    %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
-        Trace::InstRecord *traceData) const
-    {
-        return NoFault;
-    }
-}};
