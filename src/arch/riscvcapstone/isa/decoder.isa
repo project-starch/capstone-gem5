@@ -684,12 +684,19 @@ decode QUADRANT default Unknown::unknown() {
                     }}, {{ // comp_code
                         //completeAcc code
 
-                        Addr EA = Rd_trv.getRegVal().capVal().cursor();
+                        RegVal& rdv = Rd_trv.getRegVal();
+
+                        Addr EA = rdv.capVal().cursor();
 
                         dyn_inst->initiateSetTag(EA, Rs1_trv.getTag());
                         if(Rs1_trv.getTag() && Rs1_trv.getRegVal().capVal().type() != CapType::NONLIN)
                             Rs1_trv.setTag(false);
 
+                        //maybe change this to just sizeof(Cap) later on
+                        if(rdv.capVal().type() == CapType::UNINIT)
+                            rdv.capVal().setCursor(EA + sizeof(CompressedCap));
+
+                        Rd_trv = Rd_trv;
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
                 }
