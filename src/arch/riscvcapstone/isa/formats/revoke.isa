@@ -39,8 +39,7 @@ def format Revoke(code, *opt_flags) {{
     header_output = RevokeDeclare.subst(iop)
     decoder_output = RevokeConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (RevokeExecute.subst(iop)
-                  + RevokeCompleteAcc.subst(iop))
+    exec_output = RevokeExecute.subst(iop)
 }};
 
 def template RevokeDeclare {{
@@ -57,9 +56,6 @@ def template RevokeDeclare {{
         %(class_name)s(ExtMachInst machInst);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault completeNodeAcc(ExecContext *, BaseCPU *,
-                              gem5::RiscvcapstoneISA::o3::NodeCommand *,
-                              Trace::InstRecord *) const override;
     };
 }};
 
@@ -107,16 +103,6 @@ def template RevokeExecute {{
                         ));
         }
 
-        return NoFault;
-    }
-}};
-
-def template RevokeCompleteAcc {{
-    Fault
-    %(class_name)s::completeNodeAcc(ExecContext *xc, BaseCPU *cpu,
-        gem5::RiscvcapstoneISA::o3::NodeCommand *cmd,
-        Trace::InstRecord *traceData) const
-    {
         return NoFault;
     }
 }};

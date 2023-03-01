@@ -39,8 +39,7 @@ def format QueryTest(code, *opt_flags) {{
     header_output = TestDeclare.subst(iop)
     decoder_output = TestConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (TestQueryExecute.subst(iop)
-                  + TestQueryCompleteAcc.subst(iop))
+    exec_output = TestQueryExecute.subst(iop)
 }};
 
 def format DropTest(code, *opt_flags) {{
@@ -51,8 +50,7 @@ def format DropTest(code, *opt_flags) {{
     header_output = TestDeclare.subst(iop)
     decoder_output = TestConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (TestDropExecute.subst(iop)
-                  + TestDropCompleteAcc.subst(iop))
+    exec_output = TestDropExecute.subst(iop)
 }};
 
 def format RcUpdateTest(code, *opt_flags) {{
@@ -63,8 +61,7 @@ def format RcUpdateTest(code, *opt_flags) {{
     header_output = TestDeclare.subst(iop)
     decoder_output = TestConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (TestRcUpdateExecute.subst(iop)
-                  + TestRcUpdateCompleteAcc.subst(iop))
+    exec_output = TestRcUpdateExecute.subst(iop)
 }};
 
 def format AllocTest(code, *opt_flags) {{
@@ -75,8 +72,7 @@ def format AllocTest(code, *opt_flags) {{
     header_output = TestDeclare.subst(iop)
     decoder_output = TestConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (TestAllocExecute.subst(iop)
-                  + TestAllocCompleteAcc.subst(iop))
+    exec_output = TestAllocExecute.subst(iop)
 }};
 
 def format RevokeTest(code, *opt_flags) {{
@@ -87,8 +83,7 @@ def format RevokeTest(code, *opt_flags) {{
     header_output = TestDeclare.subst(iop)
     decoder_output = TestConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = (TestRevokeExecute.subst(iop)
-                  + TestRevokeCompleteAcc.subst(iop))
+    exec_output = TestRevokeExecute.subst(iop)
 }};
 
 def template TestDeclare {{
@@ -105,9 +100,6 @@ def template TestDeclare {{
         %(class_name)s(ExtMachInst machInst);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
-        Fault completeNodeAcc(ExecContext *, BaseCPU *,
-                              gem5::RiscvcapstoneISA::o3::NodeCommand *,
-                              Trace::InstRecord *) const override;
     };
 }};
 

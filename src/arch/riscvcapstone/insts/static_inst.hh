@@ -160,11 +160,6 @@ class RiscvStaticInst : public StaticInst
         return NoFault;
     }
 
-    virtual Fault completeNodeAcc(ExecContext* xc, BaseCPU* cpu, o3::NodeCommand* cmd, 
-            Trace::InstRecord *traceData) const {
-        return NoFault;
-    }
-
     virtual Fault completeAcc(PacketPtr pkt, ExecContext *xc, Trace::InstRecord *traceData) const {
         return NoFault;
     }

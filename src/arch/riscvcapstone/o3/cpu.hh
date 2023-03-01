@@ -658,7 +658,7 @@ class CPU : public BaseCPU
         return iew.ncQueue.pushCommand(inst, cmd);
     }
 
-    bool passedQuery(const DynInstPtr& inst) const {
+    QueryResult passedQuery(const DynInstPtr& inst) const {
         return iew.ncQueue.passedQuery(inst);
     }
 

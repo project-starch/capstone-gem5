@@ -37,9 +37,6 @@ _start:
     LDS(a4, a3)
     CAPPRINT(a4)
     
-    # LDC(a4, a3)
-    # CAPPRINT(a4)
-
     j exit
 
 .global val
