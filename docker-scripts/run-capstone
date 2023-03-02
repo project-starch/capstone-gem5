@@ -1,0 +1,32 @@
+#!/bin/bash
+
+WORKSPACE="$(pwd)"
+
+function run_workload() {
+    if [ -z "$GEM5_SKIP" ]; then
+        GEM5_SKIP=10000000000
+    fi
+
+    if [ -z "$GEM5_LIM" ]; then
+        GEM5_LIM=1000000000
+    fi
+
+    if [ -z "$GEM5_NCACHE" ]; then
+        GEM5_NCACHE="8kB"
+    fi
+    
+    echo "$@"
+    
+    "$WORKSPACE"/build/RISCVCapstone/gem5.opt --outdir=${GEM5_OUT} $GEM5_FLAGS \
+        "$WORKSPACE"/configs/capstone/fast-forward.py \
+        --skip=$GEM5_SKIP --lim=$GEM5_LIM --ncache-size=$GEM5_NCACHE -- $@
+}
+
+OUTPUT_DIR="$WORKSPACE"/outputs/capstone
+BENCHMARK_DIR="$WORKSPACE"/tests/capstone/speckle/build/overlay/intspeed
+RUN_SCRIPT_NAME="run_capstone_workload"
+
+mkdir -p "$OUTPUT_DIR"
+
+source "$WORKSPACE"/docker-scripts/run-all-benchmarks.sh
+

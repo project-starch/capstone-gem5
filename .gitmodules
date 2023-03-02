@@ -1,3 +1,3 @@
 [submodule "tests/capstone/speckle"]
 	path = tests/capstone/speckle
-	url = git@github.com:jasonyu1996/capstone-speckle.git
+	url = https://github.com/jasonyu1996/capstone-speckle.git

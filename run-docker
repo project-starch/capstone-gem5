@@ -1,0 +1,10 @@
+#!/bin/bash
+
+SCRIPT_NAME="$1"
+
+if [ -z "$SCRIPT_NAME" ]; then
+    echo "Please supply a command!"
+    exit 1
+fi
+
+docker run --rm -it -e GITHUB_WORKSPACE=/workspace -v $(pwd):/workspace corank/gem5-dev ./docker-scripts/"$SCRIPT_NAME"

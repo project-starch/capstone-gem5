@@ -1,0 +1,31 @@
+#!/bin/bash
+
+print_prompt() {
+    echo "#################### "$1" ####################"
+}
+
+WORKSPACE="$(pwd)"
+SPEC_DIR="$WORKSPACE"/spec
+INTERPLIB_DIR="$WORKSPACE"/tests/capstone
+SPECKLE_DIR="$WORKSPACE"/tests/capstone/speckle
+SPEC_BENCHMARK_DIR="$SPECKLE_DIR"/build/overlay/intspeed
+
+if [ ! -d  "$SPEC_DIR" ]; then
+    echo "Missing SPEC directory!"
+    exit 1
+fi
+
+print_prompt "Building interposition librari"
+cd "$INTERPLIB_DIR"
+make
+
+cd "$SPECKLE_DIR"
+./gen-configs.sh "$INTERPLIB_DIR"
+
+export RISCV="$RISCV_TOOLCHAIN"
+
+print_prompt "Building SPEC for Capstone"
+SPEC_DIR="$SPEC_DIR" ./capstone.sh --compile --suite intspeed --input ref
+
+print_prompt "Building SPEC for RISC-V"
+SPEC_DIR="$SPEC_DIR" ./gen_binaries.sh --compile --suite intspeed --input ref
