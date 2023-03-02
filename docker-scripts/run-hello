@@ -1,0 +1,15 @@
+#!/bin/bash
+
+WORKSPACE="$(pwd)"
+
+cd "$WORKSPACE"/tests/capstone
+
+echo "Building hello"
+make
+
+GEM5_OUT="$WORKSPACE"/outputs/hello
+
+mkdir -p "$GEM5_OUT"
+
+"$WORKSPACE"/build/RISCVCapstone/gem5.opt --outdir=${GEM5_OUT} \
+    "$WORKSPACE"/configs/capstone/fast-forward.py -- ./hello

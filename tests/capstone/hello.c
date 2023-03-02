@@ -30,36 +30,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-void* do_whatever(void* f) {
-    return f;
-}
-
-void good(void* f){
-    printf("%p\n", f);
-}
-
 int main(int argc, char* argv[])
 {
     printf("Hello gem5!\n");
-    fflush(stdout);
-    void* s = malloc(15);
-    void* c = (void*)((uintptr_t)do_whatever(s) + 2);
-    good(c);
-    free(s);
-    s = malloc(4);
-    *(volatile char*)s = 0;
-    free(s);
-    /*asm volatile ("li a0, 10\n\t"*/
-            /*"call malloc\n\t"*/
-            /*"call free\n\t");*/
-    /*asm volatile("li a7, 3000\n\t"*/
-            /*"li a0, 14\n\t"*/
-            /*"li a1, 20\n\t"*/
-            /*"ecall\n\t"*/
-            /*"li a7, 3001\n\t"*/
-            /*"ecall\n\t");*/
-    /*void* s = malloc(4);*/
-    /*free(s);*/
     return 0;
 }
 
