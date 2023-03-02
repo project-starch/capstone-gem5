@@ -24,6 +24,13 @@ OUTPUT_DIR="$WORKSPACE"/outputs/baseline
 BENCHMARK_DIR="$WORKSPACE"/tests/capstone/speckle/build/overlay/intspeed
 RUN_SCRIPT_NAME="run_riscv_workload"
 
+if [ "$1" = "--multiproc" ]; then
+    BENCHMARK_MULTIPROC="Y"
+else
+    BENCHMARK_MULTIPROC="N"
+fi
+
+
 mkdir -p "$OUTPUT_DIR"
 
 source "$WORKSPACE"/docker-scripts/run-all-benchmarks.sh

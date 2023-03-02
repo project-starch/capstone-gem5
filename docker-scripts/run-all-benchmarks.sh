@@ -1,6 +1,5 @@
-while read benchmark; do
-    echo "Started running benchmark $benchmark"
-    cd "$BENCHMARK_DIR"/$benchmark
+function run_benchmark() {
+    benchmark="$1"
     for i in 0 1 2; do
         if [ -f "$BENCHMARK_DIR"/$benchmark/$RUN_SCRIPT_NAME$i.sh ]; then
             GEM5_OUT="$OUTPUT_DIR"/$benchmark/$i
@@ -9,6 +8,16 @@ while read benchmark; do
                 | tee "$GEM5_OUT"/stdout
         fi
     done
+}
+
+while read benchmark; do
+    echo "Started running benchmark $benchmark"
+    cd "$BENCHMARK_DIR"/$benchmark
+    if [ "$BENCHMARK_MULTIPROC" = "Y" ]; then
+        run_benchmark "$benchmark" > /dev/null 2>&1 &
+    else
+        run_benchmark "$benchmark"
+    fi
 done << EOF
 600.perlbench_s
 602.gcc_s
@@ -21,3 +30,7 @@ done << EOF
 648.exchange2_s
 657.xz_s
 EOF
+
+if [ "$BENCHMARK_MULTIPROC" = "Y" ]; then
+    wait
+fi
