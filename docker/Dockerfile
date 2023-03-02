@@ -14,6 +14,8 @@ RUN apt-get install -y python-dev-is-python3
 
 RUN apt-get install -y libgoogle-perftools-dev protobuf-compiler
 
+RUN apt-get install -y gfortran
+
 ADD entrypoint.sh /entrypoint.sh
 
 ENV RISCV_TOOLCHAIN=/toolchain/riscv
