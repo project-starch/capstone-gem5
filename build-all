@@ -1,3 +1,0 @@
-#!/bin/bash
-
-docker run --rm -it -e GITHUB_WORKSPACE=/workspace -v $(pwd):/workspace corank/gem5-dev ./docker-scripts/build

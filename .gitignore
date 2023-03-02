@@ -1,4 +1,4 @@
-build
+/build
 parser.out
 parsetab.py
 cscope.files

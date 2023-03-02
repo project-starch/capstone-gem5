@@ -1,0 +1,42 @@
+#!/bin/bash
+
+print_prompt() {
+    echo "#################### "$1" ####################"
+}
+
+CURDIR="$(pwd)"
+TEST_DIR="tests/capstone/o3"
+
+NTHREADS=$(nproc)
+NTHREADS_TO_USE=$(expr $NTHREADS / 4)
+if [ "$NTHREADS_TO_USE" -eq 0 ]; then
+    NTHREADS_TO_USE=1
+fi
+
+GEM5=$(pwd)/build/RISCVCapstone/gem5.opt
+GEM5_CONFIG=$(pwd)/configs/capstone/fast-forward.py
+
+
+build_all() {
+    # release build
+    cd "$CURDIR"
+
+    print_prompt "Starting Release Build"
+    if scons "$1" -j $NTHREADS_TO_USE --linker=mold $BUILD_FLAGS < /dev/null; then
+        print_prompt "Release Build Complete"
+    else
+        print_prompt "Release Build Failed"
+        exit 1
+    fi
+    
+    # TODO: we also need to build the original gem5 model for comparison
+}
+
+BUILD_FLAGS=""
+GEM5_CONFIG_FLAGS=""
+
+print_prompt "Building RISCVCapstone"
+build_all "build/RISCVCapstone/gem5.opt"
+
+print_prompt "Building RISCVNoMMU"
+build_all "build/RISCVNoMMU/gem5.opt"
