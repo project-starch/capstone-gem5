@@ -15,7 +15,7 @@ if [ ! -d  "$SPEC_DIR" ]; then
     exit 1
 fi
 
-print_prompt "Building interposition librari"
+print_prompt "Building interposition library"
 cd "$INTERPLIB_DIR"
 make
 
@@ -25,7 +25,9 @@ cd "$SPECKLE_DIR"
 export RISCV="$RISCV_TOOLCHAIN"
 
 print_prompt "Building SPEC for Capstone"
+SPEC_DIR="$SPEC_DIR" ./capstone.sh --genCommands --suite intspeed --input ref
 SPEC_DIR="$SPEC_DIR" ./capstone.sh --compile --suite intspeed --input ref
 
 print_prompt "Building SPEC for RISC-V"
+SPEC_DIR="$SPEC_DIR" ./gen_binaries.sh --genCommands --suite intspeed --input ref
 SPEC_DIR="$SPEC_DIR" ./gen_binaries.sh --compile --suite intspeed --input ref
