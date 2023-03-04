@@ -34,10 +34,24 @@ and
 
 To run the SPEC 2017 intspeed ref workloads with the Capstone model:
 ```
-./run-docker run-capstone
+./run-docker run-capstone --multiproc
 ```
 
 To run the SPEC 2017 intspeed ref workloads with the baseline RISC-V CPU model:
 ```
-./run-docker run-baseline
+./run-docker run-baseline --multiproc
+```
+
+Note that the `--multiproc` is optional and enables running the workloads
+in parallel.
+Removing it will make the run use only one thread running one workload at
+a time.
+
+To run a specific workload, use
+```
+./run-docker run-capstone <workload-name>
+```
+or
+```
+./run-docker run-baseline <workload-name>
 ```

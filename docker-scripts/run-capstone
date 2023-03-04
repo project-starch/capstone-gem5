@@ -30,6 +30,7 @@ source "$WORKSPACE"/docker-scripts/run-all-benchmarks.sh
 
 if [ "$1" = "--multiproc" ]; then
     BENCHMARK_MULTIPROC="Y"
+    run_all_benchmarks
 else
     BENCHMARK_MULTIPROC="N"
     if [ -n "$1" ]; then
