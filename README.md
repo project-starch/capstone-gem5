@@ -55,3 +55,9 @@ or
 ```
 ./run-docker run-baseline <workload-name>
 ```
+
+After running the workloads with *both* the Capstone model and the baseline, collect
+the results and output them in the LaTeX table format using
+```
+./run-docker collect-results
+```
