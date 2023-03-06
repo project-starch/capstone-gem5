@@ -2,7 +2,11 @@
 
 _Note that this is not a fully implemented GEM5 model for Capstone, but one that models the revocation tree operations only for an early performance evaluation._
 
-Please make sure that you have Docker installed on your system.
+Please make sure that you have Docker installed on your system. If you have pulled and cached `corank/gem5-dev` on your
+system before, please make sure it is the latest with
+```
+docker pull corank/gem5-dev
+```
 
 Build GEM5:
 ```
@@ -25,7 +29,8 @@ Simulation exiting @ tick 59197000 because exiting with last active thread conte
 ```
 
 To build SPEC, make sure that you have placed SPEC 2017 (not included in this repository) in a folder
-named `spec` at the root of the repository directory, then apply a patch
+named `spec` at the root of the repository directory (note that the content should be directly placed in
+`spec` rather than inside a subfolder), then apply a patch
 ```
 (cd spec && patch -p1 < ../tests/capstone/speckle/spec17.patch)
 ```
