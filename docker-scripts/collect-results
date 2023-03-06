@@ -1,0 +1,40 @@
+#!/bin/bash
+
+WORKDIR="$(pwd)"
+OUTPUT_DIR="$WORKDIR"/outputs
+
+cd "$OUTPUT_DIR"/capstone
+
+for n in 6*_s; do
+    for c in $n/*; do
+        if [ ! -d $c ]; then
+            continue
+        fi
+        echo "======= $c ======="
+        capstone_secs=$(awk '/simSeconds/ { print $2; }' $c/stats.txt)
+        riscv_nommu_secs=$(awk '/simSeconds/ { print $2; }' "$OUTPUT_DIR"/baseline/$c/stats.txt)
+        ncache_hits=$(awk '/system.ncache.overallHits::total/ { print $2; }' $c/stats.txt)
+        ncache_misses=$(awk '/system.ncache.overallMisses::total/ { print $2; }' $c/stats.txt)
+        revoke_count=$(awk '/revokeCount/ { print $2; }' $c/stats.txt)
+        allocate_count=$(awk '/allocateCount/ { print $2; }' $c/stats.txt)
+        rcupdate_count=$(awk '/rcUpdateCount/ { print $2; }' $c/stats.txt)
+        query_count=$(awk '/queryCount/ { print $2; }' $c/stats.txt)
+        if [ -z "$ncache_misses" ]; then
+            ncache_misses=0
+        fi
+        if [ -z "$ncache_hits" ]; then
+            ncache_hits=0
+        fi
+        echo "capstone/riscv.nommu = $capstone_secs/$riscv_nommu_secs"
+        if [ -n "$capstone_secs" ] && [ -n "$riscv_nommu_secs" ]; then
+            python3 -c 'print('"$capstone_secs"'/'"$riscv_nommu_secs"')'
+        fi
+
+        echo "Allocate: $allocate_count"
+        echo "RcUpdate: $rcupdate_count"
+        echo "Query: $query_count"
+        echo "Revoke: $revoke_count"
+
+        echo "Misses/Hits: $ncache_misses/$ncache_hits"
+    done
+done | awk -f "$WORKDIR/docker-scripts/results2table.awk"

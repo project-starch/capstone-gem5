@@ -155,11 +155,11 @@ if args.skip > 0:
     print("Beginning simulation (fast-forward)!")
 
     exit_event = m5.simulate()
-    print('Fast-forward: exiting @ tick {} because {}'
+    print('\nFast-forward: exiting @ tick {} because {}'
           .format(m5.curTick(), exit_event.getCause()))
 
     if exit_event.getCause() == 'exiting with last active thread context':
-        print('Cannot proceed to switch CPUs')
+        print('\nCannot proceed to switch CPUs')
         sys.exit(0)
         
     m5.stats.reset()
@@ -169,7 +169,7 @@ else:
     print("Beginning simulation!")
 
 exit_event = m5.simulate()
-print('Simulation exiting @ tick {} because {}'
+print('\nSimulation exiting @ tick {} because {}'
         .format(m5.curTick(), exit_event.getCause()))
 
 # m5.checkpoint('m5out/ckp')

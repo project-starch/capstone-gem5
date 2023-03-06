@@ -34,7 +34,7 @@ if [ "$1" = "--multiproc" ]; then
 else
     BENCHMARK_MULTIPROC="N"
     if [ -n "$1" ]; then
-        run_benchmark "$1"
+        run_benchmark "$1" "$2"
     else
         run_all_benchmarks
     fi
