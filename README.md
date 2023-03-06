@@ -1,4 +1,6 @@
-## GEM5 model of Capstone
+## GEM5 model for Capstone evaluation
+
+_Note that this is not a fully implemented GEM5 model for Capstone, but one that models the revocation tree operations only for an early performance evaluation._
 
 Please make sure that you have Docker installed on your system.
 
