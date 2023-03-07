@@ -214,6 +214,7 @@ class UncompressedCap {
 } __attribute__((packed));
 
 static_assert(sizeof(UncompressedCap) == (CAPSTONE_UNCOMPRESSED_CAP_SIZE >> 3));
+static_assert(sizeof(CompressedCap) == (CAPSTONE_COMPRESSED_CAP_SIZE >> 3));
 
 #ifdef CAPSTONE_USE_UNCOMPRESSED
 using Cap = UncompressedCap;
