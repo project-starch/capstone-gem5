@@ -23,6 +23,11 @@ _start:
     li a2, 0xe000
     CAPBOUND(a3, a1, a2)
     CAPPRINT(a3)
+    
+    li a1, 0xf001
+    li a2, 0x10000
+    CAPBOUND(a3, a1, a2)
+    CAPPRINT(a3)
 
     li a1, NODE_ID_INVALID
     ALLOC(a2, a1)

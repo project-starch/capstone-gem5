@@ -738,10 +738,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         assert(Rs2_ud >= start && Rs2_ud <= end);
 
-                        //NodeID node_id;
-                        //Fault fault;
-
-                        Rs1_trv.getRegVal().capVal().setBound(start, Rs2_ud);
+                        Rs1_trv.getRegVal().capVal().setAddresses(start, Rs2_ud, start);
                         
                         //if Rd is a cap.. handle here
                         if(Rd_trv.getTag()) {
@@ -761,9 +758,7 @@ decode QUADRANT default Unknown::unknown() {
                             return fault;
 
                         Rd_trv = Rs1_trv;
-                        Rd_trv.getRegVal().capVal().setBound(Rs2_ud + 1, end);
-                        //TODO: Us or software?
-                        Rd_trv.getRegVal().capVal().setCursor(Rs2_ud + 1);
+                        Rd_trv.getRegVal().capVal().setAddresses(Rs2_ud, end, Rs2_ud);
                         Rd_trv.getRegVal().capVal().setNodeId(to_allocate);
 
                         Rs1_trv = Rs1_trv;
@@ -823,7 +818,7 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                     0x9: capbound ({{
                         DPRINTFN("Set capability bound to (%llx, %llx)\n", Rs1, Rs2);
-                        Rd_trv.getRegVal().val.cap.setBound(Rs1, Rs2);
+                        Rd_trv.getRegVal().val.cap.setAddresses(Rs1, Rs2, Rs1);
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0xa: capprint ({{
@@ -842,8 +837,6 @@ decode QUADRANT default Unknown::unknown() {
                         EA = Rs1_ud;
 
                         dyn_inst->initiateSetTag(EA, Rs2_ud ? true : false);
-
-                        DPRINTFN("aditya initiate tagset\n");
                     }});
                 }
                 format TagAccess {
@@ -852,8 +845,6 @@ decode QUADRANT default Unknown::unknown() {
                         uint64_t _dd = Rs2;
 
                         dyn_inst->initiateGetTag(EA);
-
-                        DPRINTFN("aditya initiate tagget\n");
                     }}, {{
                         DPRINTFN("tag = %u\n",
                                     dyn_inst->getTagQueryRes(0));

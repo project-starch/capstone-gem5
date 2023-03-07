@@ -62,9 +62,12 @@ CompressedCapBound::decode(uint64_t addr) const {
     // correction
     uint64_t R = (B >> 11) - 1;
     uint64_t A = (addr >> (E + 11)) & 7;
+    uint64_t T3 = (T >> 11) & 7;
+    uint64_t B3 = (B >> 11) & 7;
+
     bool condAR = A < R;
-    bool condTR = T < R;
-    bool condBR = B < R;
+    bool condTR = T3 < R;
+    bool condBR = B3 < R;
     
     if(!condAR && condTR) {
         top += (uint64_t)1 << (E + 14);
@@ -122,7 +125,7 @@ CompressedCapBound(uint64_t base, uint64_t top, uint64_t addr) {
         iE = 1;
         B = (base >> (E + 3)) & ((1 << 11) - 1);
         T = (top >> (E + 3)) & ((1 << 9) - 1);
-        DPRINTX(Cap, " T = %llx, top = %llx, E = %llx", T, top, E);
+        DPRINTX(Cap, " B = %llx, T = %llx, top = %llx, E = %llx", B, T, top, E);
         if(top > ((top >> (E + 3)) << (E + 3))) {
             ++ T;
             DPRINTX(Cap, " top rounded up");
