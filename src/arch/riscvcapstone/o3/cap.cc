@@ -83,7 +83,30 @@ CompressedCapBound::end(uint64_t addr) const {
 // constructor that encode the given bound
 CompressedCapBound::
 CompressedCapBound(uint64_t base, uint64_t top, uint64_t addr) {
-    // TODO: encoding bound
+    assert(top >= base);
+    uint64_t len = top - base;
+    int E = 51;
+    uint64_t T, B;
+    for(int i = 63; i >= 13 && ((len >> i) & 1) == 0; -- i, -- E);
+    if(E == 0 && ((len >> 12) & 1) == 0) {
+        iE = 0;
+        B = base & ((1 << 14) - 1);
+        T = top & ((1 << 12) - 1);
+        bE = B & 7;
+        b = B >> 3;
+        tE = T & 7;
+        t = T >> 3;
+    } else {
+        iE = 1;
+        B = (base >> (E + 3)) & ((1 << 11) - 1);
+        T = (top >> (E + 3)) & ((1 << 9) - 1);
+        if(top > ((top >> (E + 3)) << (E + 3)))
+            ++ T;
+        bE = E & 7;
+        tE = E >> 3;
+        b = B;
+        t = T;
+    }
 }
 
 uint32_t

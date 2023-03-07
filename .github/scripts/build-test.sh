@@ -64,4 +64,9 @@ BUILD_FLAGS="--uncompressed"
 GEM5_CONFIG_FLAGS="--cpu=o3"
 build_and_run
 
+print_prompt "Build and run with compressed capability format"
+
+BUILD_FLAGS=""
+GEM5_CONFIG_FLAGS="--cpu=o3"
+build_and_run
 
