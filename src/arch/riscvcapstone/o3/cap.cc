@@ -1,5 +1,7 @@
 #include<utility>
 #include<cassert>
+#include "base/trace.hh"
+#include "debug/Cap.hh"
 #include "arch/riscvcapstone/o3/cap.hh"
 #include "arch/riscvcapstone/o3/bitops.hh"
 
@@ -23,6 +25,10 @@ CompressedCapBound::decode(uint64_t addr) const {
     uint16_t B = b << 3;
     uint8_t Lcarry;
     uint8_t Lmsb;
+    
+    DPRINTF(Cap, "(%llx, %llx, %llx, %llx, %llx)",
+        bE, b, tE, t, iE);
+
     if(iE == 0) {
         E = 0;
         T |= tE;
@@ -65,6 +71,9 @@ CompressedCapBound::decode(uint64_t addr) const {
     } else if(condAR && !condBR) {
         base -= (uint64_t)1 << (E + 14);
     }
+    
+    DPRINTF(Cap, " -> (%llx, %llx)\n",
+        base, top);
 
     return std::make_pair(base, top);
 }
@@ -100,13 +109,27 @@ CompressedCapBound(uint64_t base, uint64_t top, uint64_t addr) {
         iE = 1;
         B = (base >> (E + 3)) & ((1 << 11) - 1);
         T = (top >> (E + 3)) & ((1 << 9) - 1);
-        if(top > ((top >> (E + 3)) << (E + 3)))
+        if(top > ((top >> (E + 3)) << (E + 3))) {
             ++ T;
+            for(int j = 1; j <= 9; j ++) {
+                if(T == (1 << j)) {
+                    // msb shifts
+                    T = 0;
+                    B >>= 1;
+                    ++ E;
+                    break;
+                }
+            }
+        }
         bE = E & 7;
         tE = E >> 3;
         b = B;
         t = T;
     }
+    
+    DPRINTF(Cap, "(%llx, %llx, %llx) -> (%llx, %llx, %llx, %llx, %llx)\n",
+        base, top, addr,
+        bE, b, tE, t, iE);
 }
 
 uint32_t
