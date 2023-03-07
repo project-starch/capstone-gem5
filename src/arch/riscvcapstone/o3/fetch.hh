@@ -414,7 +414,7 @@ class Fetch
     branch_prediction::BPredUnit *branchPred;
 
     std::unique_ptr<PCStateBase> pc[MaxThreads];
-
+    
     Addr fetchOffset[MaxThreads];
 
     StaticInstPtr macroop[MaxThreads];

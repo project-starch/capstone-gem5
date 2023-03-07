@@ -43,6 +43,7 @@
 #define __ARCH_RISCV_PCSTATE_HH__
 
 #include "arch/generic/pcstate.hh"
+#include "arch/riscvcapstone/o3/cap.hh"
 
 namespace gem5
 {
@@ -55,6 +56,7 @@ class ScalarPCState : public GenericISA::UPCState<4>
   private:
     bool _compressed = false;
     bool _rv32 = false;
+    o3::Cap pc_cap;
 
   public:
     using GenericISA::UPCState<4>::UPCState;
@@ -85,19 +87,6 @@ class ScalarPCState : public GenericISA::UPCState<4>
             return npc() != pc() + 4 || nupc() != upc() + 1;
         }
     }
-};
-
-class CapPCState : public GenericISA::PCStateWithNext {
-    public:
-        PCStateBase* clone() const override {
-            panic("unimplemented\n");
-        }
-        void advance() override {
-            panic("unimplemented\n");
-        }
-        bool branching() const override {
-            panic("unimplemented\n");
-        }
 };
 
 using PCState = ScalarPCState;

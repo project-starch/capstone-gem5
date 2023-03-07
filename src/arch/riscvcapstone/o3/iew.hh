@@ -53,6 +53,7 @@
 #include "arch/riscvcapstone/o3/ncq.hh"
 #include "arch/riscvcapstone/o3/scoreboard.hh"
 #include "arch/riscvcapstone/o3/tag_controller.hh"
+#include "arch/riscvcapstone/o3/cap.hh"
 #include "cpu/timebuf.hh"
 #include "debug/IEW.hh"
 #include "sim/probe/probe.hh"
@@ -339,6 +340,9 @@ class IEW
 
     /** Skid buffer between rename and IEW. */
     std::queue<DynInstPtr> skidBuffer[MaxThreads];
+    
+    /** PC capabilities. */
+    Cap pcCaps[MaxThreads];
 
     /** Scoreboard pointer. */
     Scoreboard* scoreboard;
