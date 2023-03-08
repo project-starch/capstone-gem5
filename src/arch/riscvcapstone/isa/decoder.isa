@@ -412,11 +412,32 @@ decode QUADRANT default Unknown::unknown() {
                 }
                 format ROp {
                     0x2: jmp ({{
-                        NPC = Rs1;
+                        //replacing the capability inside IEW,
+                        //which holds the permissions and bounds,
+                        //AND the NPC which holds the cursor
+                        RegVal& rsv = Rs1_trv.getRegVal();
+                        NPC = rsv.capVal().cursor();
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        dyn_inst->cpu->getIEWObject().setPCCap(rsv.capVal(),
+                                                            dyn_inst->threadNumber);
                     }}, IsUncondControl);
                     0x3: jnz ({{
+                        RegVal& rdv = Rd_trv.getRegVal();
                         if(Rs1 != 0)
-                            NPC = Rd;
+                            NPC = rdv.capVal().cursor();
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        dyn_inst->cpu->getIEWObject().setPCCap(rdv.capVal(),
+                                                            dyn_inst->threadNumber);
                     }}, IsCondControl);
                     0x4: shrink ({{
                         RegVal& rdv = Rd_trv.getRegVal();

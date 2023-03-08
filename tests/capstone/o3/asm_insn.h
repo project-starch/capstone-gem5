@@ -48,6 +48,7 @@
 #define CAP_PERM_RO 1
 #define CAP_PERM_RW 2
 #define CAP_PERM_RWX 3
+#define CAP_PERM_RX 4
 
 #define CAP_TYPE_LIN 0
 #define CAP_TYPE_NONLIN 1
