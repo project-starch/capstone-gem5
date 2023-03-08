@@ -66,24 +66,24 @@ def template CallsConstructor {{
     %(class_name)s::%(class_name)s(ExtMachInst machInst):
         %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
     {
-    setRegIdxArrays(
-        reinterpret_cast<RegIdArrayPtr>(
-            &std::remove_pointer_t<decltype(this)>::srcRegIdxArr),
-        reinterpret_cast<RegIdArrayPtr>(
-            &std::remove_pointer_t<decltype(this)>::destRegIdxArr));
+        setRegIdxArrays(
+            reinterpret_cast<RegIdArrayPtr>(
+                &std::remove_pointer_t<decltype(this)>::srcRegIdxArr),
+            reinterpret_cast<RegIdArrayPtr>(
+                &std::remove_pointer_t<decltype(this)>::destRegIdxArr));
 
-    for(int i = 1; i < NumIntArchRegs; i ++) {
-        setSrcRegIdx(_numSrcRegs++, RegId(IntRegClass, i));
-        setDestRegIdx(_numDestRegs++, RegId(IntRegClass, i));
-    }
-    
-    %(constructor)s;
+        for(int i = 1; i < NumIntArchRegs; i ++) {
+            setSrcRegIdx(_numSrcRegs++, RegId(IntRegClass, i));
+            setDestRegIdx(_numDestRegs++, RegId(IntRegClass, i));
+        }
+        
+        %(constructor)s;
 
-    flags[IsInteger] = true;
-    flags[IsLoad] = true;
-    // flags[IsStore] = true;
-    flags[IsStore] = false;
-    hasNodeOp = true;
+        flags[IsInteger] = true;
+        flags[IsLoad] = true;
+        // flags[IsStore] = true;
+        flags[IsStore] = false;
+        hasNodeOp = true;
     }
 }};
 
