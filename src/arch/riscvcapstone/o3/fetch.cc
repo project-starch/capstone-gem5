@@ -141,7 +141,7 @@ Fetch::Fetch(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
         // which may not hold the entire cache line.
         fetchBuffer[tid] = new uint8_t[fetchBufferSize];
     }
-
+    
     // Get the size of an instruction.
     instSize = decoder[0]->moreBytesSize();
 }

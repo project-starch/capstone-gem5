@@ -53,6 +53,7 @@
 #include "arch/riscvcapstone/o3/dyn_inst.hh"
 #include "arch/riscvcapstone/o3/fu_pool.hh"
 #include "arch/riscvcapstone/o3/limits.hh"
+#include "arch/riscvcapstone/faults.hh"
 #include "cpu/timebuf.hh"
 #include "debug/Activity.hh"
 #include "debug/Drain.hh"
@@ -119,7 +120,16 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
     for (ThreadID tid = 0; tid < MaxThreads; tid++) {
         dispatchStatus[tid] = Running;
         fetchRedirect[tid] = false;
+        pcCaps[tid].reset(); // set to invalid caps
     }
+    
+    assert(numThreads == 1); // FIXME: only supports a single thread for now
+    pcCaps[0].setAddresses(0, 0x1000000ULL, 0); // TODO: load this from the workload
+    pcCaps[0].setPerm(CapPerm::RX);
+    pcCaps[0].setType(CapType::LIN);
+
+    // TODO: reserve nodes for initial PC caps
+    // pcCaps[0].setNodeId(1);
 
     updateLSQNextCycle = false;
 
@@ -1252,8 +1262,23 @@ IEW::executeInsts()
 
             continue;
         }
+        
+        Fault fault;
 
-        Fault fault = inst->getFault();
+        // Check the PC capability
+        // TODO: check node validity. Performance has much space for optimisation
+
+        ThreadID thread_id = inst->threadNumber;
+        CapPerm pc_perm = pcCaps[thread_id].perm();
+        if(!capInBound(pcCaps[thread_id], inst->pcState().instAddr()) ||
+            (pc_perm != CapPerm::RX && pc_perm != CapPerm::RWX)) {
+            DPRINTFN("Cap %llx %llx %llx %u\n", pcCaps[thread_id].start(), pcCaps[thread_id].end(), 
+                pcCaps[thread_id].start(), pcCaps[thread_id].end(),
+                inst->pcState().instAddr());
+        } else {
+            fault = inst->getFault();
+        }
+
 
         // TODO: examine operand registers and update the reference counts
 

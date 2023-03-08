@@ -40,7 +40,8 @@ enum class CapPerm {
     NA = 0, // no access
     RO = 1,
     RW = 2,
-    RWX = 3
+    RWX = 3,
+    RX = 4
 };
 
 enum class CapType {
@@ -52,6 +53,8 @@ enum class CapType {
     SEALEDRET = 5
 };
 
+// TODO: refactoring needed
+
 /**
  * Representation of a Capstone capability
  * TODO: can consider defining a separate more ergonomic representation and only
@@ -62,8 +65,8 @@ class CompressedCap {
         uint64_t _cursor;
         //CompressedCapBound compressedBound;
         uint32_t _bound: 27;
-        CapPerm _perm: 3;
-        CapType _type: 3;
+        uint8_t _perm: 3;
+        uint8_t _type: 3;
         NodeID _node_id: 31;
 
     //CompressedCap& setBound(const AddrRange& addr_range) {
@@ -80,11 +83,11 @@ class CompressedCap {
         }
 
         CapPerm perm() const {
-            return _perm;
+            return static_cast<CapPerm>(_perm);
         }
 
         CapType type() const {
-            return _type;
+            return static_cast<CapType>(_type);
         }
 
         uint64_t cursor() const {
@@ -109,12 +112,12 @@ class CompressedCap {
         CompressedCap& setAddresses(uint64_t start, uint64_t end, uint64_t cursor);
 
         CompressedCap& setPerm(CapPerm perm) {
-            _perm = perm;
+            _perm = static_cast<uint8_t>(perm);
             return *this;
         }
 
         CompressedCap& setType(CapType type) {
-            _type = type;
+            _type = static_cast<uint8_t>(type);
             return *this;
         }
 
@@ -127,6 +130,10 @@ class CompressedCap {
             uint128_t v;
             memcpy(&v, this, sizeof(v));
             return v;
+        }
+        
+        void reset() {
+            setAddresses(0, 0, 0);
         }
 } __attribute__((packed));
 
@@ -211,6 +218,10 @@ class UncompressedCap {
             memcpy(&v, this, sizeof(v));
             return v;
         }
+        
+        void reset() {
+            setAddresses(0, 0, 0);
+        }
 } __attribute__((packed));
 
 static_assert(sizeof(UncompressedCap) == (CAPSTONE_UNCOMPRESSED_CAP_SIZE >> 3));
@@ -227,7 +238,12 @@ const size_t CAPSTONE_CAP_SIZE = CAPSTONE_COMPRESSED_CAP_SIZE;
 inline bool
 capInBound(const Cap& cap) {
     uint64_t cursor = cap.cursor();
-    return cursor >= cap.start() && cursor <= cap.end();
+    return cursor >= cap.start() && cursor < cap.end();
+}
+
+inline bool
+capInBound(const Cap& cap, uint64_t addr) {
+    return addr >= cap.start() && addr < cap.end();
 }
 
 }
