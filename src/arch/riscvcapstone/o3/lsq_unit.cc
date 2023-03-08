@@ -331,7 +331,9 @@ LSQUnit::insertLoad(const DynInstPtr &load_inst)
     /* Grow the queue. */
     loadQueue.advance_tail();
 
-    load_inst->sqIt = storeQueue.end();
+    if(!load_inst->isStore()) {
+        load_inst->sqIt = storeQueue.end();
+    }
 
     assert(!loadQueue.back().valid());
     loadQueue.back().set(load_inst);
@@ -393,9 +395,11 @@ LSQUnit::insertStore(const DynInstPtr& store_inst)
     store_inst->sqIdx = storeQueue.tail();
     store_inst->sqIt = storeQueue.getIterator(store_inst->sqIdx);
 
-    store_inst->lqIdx = loadQueue.tail() + 1;
-    assert(store_inst->lqIdx > 0);
-    store_inst->lqIt = loadQueue.end();
+    if(!store_inst->isLoad()) {
+        store_inst->lqIdx = loadQueue.tail() + 1;
+        assert(store_inst->lqIdx > 0);
+        store_inst->lqIt = loadQueue.end();
+    }
 
     storeQueue.back().set(store_inst);
 }

@@ -77,7 +77,7 @@ namespace RiscvcapstoneISA::o3
     class NodeCommand;
     typedef NodeCommand* NodeCommandPtr;
 
-    const int MAX_QUERY_N = 4;
+    const int MAX_QUERY_N = 64; // TODO: optimise this
 
 class DynInst : public ExecContext, public RefCounted
 {
