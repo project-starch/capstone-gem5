@@ -956,7 +956,6 @@ LSQ::SingleDataRequest::initiateTranslation()
         setState(State::Translation);
         flags.set(Flag::TranslationStarted);
 
-        _inst->savedRequest = this;
         sendFragmentToTranslation(0);
     } else {
         _inst->setMemAccPredicate(false);
@@ -1031,7 +1030,6 @@ LSQ::SplitDataRequest::initiateTranslation()
         _inst->translationStarted(true);
         setState(State::Translation);
         flags.set(Flag::TranslationStarted);
-        _inst->savedRequest = this;
         numInTranslationFragments = 0;
         numTranslatedFragments = 0;
         _fault.resize(_reqs.size());
@@ -1130,7 +1128,6 @@ LSQ::LSQRequest::addReq(Addr addr, unsigned size,
 LSQ::LSQRequest::~LSQRequest()
 {
     assert(!isAnyOutstandingRequest());
-    _inst->savedRequest = nullptr;
 
     for (auto r: _packets)
         delete r;
@@ -1457,7 +1454,6 @@ LSQ::UnsquashableDirectRequest::initiateTranslation()
         _inst->fault = NoFault;
         _inst->physEffAddr = _reqs.back()->getPaddr();
         _inst->memReqFlags = _reqs.back()->getFlags();
-        _inst->savedRequest = this;
 
         flags.set(Flag::TranslationStarted);
         flags.set(Flag::TranslationFinished);
