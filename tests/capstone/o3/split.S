@@ -18,6 +18,8 @@ _start:
     CAPBOUND(a3, a1, a2)
     CAPPRINT(a3)
     
+    MREV(a6, a3)
+
     li a1, 0x0f000
     SPLIT(a4, a3, a1)
     CAPPRINT(a4)
@@ -26,6 +28,22 @@ _start:
     li a1, 0x03000
     SPLIT(a5, a3, a1)
     CAPPRINT(a5)
+
+    fence
+
     CAPPRINT(a4)
+
+    li a1, 0x22
+    li a2, 0x3200
+    SCC(a5, a2)
+    SDC(a5, a1)
+    
+    li a1, 0
+    LDS(a1, a5)
+    CAPPRINT(a1)
+
+    REVOKE(a6)
+
+    LDS(a1, a5) #should fail
     
     j exit
