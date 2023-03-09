@@ -428,8 +428,10 @@ decode QUADRANT default Unknown::unknown() {
                     }}, IsUncondControl);
                     0x3: jnz ({{
                         RegVal& rdv = Rd_trv.getRegVal();
-                        if(Rs1 != 0)
-                            NPC = rdv.capVal().cursor();
+                        if(Rs1 == 0)
+                            return NoFault;
+
+                        NPC = rdv.capVal().cursor();
 
                         using namespace gem5::RiscvcapstoneISA::o3;
 
@@ -605,7 +607,9 @@ decode QUADRANT default Unknown::unknown() {
                         //and introduce a new type(s) of fault
                         if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1 ||
                             !(EA >= Rs1_trv.getRegVal().capVal().start() &&
-                                EA <= Rs1_trv.getRegVal().capVal().end()))
+                                EA <= Rs1_trv.getRegVal().capVal().end()) ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::UNINIT ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::SEALED)
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
@@ -663,7 +667,8 @@ decode QUADRANT default Unknown::unknown() {
                         if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1 ||
                             !(EA >= Rs1_trv.getRegVal().capVal().start() &&
                                 EA <= Rs1_trv.getRegVal().capVal().end()) ||
-                                Rs1_trv.getRegVal().capVal().type() == CapType::UNINIT)
+                                Rs1_trv.getRegVal().capVal().type() == CapType::UNINIT ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::SEALED)
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
@@ -713,9 +718,8 @@ decode QUADRANT default Unknown::unknown() {
                         if(Rs1_trv.getTag() && Rs1_trv.getRegVal().capVal().type() != CapType::NONLIN)
                             Rs1_trv.setTag(false);
 
-                        //maybe change this to just sizeof(Cap) later on
                         if(rdv.capVal().type() == CapType::UNINIT)
-                            rdv.capVal().setCursor(EA + sizeof(CompressedCap));
+                            rdv.capVal().setCursor(EA + sizeof(Cap));
 
                         Rd_trv = Rd_trv;
                         Rs1_trv = Rs1_trv;

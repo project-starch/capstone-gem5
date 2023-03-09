@@ -26,7 +26,12 @@ _start:
     CAPCREATE(a2)
     li a1, CAP_TYPE_LIN
     CAPTYPE(a2, a1)
+    
+    li a1, 0
+    li a6, 0x99999
+    CAPBOUND(a2, a1, a6)
     CAPPRINT(a2)
+
     SDC(a3, a2)
     CAPPRINT(a2) # should be scrubbed
     

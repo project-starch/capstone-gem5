@@ -1,7 +1,10 @@
+//Increment cursor on store using an uninit capability.
+//Show a load failure on using an uninit cap
 #include "asm_insn.h"
 
 .global _start
 _start:
+    //boilerplate
     CAPCREATE(a3)
     li a1, CAP_TYPE_LIN
     CAPTYPE(a3, a1)
@@ -18,6 +21,7 @@ _start:
     ALLOC(a2, a1)
     CAPNODE(a3, a2)
     CAPPRINT(a3)
+    //end boilerplate
 
     la a5, val
     SCC(a3, a5)
