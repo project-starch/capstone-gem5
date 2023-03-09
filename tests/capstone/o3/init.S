@@ -16,7 +16,7 @@ _start:
     CAPPERM(a3, a1)
 
     li a1, 0x40000
-    li a2, 0x40010
+    li a2, 0x40000 + REG_SIZE
     CAPBOUND(a3, a1, a2)
     CAPPRINT(a3)
     //end boilerplate

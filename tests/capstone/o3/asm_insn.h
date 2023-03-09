@@ -1,3 +1,10 @@
+#ifdef USE_UNCOMPRESSED
+#define REG_SIZE  0x20
+#else
+#define REG_SIZE  0x10
+#endif
+
+
 #define REVOKE(reg)             .insn r 0x5B, 0x1, 0x0, x0, reg, x0
 
 #define CALL(rd,rs1)            .insn r 0x5B, 0x1, 0x1, rd, rs1, x0
