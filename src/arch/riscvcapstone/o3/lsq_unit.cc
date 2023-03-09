@@ -67,8 +67,6 @@ LSQUnit::WritebackEvent::WritebackEvent(const DynInstPtr &_inst,
     : Event(Default_Pri, AutoDelete),
       inst(_inst), pkt(_pkt), lsqPtr(lsq_ptr)
 {
-    assert(_inst->savedRequest);
-    _inst->savedRequest->writebackScheduled();
 }
 
 void
@@ -78,11 +76,6 @@ LSQUnit::WritebackEvent::process()
 
     lsqPtr->writeback(inst, pkt);
 
-    assert(inst->savedRequest);
-    inst->savedRequest->writebackDone();
-    //if(!pkt->isRead()) {
-        //delete pkt;
-    //}
 }
 
 const char *
@@ -331,7 +324,9 @@ LSQUnit::insertLoad(const DynInstPtr &load_inst)
     /* Grow the queue. */
     loadQueue.advance_tail();
 
-    load_inst->sqIt = storeQueue.end();
+    if(!load_inst->isStore()) {
+        load_inst->sqIt = storeQueue.end();
+    }
 
     assert(!loadQueue.back().valid());
     loadQueue.back().set(load_inst);
@@ -393,9 +388,11 @@ LSQUnit::insertStore(const DynInstPtr& store_inst)
     store_inst->sqIdx = storeQueue.tail();
     store_inst->sqIt = storeQueue.getIterator(store_inst->sqIdx);
 
-    store_inst->lqIdx = loadQueue.tail() + 1;
-    assert(store_inst->lqIdx > 0);
-    store_inst->lqIt = loadQueue.end();
+    if(!store_inst->isLoad()) {
+        store_inst->lqIdx = loadQueue.tail() + 1;
+        assert(store_inst->lqIdx > 0);
+        store_inst->lqIt = loadQueue.end();
+    }
 
     storeQueue.back().set(store_inst);
 }
@@ -624,16 +621,16 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
     if (inst->isTranslationDelayed() && load_fault == NoFault)
         return load_fault;
 
-    if (load_fault != NoFault && inst->translationCompleted() &&
-            inst->savedRequest->isPartialFault()
-            && !inst->savedRequest->isComplete()) {
-        assert(inst->savedRequest->isSplit());
-        // If we have a partial fault where the mem access is not complete yet
-        // then the cache must have been blocked. This load will be re-executed
-        // when the cache gets unblocked. We will handle the fault when the
-        // mem access is complete.
-        return NoFault;
-    }
+    // if (load_fault != NoFault && inst->translationCompleted() &&
+    //         inst->savedRequest->isPartialFault()
+    //         && !inst->savedRequest->isComplete()) {
+    //     assert(inst->savedRequest->isSplit());
+    //     // If we have a partial fault where the mem access is not complete yet
+    //     // then the cache must have been blocked. This load will be re-executed
+    //     // when the cache gets unblocked. We will handle the fault when the
+    //     // mem access is complete.
+    //     return NoFault;
+    // }
 
     // If the instruction faulted or predicated false, then we need to send it
     // along to commit without the instruction completing.
@@ -1110,24 +1107,6 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
         // Unless it's a hardware transactional memory fault
         auto htm_fault = std::dynamic_pointer_cast<
             GenericHtmFailureFault>(inst->fault);
-
-        if (!htm_fault) {
-            assert(dynamic_cast<ReExec*>(inst->fault.get()) != nullptr ||
-                    inst->savedRequest->isPartialFault());
-
-        } else if (!pkt->htmTransactionFailedInCache()) {
-            // Situation in which the instruction has a hardware
-            // transactional memory fault but not the packet itself. This
-            // can occur with ldp_uop microops since access is spread over
-            // multiple packets.
-            DPRINTF(HtmCpu,
-                    "%s writeback with HTM failure fault, "
-                    "however, completing packet is not aware of "
-                    "transaction failure. cause=%s htmUid=%u\n",
-                    inst->staticInst->getName(),
-                    htmFailureToStr(htm_fault->getHtmFailureFaultCause()),
-                    htm_fault->getHtmUid());
-        }
 
         DPRINTF(LSQUnit, "Not completing instruction [sn:%lli] access "
                 "due to pending fault.\n", inst->seqNum);

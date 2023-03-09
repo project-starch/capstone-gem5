@@ -407,8 +407,10 @@ decode QUADRANT default Unknown::unknown() {
                 format Calls {
                     0x1: call ({{
                         Rs1, Rd;
+                        // Rs is used to populate r1
+                        // swap the context sealed in Rd
+                        
                     }});
-                    //TODO: Add rest of calls
                 }
                 format ROp {
                     0x2: jmp ({{

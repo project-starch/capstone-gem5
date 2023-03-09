@@ -111,17 +111,17 @@ NCQUnit::writebackCommands(){
                 //(!nc_ptr->beforeCommit() && !it->canWB))
                 continue;
 
-            if(nc_ptr->status == NodeCommand::NOT_STARTED) {
-                auto& cond_ptr = nc_ptr->condition;
-                auto saved_req = it->inst->savedRequest;
-                if(cond_ptr && saved_req &&
-                        (!saved_req->isComplete() || !cond_ptr->satisfied(saved_req))){
-                    DPRINTF(NCQ, "Command bypassed as condition is not satisfied\n");
-                    // cannot process if the request has not completed or 
-                    // the condition is not satisfied
-                    continue;
-                }
-            }
+            // if(nc_ptr->status == NodeCommand::NOT_STARTED) {
+            //     auto& cond_ptr = nc_ptr->condition;
+            //     auto saved_req = it->inst->savedRequest;
+            //     if(cond_ptr && saved_req &&
+            //             (!saved_req->isComplete() || !cond_ptr->satisfied(saved_req))){
+            //         DPRINTF(NCQ, "Command bypassed as condition is not satisfied\n");
+            //         // cannot process if the request has not completed or 
+            //         // the condition is not satisfied
+            //         continue;
+            //     }
+            // }
 
             DPRINTF(NCQ, "Checking command dependencies\n");
 

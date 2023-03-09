@@ -531,28 +531,13 @@ DynInst::initiateSetTag(Addr addr, bool tag) {
 void
 DynInst::checkQueryCompleted() {
     if(isQueryCompleted()) {
-        //if(memReadN > 0) {
         if(fault == NoFault) {
             auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
             rv_inst->completeAcc(this, traceData);
         }
         for(int i = 0; i < memReadN; i ++){
-            bool saved = false;
-            //delete memReads[i].res_pkt;
-            for(auto it = savedRequest->_packets.begin();
-                    it != savedRequest->_packets.end();
-                    ++ it) {
-                if(*it == memReads[i].res_pkt) {
-                    saved = true;
-                    break;
-                }
-            }
-            if(!saved) {
-                delete memReads[i].res_pkt;
-            }
             memReads[i].res_pkt = nullptr; // just to make sure 
         }
-        //}
         cpu->iewInstToCommitIfExeced(dynamic_cast<DynInstPtr::PtrType>(this));
     }
 }

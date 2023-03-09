@@ -145,8 +145,8 @@ class UncompressedCap {
         uint64_t _cursor;
         uint64_t _start;
         uint64_t _end;
-        CapPerm _perm: 3;
-        CapType _type: 3;
+        uint8_t _perm: 3;
+        uint8_t _type: 3;
         NodeID _node_id: 31;
         uint32_t _unused: 27;
 
@@ -159,11 +159,11 @@ class UncompressedCap {
         }
 
         CapPerm perm() const {
-            return _perm;
+            return static_cast<CapPerm>(_perm);
         }
 
         CapType type() const {
-            return _type;
+            return static_cast<CapType>(_type);
         }
 
         uint64_t cursor() const {
@@ -194,12 +194,12 @@ class UncompressedCap {
         }
 
         UncompressedCap& setPerm(CapPerm perm) {
-            _perm = perm;
+            _perm = static_cast<uint8_t>(perm);
             return *this;
         }
 
         UncompressedCap& setType(CapType type) {
-            _type = type;
+            _type = static_cast<uint8_t>(type);
             return *this;
         }
 

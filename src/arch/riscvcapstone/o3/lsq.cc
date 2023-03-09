@@ -807,60 +807,53 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     const bool htm_cmd = isLoad && (flags & Request::HTM_CMD);
     const bool tlbi_cmd = isLoad && (flags & Request::TLBI_CMD);
 
-    if (inst->translationStarted()) {
-        request = inst->savedRequest;
-        assert(request);
+    if (htm_cmd || tlbi_cmd) {
+        assert(addr == 0x0lu);
+        assert(size == 8);
+        request = new UnsquashableDirectRequest(&thread[tid], inst, flags);
+    } else if (needs_burst) {
+        request = new SplitDataRequest(&thread[tid], inst, isLoad, addr,
+                size, flags, data, res);
     } else {
-        if (htm_cmd || tlbi_cmd) {
-            assert(addr == 0x0lu);
-            assert(size == 8);
-            request = new UnsquashableDirectRequest(&thread[tid], inst, flags);
-        } else if (needs_burst) {
-            request = new SplitDataRequest(&thread[tid], inst, isLoad, addr,
-                    size, flags, data, res);
-        } else {
-            request = new SingleDataRequest(&thread[tid], inst, isLoad, addr,
-                    size, flags, data, res, std::move(amo_op));
-        }
-        assert(request);
-        request->_byteEnable = byte_enable;
-        inst->setRequest();
-        request->taskId(cpu->taskId());
-
-        // There might be fault from a previous execution attempt if this is
-        // a strictly ordered load
-        inst->getFault() = NoFault;
-
-        request->initiateTranslation();
+        request = new SingleDataRequest(&thread[tid], inst, isLoad, addr,
+                size, flags, data, res, std::move(amo_op));
     }
+    assert(request);
+    request->_byteEnable = byte_enable;
+    inst->setRequest();
+    request->taskId(cpu->taskId());
+
+    // There might be fault from a previous execution attempt if this is
+    // a strictly ordered load
+    inst->getFault() = NoFault;
+
+    request->initiateTranslation();
 
     /* This is the place were instructions get the effAddr. */
-    if (request->isTranslationComplete()) {
-        if (request->isMemAccessRequired()) {
-            inst->effAddr = request->getVaddr();
-            inst->effSize = size;
-            inst->effAddrValid(true);
+    if (request->isMemAccessRequired()) {
+        inst->effAddr = request->getVaddr();
+        inst->effSize = size;
+        inst->effAddrValid(true);
 
-            if (cpu->checker) {
-                inst->reqToVerify = std::make_shared<Request>(*request->req());
-            }
-            Fault fault;
-            if (isLoad)
-                fault = read(request, inst->lqIdx);
-            else
-                fault = write(request, data, inst->sqIdx);
-            // inst->getFault() may have the first-fault of a
-            // multi-access split request at this point.
-            // Overwrite that only if we got another type of fault
-            // (e.g. re-exec).
-            if (fault != NoFault)
-                inst->getFault() = fault;
-        } else if (isLoad) {
-            inst->setMemAccPredicate(false);
-            // Commit will have to clean up whatever happened.  Set this
-            // instruction as executed.
-            inst->setExecuted();
+        if (cpu->checker) {
+            inst->reqToVerify = std::make_shared<Request>(*request->req());
         }
+        Fault fault;
+        if (isLoad)
+            fault = read(request, inst->lqIdx);
+        else
+            fault = write(request, data, inst->sqIdx);
+        // inst->getFault() may have the first-fault of a
+        // multi-access split request at this point.
+        // Overwrite that only if we got another type of fault
+        // (e.g. re-exec).
+        if (fault != NoFault)
+            inst->getFault() = fault;
+    } else if (isLoad) {
+        inst->setMemAccPredicate(false);
+        // Commit will have to clean up whatever happened.  Set this
+        // instruction as executed.
+        inst->setExecuted();
     }
 
     if (inst->traceData)
@@ -963,7 +956,6 @@ LSQ::SingleDataRequest::initiateTranslation()
         setState(State::Translation);
         flags.set(Flag::TranslationStarted);
 
-        _inst->savedRequest = this;
         sendFragmentToTranslation(0);
     } else {
         _inst->setMemAccPredicate(false);
@@ -1038,7 +1030,6 @@ LSQ::SplitDataRequest::initiateTranslation()
         _inst->translationStarted(true);
         setState(State::Translation);
         flags.set(Flag::TranslationStarted);
-        _inst->savedRequest = this;
         numInTranslationFragments = 0;
         numTranslatedFragments = 0;
         _fault.resize(_reqs.size());
@@ -1137,7 +1128,6 @@ LSQ::LSQRequest::addReq(Addr addr, unsigned size,
 LSQ::LSQRequest::~LSQRequest()
 {
     assert(!isAnyOutstandingRequest());
-    _inst->savedRequest = nullptr;
 
     for (auto r: _packets)
         delete r;
@@ -1464,7 +1454,6 @@ LSQ::UnsquashableDirectRequest::initiateTranslation()
         _inst->fault = NoFault;
         _inst->physEffAddr = _reqs.back()->getPaddr();
         _inst->memReqFlags = _reqs.back()->getFlags();
-        _inst->savedRequest = this;
 
         flags.set(Flag::TranslationStarted);
         flags.set(Flag::TranslationFinished);
