@@ -693,11 +693,16 @@ decode QUADRANT default Unknown::unknown() {
                         NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
 
-                        if (static_cast<int>(Rd_trv.getRegVal().capVal().perm()) < 2)
+                        if(static_cast<int>(Rd_trv.getRegVal().capVal().perm()) < 3 ||
+                            Rd_trv.getRegVal().capVal().type() == SEALED)
                             return std::make_shared<IllegalInstFault>(
                                     "Rd doesn't have the necessary perms", machInst);
                     }}, {{ // ea_code
                         Addr EA = Rd_trv.getRegVal().capVal().cursor();
+
+                        if(EA + sizeof(RegVal) > Rd_trv.getRegVal().capVal().end())
+                            return std::make_shared<IllegalInstFault>(
+                                    "Illegal write - out of capability bounds!", machInst);
 
                         Mem_rv = Rs1_trv.getRegVal();
 
@@ -721,7 +726,7 @@ decode QUADRANT default Unknown::unknown() {
                             Rs1_trv.setTag(false);
 
                         if(rdv.capVal().type() == CapType::UNINIT)
-                            rdv.capVal().setCursor(EA + sizeof(Cap));
+                            rdv.capVal().setCursor(EA + sizeof(RegVal));
 
                         Rd_trv = Rd_trv;
                         Rs1_trv = Rs1_trv;
