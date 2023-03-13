@@ -694,7 +694,7 @@ decode QUADRANT default Unknown::unknown() {
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
 
                         if(static_cast<int>(Rd_trv.getRegVal().capVal().perm()) < 3 ||
-                            Rd_trv.getRegVal().capVal().type() == SEALED)
+                            Rd_trv.getRegVal().capVal().type() == o3::CapType::SEALED)
                             return std::make_shared<IllegalInstFault>(
                                     "Rd doesn't have the necessary perms", machInst);
                     }}, {{ // ea_code
