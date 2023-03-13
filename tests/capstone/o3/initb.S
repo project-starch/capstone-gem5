@@ -16,7 +16,7 @@ _start:
     CAPPERM(a3, a1)
 
     li a1, 0x40000
-    li a2, 0x40000 + REG_SIZE
+    li a2, 0x40001
     CAPBOUND(a3, a1, a2)
     CAPPRINT(a3)
     //end boilerplate
@@ -30,13 +30,19 @@ _start:
 
     #LWS(a4, a3) #should fail
 
-    SWC(a3, a1)
+    li a1, 0x42
+    SBC(a3, a1)
 
     CAPPRINT(a3)
 
     INIT(a3)
 
-    LWS(a4, a3)
+    li a2, 0x40000
+    SCC(a3, a2)
+
+    CAPPRINT(a3)
+
+    LBS(a4, a3)
     CAPPRINT(a4)
 
     j exit

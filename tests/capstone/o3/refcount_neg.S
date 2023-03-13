@@ -24,13 +24,13 @@ _start:
 
     CAPPRINT(a3)
 
-    LDS(a5, a3)
+    LWS(a5, a3)
     CAPPRINT(a5)
 
     li a4, -1
     RCUPDATE(a2, a4)
 
-    LDS(a6, a3)
+    LWS(a6, a3)
     CAPPRINT(a6)
 
     j exit

@@ -36,14 +36,14 @@ _start:
     li a1, 0x22
     li a2, 0x3200
     SCC(a5, a2)
-    SDC(a5, a1)
+    SWC(a5, a1)
     
     li a1, 0
-    LDS(a1, a5)
+    LWS(a1, a5)
     CAPPRINT(a1)
 
     REVOKE(a6)
 
-    LDS(a1, a5) #should fail
+    LWS(a1, a5) #should fail
     
     j exit

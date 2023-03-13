@@ -27,14 +27,14 @@ _start:
 
     CAPPRINT(a3)
 
-    LDS(a4, a3)
+    LWS(a4, a3)
     
     CAPPRINT(a4)
 
     li a6, 63
-    SDC(a3, a6)
+    SWC(a3, a6)
 
-    LDS(a4, a3)
+    LWS(a4, a3)
     CAPPRINT(a4)
     
     j exit

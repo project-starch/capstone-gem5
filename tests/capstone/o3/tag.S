@@ -35,7 +35,7 @@ _start:
 
     #TAGGET(a6, x0)
 
-    LDS(a4, a3)
+    LWS(a4, a3)
     TAGGET(a6, a4)
 
     

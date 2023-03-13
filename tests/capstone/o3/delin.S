@@ -46,10 +46,10 @@ _start:
     SCC(a3, a1)
     CAPPRINT(a3)
 
-    SDC(a3, a2)
+    SWC(a3, a2)
     CAPPRINT(a2)
 
-    LDC(a4, a3)
+    LWC(a4, a3)
     CAPPRINT(a4)
     CAPPRINT(a2)
 

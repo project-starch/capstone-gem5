@@ -32,17 +32,17 @@ _start:
     CAPBOUND(a2, a1, a6)
     CAPPRINT(a2)
 
-    SDC(a3, a2)
+    SWC(a3, a2)
     CAPPRINT(a2) # should be scrubbed
     
     fence
     li a4, 0
-    LDC(a4, a3)
+    LWC(a4, a3)
     CAPPRINT(a4)
     
     fence
     li a5, 0
-    LDS(a5, a3)
+    LWS(a5, a3)
     CAPPRINT(a5)
     
     j exit

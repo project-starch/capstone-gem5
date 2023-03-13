@@ -34,12 +34,12 @@ _start:
     li a1, CAP_TYPE_LIN
     CAPTYPE(a2, a1)
     CAPPRINT(a2)
-    SDC(a3, a2)
+    SWC(a3, a2)
     CAPPRINT(a2) # should be scrubbed
     CAPPRINT(a3)
 
     li a4, 0
-    LDS(a4, a3) # this load should fail
+    LWS(a4, a3) # this load should fail
 
     j exit
 

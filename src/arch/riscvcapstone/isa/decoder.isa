@@ -587,14 +587,13 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                 }
                 format RNodeMemOp {
-                    0xe: ldc ({{
+                    0xe: lwc ({{
                         Rd_trv; Rs1_trv;
 
                         assert(Rs1_trv.getTag());
 
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-                    }}, {{
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
@@ -615,6 +614,10 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
+                        gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_rv.capVal();
+
+                        getMemLE(pkt, cap, traceData);
+
                         Rd_trv.getRegVal() = Mem_rv;
 
                         using namespace gem5::RiscvcapstoneISA::o3;
@@ -646,15 +649,13 @@ decode QUADRANT default Unknown::unknown() {
 
                         Rd_trv = Rd_trv;
                     }});
-                    0x13: lds ({{
+                    0x13: lws ({{
                         Rd_trv; Rs1_trv;
 
                         assert(Rs1_trv.getTag());
 
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-                    }}, {{
-
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
@@ -674,6 +675,10 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
+                        gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_rv.capVal();
+
+                        getMemLE(pkt, cap, traceData);
+
                         Rd_trv.getRegVal() = Mem_rv;
 
                         Rd_trv.setTag(false);
@@ -683,9 +688,81 @@ decode QUADRANT default Unknown::unknown() {
 
                         Rd_trv = Rd_trv;
                     }});
+                    0x16: lbs ({{
+                        Rd_trv; Rs1_trv;
+
+                        assert(Rs1_trv.getTag());
+
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                    }}, {{
+                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
+
+                        //TODO: retrieve tag bit to make sure it corresponds
+                        //with the called inst?
+
+                        DPRINTFN("MemReads count = %d, tag query count = %d\n",
+                                dyn_inst->memReadN, dyn_inst->tagQueryN);
+
+                        //TODO: Maybe separate these statements
+                        //and introduce a new type(s) of fault
+                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1 ||
+                            !(EA >= Rs1_trv.getRegVal().capVal().start() &&
+                                EA <= Rs1_trv.getRegVal().capVal().end()) ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::UNINIT ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::SEALED)
+                            return std::make_shared<IllegalInstFault>(
+                                    "Rs1 doesn't have the necessary perms", machInst);
+                    }}, {{
+                        uint8_t& cap = Mem_ub;
+
+                        getMemLE(pkt, cap, traceData);
+
+                        Rd_trv.getRegVal() = Mem_ub;
+
+                        Rd_trv.setTag(false);
+
+                        Rd_trv = Rd_trv;
+                    }});
+                    0x17: lhs ({{
+                        Rd_trv; Rs1_trv;
+
+                        assert(Rs1_trv.getTag());
+
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                    }}, {{
+                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
+
+                        //TODO: retrieve tag bit to make sure it corresponds
+                        //with the called inst?
+
+                        DPRINTFN("MemReads count = %d, tag query count = %d\n",
+                                dyn_inst->memReadN, dyn_inst->tagQueryN);
+
+                        //TODO: Maybe separate these statements
+                        //and introduce a new type(s) of fault
+                        if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1 ||
+                            !(EA >= Rs1_trv.getRegVal().capVal().start() &&
+                                EA <= Rs1_trv.getRegVal().capVal().end()) ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::UNINIT ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::SEALED)
+                            return std::make_shared<IllegalInstFault>(
+                                    "Rs1 doesn't have the necessary perms", machInst);
+                    }}, {{
+                        uint64_t& cap = Mem_ud;
+
+                        getMemLE(pkt, cap, traceData);
+
+                        Rd_trv.getRegVal() = Mem_ud;
+
+                        Rd_trv.setTag(false);
+
+                        Rd_trv = Rd_trv;
+                    }});
                 }
                 format RNodeStoreMemOp {
-                    0xf: sdc ({{ // check_code
+                    0xf: swc ({{ // check_code
                         Rd_trv; Rs1_trv;
 
                         assert(Rd_trv.getTag());
@@ -694,7 +771,7 @@ decode QUADRANT default Unknown::unknown() {
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
 
                         if(static_cast<int>(Rd_trv.getRegVal().capVal().perm()) < 3 ||
-                            Rd_trv.getRegVal().capVal().type() == SEALED)
+                            Rd_trv.getRegVal().capVal().type() == CapType::SEALED)
                             return std::make_shared<IllegalInstFault>(
                                     "Rd doesn't have the necessary perms", machInst);
                     }}, {{ // ea_code
@@ -727,6 +804,98 @@ decode QUADRANT default Unknown::unknown() {
 
                         if(rdv.capVal().type() == CapType::UNINIT)
                             rdv.capVal().setCursor(EA + sizeof(RegVal));
+
+                        Rd_trv = Rd_trv;
+                        Rs1_trv = Rs1_trv;
+                    }}, IsStore);
+                    0x15: sbc ({{ // check_code
+                        Rd_trv; Rs1_trv;
+
+                        assert(Rd_trv.getTag());
+
+                        NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+
+                        if(static_cast<int>(Rd_trv.getRegVal().capVal().perm()) < 3 ||
+                            Rd_trv.getRegVal().capVal().type() == CapType::SEALED)
+                            return std::make_shared<IllegalInstFault>(
+                                    "Rd doesn't have the necessary perms", machInst);
+                    }}, {{ // ea_code
+                        Addr EA = Rd_trv.getRegVal().capVal().cursor();
+
+                        if(EA + sizeof(uint8_t) > Rd_trv.getRegVal().capVal().end())
+                            return std::make_shared<IllegalInstFault>(
+                                    "Illegal write - out of capability bounds!", machInst);
+
+                        Mem_ub = Rs1_trv.getRegVal().capVal().cursor();
+
+                        Fault fault = dyn_inst->initiateGetTag(EA);
+                        if(fault != NoFault)
+                            return fault;
+
+                        fault = writeMemTimingLE(xc, traceData, Mem_ub, EA,
+                                          memAccessFlags, nullptr);
+                            if (fault != NoFault)
+                                return fault;
+                    }}, {{ // comp_code
+                        //completeAcc code
+
+                        RegVal& rdv = Rd_trv.getRegVal();
+
+                        Addr EA = rdv.capVal().cursor();
+
+                        dyn_inst->initiateSetTag(EA, Rs1_trv.getTag());
+                        if(Rs1_trv.getTag() && Rs1_trv.getRegVal().capVal().type() != CapType::NONLIN)
+                            Rs1_trv.setTag(false);
+
+                        if(rdv.capVal().type() == CapType::UNINIT)
+                            rdv.capVal().setCursor(EA + sizeof(uint8_t));
+
+                        Rd_trv = Rd_trv;
+                        Rs1_trv = Rs1_trv;
+                    }}, IsStore);
+                    0x14: shc ({{ // check_code
+                        Rd_trv; Rs1_trv;
+
+                        assert(Rd_trv.getTag());
+
+                        NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+
+                        if(static_cast<int>(Rd_trv.getRegVal().capVal().perm()) < 3 ||
+                            Rd_trv.getRegVal().capVal().type() == CapType::SEALED)
+                            return std::make_shared<IllegalInstFault>(
+                                    "Rd doesn't have the necessary perms", machInst);
+                    }}, {{ // ea_code
+                        Addr EA = Rd_trv.getRegVal().capVal().cursor();
+
+                        if(EA + sizeof(uint64_t) > Rd_trv.getRegVal().capVal().end())
+                            return std::make_shared<IllegalInstFault>(
+                                    "Illegal write - out of capability bounds!", machInst);
+
+                        Mem_ud = Rs1_trv.getRegVal().capVal().cursor();
+
+                        Fault fault = dyn_inst->initiateGetTag(EA);
+                        if(fault != NoFault)
+                            return fault;
+
+                        fault = writeMemTimingLE(xc, traceData, Mem_ud, EA,
+                                          memAccessFlags, nullptr);
+                            if (fault != NoFault)
+                                return fault;
+                    }}, {{ // comp_code
+                        //completeAcc code
+
+                        RegVal& rdv = Rd_trv.getRegVal();
+
+                        Addr EA = rdv.capVal().cursor();
+
+                        dyn_inst->initiateSetTag(EA, Rs1_trv.getTag());
+                        if(Rs1_trv.getTag() && Rs1_trv.getRegVal().capVal().type() != CapType::NONLIN)
+                            Rs1_trv.setTag(false);
+
+                        if(rdv.capVal().type() == CapType::UNINIT)
+                            rdv.capVal().setCursor(EA + sizeof(uint64_t));
 
                         Rd_trv = Rd_trv;
                         Rs1_trv = Rs1_trv;
