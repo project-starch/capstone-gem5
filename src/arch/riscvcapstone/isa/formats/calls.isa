@@ -45,8 +45,7 @@ def format Calls(code, *opt_flags) {{
 
 def template CallsDeclare {{
     static constexpr uint64_t CONTEXT_SIZE = NumIntArchRegs * sizeof(RegVal); // in bytes
-    static constexpr uint64_t MAX_REQ_SIZE = 64;
-    static constexpr uint64_t REQUEST_N = CONTEXT_SIZE / MAX_REQ_SIZE;
+    static constexpr uint64_t REQUEST_N = CONTEXT_SIZE / MAX_REQUEST_SIZE;
     /**
      * Static instruction class for "%(mnemonic)s".
      */
@@ -144,10 +143,10 @@ def template CallsExecute {{
         
         uint64_t cur_addr = base_addr;
         
-        uint8_t dummy[MAX_REQ_SIZE];
+        uint8_t dummy[MAX_REQUEST_SIZE];
 
         // for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += o3::CAPSTONE_CAP_SIZE >> 3) {
-        for(int i = 0; i < REQUEST_N; i ++, cur_addr += MAX_REQ_SIZE) {
+        for(int i = 0; i < REQUEST_N; i ++, cur_addr += MAX_REQUEST_SIZE) {
             initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
         }
         // }
@@ -159,8 +158,18 @@ def template CallsExecute {{
 def template CallsCompleteAcc {{
     Fault
     %(class_name)s::completeAcc(PacketPtr pkt, ExecContext* xc, Trace::InstRecord* traceData) const {
-        // RegVal mem_val = Mem_rv;
-        DPRINTFN("got the values\n");
+        using namespace gem5::RiscvcapstoneISA::o3;
+
+        DynInst* inst = dynamic_cast<DynInst*>(xc);
+        assert(inst);
+        assert(inst->memReadN == REQUEST_N);
+
+        for(int i = 0; i < REQUEST_N; i ++) {
+            RegVal* vals = (RegVal*)(inst->getMemReadRes(0));
+            for(int j = 0; j * sizeof(RegVal) < MAX_REQUEST_SIZE; j ++){
+                DPRINTFN("Request %d val %d = %llu\n", i, j, vals[j].intVal());
+            }
+        }
         return NoFault;
     }
 

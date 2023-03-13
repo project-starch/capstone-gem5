@@ -63,17 +63,5 @@ RiscvMicroInst::advancePC(ThreadContext *tc) const
     tc->pcState(pc);
 }
 
-Fault
-RiscvStaticInst::completeAcc(ExecContext *xc, Trace::InstRecord *traceData) const {
-    auto dyn_inst = dynamic_cast<o3::DynInst*>(xc);
-    assert(dyn_inst);
-
-    if(dyn_inst->getMemReadN() > 0) {
-        return completeAcc(dyn_inst->getMemReadRes(0), xc, traceData);
-    }
-
-    return completeAcc(nullptr, xc, traceData);
-}
-
 } // namespace RiscvcapstoneISA
 } // namespace gem5

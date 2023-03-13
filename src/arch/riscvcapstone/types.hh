@@ -53,6 +53,7 @@ typedef uint64_t ExtMachInst;
 typedef uint64_t NodeID;
 
 const NodeID NODE_ID_INVALID = (NodeID)(-1ULL & ((1ULL << 31) - 1));
+const uint64_t MAX_REQUEST_SIZE = 64;
 
 
 } // namespace RiscvcapstoneISA

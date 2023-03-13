@@ -163,8 +163,6 @@ class RiscvStaticInst : public StaticInst
     virtual Fault completeAcc(PacketPtr pkt, ExecContext *xc, Trace::InstRecord *traceData) const {
         return NoFault;
     }
-
-    virtual Fault completeAcc(ExecContext *xc, Trace::InstRecord *traceData) const;
 };
 
 /**

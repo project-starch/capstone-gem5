@@ -76,7 +76,7 @@ namespace RiscvcapstoneISA::o3
 {
     class NodeCommand;
     typedef NodeCommand* NodeCommandPtr;
-
+    
     const int MAX_QUERY_N = 64; // TODO: optimise this
 
 class DynInst : public ExecContext, public RefCounted
@@ -162,12 +162,14 @@ class DynInst : public ExecContext, public RefCounted
 
     struct MemReadRecord {
         Addr addr;
-        PacketPtr res_pkt;
+        uint8_t data[MAX_REQUEST_SIZE];
     };
     
     MemReadRecord memReads[MAX_QUERY_N];
     bool memReadCompleted[MAX_QUERY_N];
     int memReadN = 0, completedMemReadN = 0;
+    
+    PacketPtr lastPacket = nullptr;
     
     
     // NodeCommandPtr nodeCommands[MAX_QUERY_N];
@@ -188,10 +190,10 @@ class DynInst : public ExecContext, public RefCounted
         return memReadN;
     }
 
-    PacketPtr getMemReadRes(int idx) const {
+    const uint8_t* getMemReadRes(int idx) const {
         assert(idx < memReadN);
         assert(memReadCompleted[idx]);
-        return memReads[idx].res_pkt;
+        return memReads[idx].data;
     }
 
   protected:

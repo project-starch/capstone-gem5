@@ -385,17 +385,12 @@ DynInst::completeMemAcc(PacketPtr pkt)
         }
     }
 
-    //if(pkt && pkt->isRead()) {
-    if(pkt) {
-        int i;
-        for(i = 0; i < memReadN && !pkt->matchAddr(memReads[i].addr, false);
-                i ++);
-        completeMemRead(i, pkt);
-    } else{
-        panic("completeMemAcc receives empty packet");
-        // completeMemRead(0, pkt);
-        //fault = staticInst->completeAcc(pkt, this, traceData);
-    }
+    assert(pkt && pkt->isRead());
+    int i;
+    for(i = 0; i < memReadN && !pkt->matchAddr(memReads[i].addr, false);
+            i ++);
+    completeMemRead(i, pkt);
+    
     thread->noSquashFromTC = no_squash_from_TC;
 
     return fault;
@@ -414,8 +409,7 @@ DynInst::initiateMemRead(Addr addr, unsigned size, Request::Flags flags,
     assert(byte_enable.size() == size);
 
     memReads[memReadN] = MemReadRecord {
-        .addr = addr,
-        .res_pkt = nullptr
+        .addr = addr
     };
     memReadCompleted[memReadN] = false;
     ++ memReadN;
@@ -505,8 +499,13 @@ DynInst::completeMemRead(int idx, PacketPtr pkt) {
         seqNum, idx, pkt);
     assert(idx >= 0 && idx < memReadN);
     assert(!memReadCompleted[idx]);
+    
+    lastPacket = pkt;
+    
+    // handle the packet here and move data to a separate buffer
+    assert(pkt->getSize() <= MAX_REQUEST_SIZE);
+    memcpy(memReads[idx].data, pkt->getPtr<uint8_t>(), pkt->getSize());
 
-    memReads[idx].res_pkt = pkt;
     memReadCompleted[idx] = true;
     ++ completedMemReadN;
     checkQueryCompleted();
@@ -536,23 +535,7 @@ DynInst::checkQueryCompleted() {
     if(isQueryCompleted()) {
         if(fault == NoFault) {
             auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
-            rv_inst->completeAcc(this, traceData);
-        }
-        for(int i = 0; i < memReadN; i ++){
-            bool saved = false;
-            // delete memReads[i].res_pkt;
-            // for(auto it = savedRequest->_packets.begin();
-            //         it != savedRequest->_packets.end();
-            //         ++ it) {
-            //     if(*it == memReads[i].res_pkt) {
-            //         saved = true;
-            //         break;
-            //     }
-            // }
-            // if(!saved) {
-                // delete memReads[i].res_pkt;
-            // }
-            memReads[i].res_pkt = nullptr; // just to make sure 
+            rv_inst->completeAcc(lastPacket, this, traceData); // FIXME: pass the packet somehow
         }
         cpu->iewInstToCommitIfExeced(dynamic_cast<DynInstPtr::PtrType>(this));
     }
