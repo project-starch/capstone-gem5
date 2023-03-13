@@ -392,7 +392,7 @@ DynInst::completeMemAcc(PacketPtr pkt)
                 i ++);
         completeMemRead(i, pkt);
     } else{
-        panic("completeMemAcc receives empty packet")
+        panic("completeMemAcc receives empty packet");
         // completeMemRead(0, pkt);
         //fault = staticInst->completeAcc(pkt, this, traceData);
     }
