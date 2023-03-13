@@ -62,7 +62,7 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
       _readySrcIdx(arrays.readySrcIdx), macroop(_macroop)
 {
     std::fill(_readySrcIdx, _readySrcIdx + (numSrcs() + 7) / 8, 0);
-
+    
     status.reset();
 
     instFlags.reset();
@@ -392,7 +392,8 @@ DynInst::completeMemAcc(PacketPtr pkt)
                 i ++);
         completeMemRead(i, pkt);
     } else{
-        completeMemRead(0, pkt);
+        panic("completeMemAcc receives empty packet")
+        // completeMemRead(0, pkt);
         //fault = staticInst->completeAcc(pkt, this, traceData);
     }
     thread->noSquashFromTC = no_squash_from_TC;
@@ -500,6 +501,8 @@ DynInst::initiateGetTag(Addr addr) {
 
 void
 DynInst::completeMemRead(int idx, PacketPtr pkt) {
+    DPRINTF(DynInst, "Inst %llu complete memory read %d with packet at %p.\n",
+        seqNum, idx, pkt);
     assert(idx >= 0 && idx < memReadN);
     assert(!memReadCompleted[idx]);
 
@@ -538,18 +541,18 @@ DynInst::checkQueryCompleted() {
         }
         for(int i = 0; i < memReadN; i ++){
             bool saved = false;
-            //delete memReads[i].res_pkt;
-            for(auto it = savedRequest->_packets.begin();
-                    it != savedRequest->_packets.end();
-                    ++ it) {
-                if(*it == memReads[i].res_pkt) {
-                    saved = true;
-                    break;
-                }
-            }
-            if(!saved) {
-                delete memReads[i].res_pkt;
-            }
+            // delete memReads[i].res_pkt;
+            // for(auto it = savedRequest->_packets.begin();
+            //         it != savedRequest->_packets.end();
+            //         ++ it) {
+            //     if(*it == memReads[i].res_pkt) {
+            //         saved = true;
+            //         break;
+            //     }
+            // }
+            // if(!saved) {
+                // delete memReads[i].res_pkt;
+            // }
             memReads[i].res_pkt = nullptr; // just to make sure 
         }
         //}

@@ -77,7 +77,7 @@ namespace RiscvcapstoneISA::o3
     class NodeCommand;
     typedef NodeCommand* NodeCommandPtr;
 
-    const int MAX_QUERY_N = 4;
+    const int MAX_QUERY_N = 16;
 
 class DynInst : public ExecContext, public RefCounted
 {
@@ -223,6 +223,7 @@ class DynInst : public ExecContext, public RefCounted
         SerializeAfter,          /// Needs to serialize instructions behind it
         SerializeHandled,        /// Serialization has been handled
         NodeExecuted,
+        ExecuteCalled,
         NumStatus
     };
 
@@ -422,7 +423,7 @@ class DynInst : public ExecContext, public RefCounted
      * Saved memory request (needed when the DTB address translation is
      * delayed due to a hw page table walk).
      */
-    LSQ::LSQRequest *savedRequest;
+    // LSQ::LSQRequest *savedRequest; 
 
     /////////////////////// Checker //////////////////////
     // Need a copy of main request pointer to verify on writes.
@@ -857,6 +858,8 @@ class DynInst : public ExecContext, public RefCounted
 
     /** Sets this instruction as executed. */
     void setExecuted() { status.set(Executed); checkQueryCompleted(); }
+    
+    void setExecuteCalled() { status.set(ExecuteCalled); }
 
     void setNodeExecuted() { status.set(NodeExecuted); }
 
@@ -868,8 +871,13 @@ class DynInst : public ExecContext, public RefCounted
 
     bool isTagCompleted() { return tagQueryN == completedTagQueryN; }
 
-    /** Returns whether or not this instruction has executed. */
+    /** Returns whether or not this instruction has executed.
+     *  Note that this is set only when all the loads are complete.
+     */
     bool isExecuted() const { return status[Executed]; }
+    
+    /** Whether the execute() method has been called. */
+    bool isExecuteCalled() const { return status[ExecuteCalled]; }
 
     /** Sets this instruction as ready to commit. */
     void setCanCommit() { status.set(CanCommit); }

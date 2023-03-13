@@ -1236,6 +1236,8 @@ IEW::executeInsts()
         DPRINTF(IEW, "Execute: Executing instructions from IQ.\n");
 
         DynInstPtr inst = instQueue.getInstToExecute();
+        
+        assert(!inst->isExecuted());
 
         DPRINTF(IEW, "Execute: Processing PC %s, [tid:%i] [sn:%llu].\n",
                 inst->pcState(), inst->threadNumber,inst->seqNum);
@@ -1290,6 +1292,7 @@ IEW::executeInsts()
         if(fault == NoFault) {
             DPRINTF(IEW, "Execute instruction %i\n", inst->seqNum);
             fault = inst->execute();
+            inst->setExecuteCalled();
             if(inst->isMemRef()) {
                 DPRINTF(IEW, "Memref fault = %d\n", fault == NoFault);
             } else {
@@ -1623,9 +1626,12 @@ IEW::tick()
         broadcast_free_entries = true;
     }
 
+    // Send loads to the cache.
+    ldstQueue.sendLoads();
+
     // Writeback any stores using any leftover bandwidth.
     ldstQueue.writebackStores();
-
+    
     // Writeback any node commands using any leftover bandwidth.
     ncQueue.writebackCommands();
 

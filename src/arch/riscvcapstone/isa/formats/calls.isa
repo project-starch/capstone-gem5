@@ -39,23 +39,28 @@ def format Calls(code, *opt_flags) {{
     header_output = CallsDeclare.subst(iop)
     decoder_output = CallsConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
-    exec_output = CallsExecute.subst(iop)
+    exec_output = CallsExecute.subst(iop) + \
+        CallsCompleteAcc.subst(iop)
 }};
 
 def template CallsDeclare {{
+    static constexpr uint64_t CONTEXT_SIZE = NumIntArchRegs * sizeof(RegVal); // in bytes
+    static constexpr uint64_t MAX_REQ_SIZE = 64;
+    static constexpr uint64_t REQUEST_N = CONTEXT_SIZE / MAX_REQ_SIZE;
     /**
      * Static instruction class for "%(mnemonic)s".
      */
     class %(class_name)s : public %(base_class)s
     {
         private:
-            RegId srcRegIdxArr[2]; RegId destRegIdxArr[0];
+            RegId srcRegIdxArr[NumIntArchRegs]; RegId destRegIdxArr[NumIntArchRegs];
 
         public:
         /// Constructor.
         %(class_name)s(ExtMachInst machInst);
 
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        Fault completeAcc(PacketPtr, ExecContext*, Trace::InstRecord*) const override;
     };
 }};
 
@@ -63,18 +68,24 @@ def template CallsConstructor {{
     %(class_name)s::%(class_name)s(ExtMachInst machInst):
         %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
     {
-    setRegIdxArrays(
-        reinterpret_cast<RegIdArrayPtr>(
-            &std::remove_pointer_t<decltype(this)>::srcRegIdxArr),
-        reinterpret_cast<RegIdArrayPtr>(
-            &std::remove_pointer_t<decltype(this)>::destRegIdxArr));
+        setRegIdxArrays(
+            reinterpret_cast<RegIdArrayPtr>(
+                &std::remove_pointer_t<decltype(this)>::srcRegIdxArr),
+            reinterpret_cast<RegIdArrayPtr>(
+                &std::remove_pointer_t<decltype(this)>::destRegIdxArr));
 
-    setSrcRegIdx(_numSrcRegs++,
-                 ((RS1) == 0) ? RegId() : RegId(IntRegClass, RS1));
-    setSrcRegIdx(_numSrcRegs++,
-                 ((RD) == 0) ? RegId() : RegId(IntRegClass, RD));
-    flags[IsInteger] = true;
-    hasNodeOp = true;
+        for(int i = 1; i < NumIntArchRegs; i ++) {
+            setSrcRegIdx(_numSrcRegs++, RegId(IntRegClass, i));
+            setDestRegIdx(_numDestRegs++, RegId(IntRegClass, i));
+        }
+        
+        %(constructor)s;
+
+        flags[IsInteger] = true;
+        flags[IsLoad] = true;
+        // flags[IsStore] = true;
+        flags[IsStore] = false;
+        hasNodeOp = true;
     }
 }};
 
@@ -83,43 +94,74 @@ def template CallsExecute {{
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
-        uint64_t Rs1;
+        using namespace gem5::RiscvcapstoneISA::o3;
 
-        Rs1 = xc->getRegOperand(this, 0);
+        DynInst* inst = dynamic_cast<DynInst*>(xc);
+        assert(inst);
 
-        {
-            gem5::RiscvcapstoneISA::o3::DynInst *ptr =
-                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
-            Rs1 = ptr->cpuId();
-            DPRINTFN("In calls! cpuId = %d\n", Rs1);
-
-            const RegId regId = srcRegIdx(1);
-            const RegIndex regIdx = regId.index();
-
-            ThreadContext *tcBase = xc->tcBase();
-            int threadId = tcBase->threadId();
-
-            gem5::RiscvcapstoneISA::o3::DynInst *dyn_inst =
-                dynamic_cast<gem5::RiscvcapstoneISA::o3::DynInst *>(xc);
-
-            gem5::RiscvcapstoneISA::CapLoc regLoc =
-                gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
-
-            /* TODO: Add actual method to retrieve node ID from the capability */
-            gem5::RiscvcapstoneISA::NodeID nodeId = 0;
-
-            gem5::RiscvcapstoneISA::o3::NodeQuery qry =
-                gem5::RiscvcapstoneISA::o3::NodeQuery(dyn_inst, nodeId);
-
-            gem5::RiscvcapstoneISA::o3::NodeCommandPtr cmd = &qry;
-
-            dyn_inst->initiateNodeCommand(cmd);
-
-            //TODO: Actually switch the domain and pass Rs1 to it
-
-            return NoFault;
+        ConstTaggedRegVal Rs1, Rd;
+        
+        int Rs1_src_idx = RS1 - 1;
+        int Rd_src_idx = RD - 1;
+        
+        if(Rs1_src_idx >= 0) {
+            Rs1 = inst->getTaggedRegOperand(this, Rs1_src_idx);
+        }
+        
+        if(Rd_src_idx >= 0) {
+            Rd = inst->getTaggedRegOperand(this, Rd_src_idx);
+        }
+        
+        if(!Rs1.getTag()) {
+            return std::make_shared<IllegalInstFault>("Operand needs to be a capability", machInst);
+        }
+        
+        const Cap& Rs1_cap = Rs1.getRegVal().capVal();
+        
+        if(Rs1_cap.type() != CapType::SEALED) {
+            return std::make_shared<IllegalInstFault>("Operand can only be a sealed capability", machInst);
+        }
+        
+        if(Rs1_cap.perm() == CapPerm::NA) {
+            return std::make_shared<IllegalInstFault>("Operation not permitted with the given capability", machInst);
+        }
+        
+        uint64_t base_addr = Rs1_cap.start();
+        uint64_t end_addr = Rs1_cap.end();
+        assert(end_addr >= base_addr);
+        uint64_t len = end_addr - base_addr;
+        
+        if(len < CONTEXT_SIZE) {
+            return std::make_shared<IllegalInstFault>("Memory region too small for a domain context", machInst);
         }
 
+        Fault fault = inst->initiateNodeCommand(new NodeQuery(Rs1_cap.nodeId()));
+        if(fault != NoFault) {
+            return fault;
+        }
+        
+        DPRINTFN("Call checks passed\n");
+        
+        uint64_t cur_addr = base_addr;
+        
+        uint8_t dummy[MAX_REQ_SIZE];
+
+        // for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += o3::CAPSTONE_CAP_SIZE >> 3) {
+        for(int i = 0; i < REQUEST_N; i ++, cur_addr += MAX_REQ_SIZE) {
+            initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
+        }
+        // }
+        
         return NoFault;
     }
+}};
+
+def template CallsCompleteAcc {{
+    Fault
+    %(class_name)s::completeAcc(PacketPtr pkt, ExecContext* xc, Trace::InstRecord* traceData) const {
+        // RegVal mem_val = Mem_rv;
+        DPRINTFN("got the values\n");
+        return NoFault;
+    }
+
 }};
