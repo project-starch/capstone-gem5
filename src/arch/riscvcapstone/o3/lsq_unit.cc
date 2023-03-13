@@ -332,7 +332,9 @@ LSQUnit::insertLoad(const DynInstPtr &load_inst)
     /* Grow the queue. */
     loadQueue.advance_tail();
 
-    load_inst->sqIt = storeQueue.end();
+    if(!load_inst->isStore()) {
+        load_inst->sqIt = storeQueue.end();
+    }
 
     assert(!loadQueue.back().valid());
     loadQueue.back().set(load_inst);
@@ -394,9 +396,11 @@ LSQUnit::insertStore(const DynInstPtr& store_inst)
     store_inst->sqIdx = storeQueue.tail();
     store_inst->sqIt = storeQueue.getIterator(store_inst->sqIdx);
 
-    store_inst->lqIdx = loadQueue.tail() + 1;
-    assert(store_inst->lqIdx > 0);
-    store_inst->lqIt = loadQueue.end();
+    if(!store_inst->isLoad()) {
+        store_inst->lqIdx = loadQueue.tail() + 1;
+        assert(store_inst->lqIdx > 0);
+        store_inst->lqIt = loadQueue.end();
+    }
 
     storeQueue.back().set(store_inst);
 }
@@ -625,16 +629,16 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
     if (inst->isTranslationDelayed() && load_fault == NoFault)
         return load_fault;
 
-    if (load_fault != NoFault && inst->translationCompleted() &&
-            inst->savedRequest->isPartialFault()
-            && !inst->savedRequest->isComplete()) {
-        assert(inst->savedRequest->isSplit());
-        // If we have a partial fault where the mem access is not complete yet
-        // then the cache must have been blocked. This load will be re-executed
-        // when the cache gets unblocked. We will handle the fault when the
-        // mem access is complete.
-        return NoFault;
-    }
+    // if (load_fault != NoFault && inst->translationCompleted() &&
+    //         inst->savedRequest->isPartialFault()
+    //         && !inst->savedRequest->isComplete()) {
+    //     assert(inst->savedRequest->isSplit());
+    //     // If we have a partial fault where the mem access is not complete yet
+    //     // then the cache must have been blocked. This load will be re-executed
+    //     // when the cache gets unblocked. We will handle the fault when the
+    //     // mem access is complete.
+    //     return NoFault;
+    // }
 
     // If the instruction faulted or predicated false, then we need to send it
     // along to commit without the instruction completing.

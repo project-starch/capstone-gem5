@@ -534,7 +534,6 @@ DynInst::initiateSetTag(Addr addr, bool tag) {
 void
 DynInst::checkQueryCompleted() {
     if(isQueryCompleted()) {
-        //if(memReadN > 0) {
         if(fault == NoFault) {
             auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
             rv_inst->completeAcc(this, traceData);
@@ -555,7 +554,6 @@ DynInst::checkQueryCompleted() {
             // }
             memReads[i].res_pkt = nullptr; // just to make sure 
         }
-        //}
         cpu->iewInstToCommitIfExeced(dynamic_cast<DynInstPtr::PtrType>(this));
     }
 }
