@@ -13,6 +13,7 @@ GEM5_FLAGS?=
 GEM5_CONFIG?=config.py
 GEM5_CONFIG_FLAGS?=
 GEM5_TEST_TIMEOUT?=20
+CAPSTONE_TESTS_CFLAGS?=
 
 GCC=riscv64-unknown-linux-gnu-gcc
 
@@ -22,7 +23,7 @@ $(TARGETS):%:$(STATIC_LIB).o %.o
 	$(GCC) -o $@ -nostdlib -static $^
 
 $(OBJECTS):%.o:%.S $(HEADERS)
-	$(GCC) -c -o $@ $<
+	$(GCC) $(CAPSTONE_TESTS_CFLAGS) -c -o $@ $<
 
 $(RUN_TARGETS):run-%:%
 	$(info Running testcase $^)

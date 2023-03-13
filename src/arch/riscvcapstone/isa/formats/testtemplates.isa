@@ -10,7 +10,7 @@ def template TestRevokeExecute {{
 
         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
         assert(dyn_inst);
-        /* TODO: Add actual method to retrieve node ID from the capability */
+        
         NodeID node_id = static_cast<NodeID>(xc->getRegOperand(this, 0));
         return dyn_inst->initiateNodeCommand(new NodeRevoke(node_id));
     }
@@ -26,7 +26,7 @@ def template TestQueryExecute {{
 
         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
         assert(dyn_inst);
-        /* TODO: Add actual method to retrieve node ID from the capability */
+        
         NodeID node_id = static_cast<NodeID>(xc->getRegOperand(this, 0));
         return dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
     }
@@ -42,7 +42,7 @@ def template TestRcUpdateExecute {{
 
         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
         assert(dyn_inst);
-        /* TODO: Add actual method to retrieve node ID from the capability */
+        
         NodeID node_id = static_cast<NodeID>(xc->getRegOperand(this, 0));
         DPRINTFN("Test RcUpdate node_id = %u\n", node_id);
         int delta = static_cast<int>(xc->getRegOperand(this, 1));
@@ -69,7 +69,7 @@ def template TestAllocExecute {{
 
         xc->setRegOperand(this, 0, to_allocate);
 
-        /* TODO: Add actual method to retrieve node ID from the capability */
+        
         NodeID node_id = static_cast<NodeID>(xc->getRegOperand(this, 0));
         return dyn_inst->initiateNodeCommand(new NodeAllocate(node_id, to_allocate));
     }
@@ -85,7 +85,7 @@ def template TestDropExecute {{
 
         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
         assert(dyn_inst);
-        /* TODO: Add actual method to retrieve node ID from the capability */
+        
         NodeID node_id = static_cast<NodeID>(xc->getRegOperand(this, 0));
         DPRINTFN("Test Drop node_id = %u\n", node_id);
         return dyn_inst->initiateNodeCommand(new NodeDrop(node_id));

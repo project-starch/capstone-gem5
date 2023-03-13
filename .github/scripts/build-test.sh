@@ -33,7 +33,8 @@ build_and_run() {
 
     cd $TEST_DIR
     print_prompt "Building Tests"
-    if make; then
+    make clean
+    if make CAPSTONE_TESTS_CFLAGS="$CAPSTONE_TESTS_CFLAGS"; then
         print_prompt "Building Tests Complete"
     else
         print_prompt "Building Tests Failed"
@@ -56,17 +57,20 @@ print_prompt "Build and run with the mock tag controller"
 
 BUILD_FLAGS="--uncompressed --mocktag"
 GEM5_CONFIG_FLAGS="--cpu=o3 --mocktag"
+CAPSTONE_TESTS_CFLAGS="-DUSE_UNCOMPRESSED"
 build_and_run
 
 print_prompt "Build and run with the memory-backed tag controller"
 
 BUILD_FLAGS="--uncompressed"
 GEM5_CONFIG_FLAGS="--cpu=o3"
+CAPSTONE_TESTS_CFLAGS="-DUSE_UNCOMPRESSED"
 build_and_run
 
 print_prompt "Build and run with compressed capability format"
 
 BUILD_FLAGS=""
 GEM5_CONFIG_FLAGS="--cpu=o3"
+CAPSTONE_TESTS_CFLAGS=""
 build_and_run
 

@@ -75,7 +75,6 @@ def template ExceptExecute {{
             gem5::RiscvcapstoneISA::CapLoc regLoc =
                 gem5::RiscvcapstoneISA::CapLoc::makeReg(threadId, regIdx);
 
-            /* TODO: Add actual method to retrieve node ID from the capability */
             gem5::RiscvcapstoneISA::NodeID nodeId = 0;
 
             gem5::RiscvcapstoneISA::o3::NodeQuery qry =

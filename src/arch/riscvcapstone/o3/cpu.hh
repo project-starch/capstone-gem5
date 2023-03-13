@@ -669,6 +669,10 @@ class CPU : public BaseCPU
     void iewInstToCommitIfExeced(const DynInstPtr& inst) {
         iew.instToCommitIfExeced(inst);
     }
+
+    IEW& getIEWObject() {
+        return iew;
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3

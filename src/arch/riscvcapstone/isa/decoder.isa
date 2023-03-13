@@ -384,9 +384,11 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        assert(Rs1_trv.getTag() && Rs1_trv.getRegVal().capVal().type() == CapType::REV);
+                        RegVal& reg_val = Rs1_trv.getRegVal();
+
+                        assert(Rs1_trv.getTag() && reg_val.capVal().type() == CapType::REV);
                         
-                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        NodeID node_id = reg_val.capVal().nodeId();
 
                         DPRINTFN("Revoke: node_id = %lu\n", node_id);
 
@@ -394,7 +396,10 @@ decode QUADRANT default Unknown::unknown() {
                         if(fault != NoFault)
                             return fault;
 
-                        Rs1_trv.getRegVal().capVal().setType(CapType::LIN);
+                        uint64_t base = reg_val.capVal().start();
+
+                        Rs1_trv.getRegVal().capVal().setType(CapType::UNINIT);
+                        Rs1_trv.getRegVal().capVal().setCursor(base);
                         
                         Rs1_trv = Rs1_trv;
                     }});
@@ -409,11 +414,34 @@ decode QUADRANT default Unknown::unknown() {
                 }
                 format ROp {
                     0x2: jmp ({{
-                        NPC = Rs1;
+                        //replacing the capability inside IEW,
+                        //which holds the permissions and bounds,
+                        //AND the NPC which holds the cursor
+                        RegVal& rsv = Rs1_trv.getRegVal();
+                        NPC = rsv.capVal().cursor();
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        dyn_inst->cpu->getIEWObject().setPCCap(rsv.capVal(),
+                                                            dyn_inst->threadNumber);
                     }}, IsUncondControl);
                     0x3: jnz ({{
-                        if(Rs1 != 0)
-                            NPC = Rd;
+                        RegVal& rdv = Rd_trv.getRegVal();
+                        if(Rs1 == 0)
+                            return NoFault;
+
+                        NPC = rdv.capVal().cursor();
+
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        dyn_inst->cpu->getIEWObject().setPCCap(rdv.capVal(),
+                                                            dyn_inst->threadNumber);
                     }}, IsCondControl);
                     0x4: shrink ({{
                         RegVal& rdv = Rd_trv.getRegVal();
@@ -429,29 +457,33 @@ decode QUADRANT default Unknown::unknown() {
                         Rd = (Rs1 < Rs2);
                     }});
                     0x6: tighten ({{
-                        /* TODO: do we perform checks here if new perms are actually 
-                         * tighter than current perms?
-                         */
-
                         RegVal& rdv = Rd_trv.getRegVal();
                         assert(Rd_trv.getTag());
 
                         using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
                         CapPerm temp = static_cast<CapPerm>(Rs1);
                         assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
+
+                        if(temp > rdv.capVal().perm()) {
+                            return std::make_shared<IllegalInstFault>(
+                                    "Cannot increase permissions!", machInst);
+                        }
                         rdv.capVal().setPerm(temp);
                         Rd_trv = Rd_trv;
                     }});
                     0x7: delin ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
                         RegVal& rdv = Rd_trv.getRegVal();
-                        assert(Rd_trv.getTag());
+                        assert(Rd_trv.getTag() && !(rdv.capVal().type() == CapType::UNINIT));
 
-                        rdv.capVal().setType(gem5::RiscvcapstoneISA::o3::CapType::NONLIN);
+                        rdv.capVal().setType(CapType::NONLIN);
                         Rd_trv = Rd_trv;
                     }});
                     0x8: scc ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
                         RegVal& reg_val = Rd_trv.getRegVal();
-                        assert(Rd_trv.getTag());
+                        assert(Rd_trv.getTag() && !(reg_val.capVal().type() == CapType::UNINIT ||
+                                                    reg_val.capVal().type() == CapType::SEALED));
 
                         uint64_t start = reg_val.val.cap.start();
                         uint64_t end = reg_val.val.cap.end();
@@ -460,11 +492,15 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rd_trv;
                     }});
                     0x9: init ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
                         RegVal& rdv = Rd_trv.getRegVal();
-                        assert(Rd_trv.getTag());
+                        assert(Rd_trv.getTag() && rdv.capVal().type() == CapType::UNINIT &&
+                                rdv.capVal().cursor() == rdv.capVal().end());
 
-                        rdv.capVal().setType(gem5::RiscvcapstoneISA::o3::CapType::LIN);
+                        rdv.capVal().setType(CapType::LIN);
 
+                        //Maybe let the programmer do this part?
                         uint64_t start = rdv.capVal().start();
                         rdv.capVal().setCursor(start);
                         Rd_trv = Rd_trv;
@@ -573,7 +609,9 @@ decode QUADRANT default Unknown::unknown() {
                         //and introduce a new type(s) of fault
                         if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1 ||
                             !(EA >= Rs1_trv.getRegVal().capVal().start() &&
-                                EA <= Rs1_trv.getRegVal().capVal().end()))
+                                EA <= Rs1_trv.getRegVal().capVal().end()) ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::UNINIT ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::SEALED)
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
@@ -630,13 +668,18 @@ decode QUADRANT default Unknown::unknown() {
                         //and introduce a new type(s) of fault
                         if (static_cast<int>(Rs1_trv.getRegVal().capVal().perm()) < 1 ||
                             !(EA >= Rs1_trv.getRegVal().capVal().start() &&
-                                EA <= Rs1_trv.getRegVal().capVal().end()))
+                                EA <= Rs1_trv.getRegVal().capVal().end()) ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::UNINIT ||
+                                Rs1_trv.getRegVal().capVal().type() == CapType::SEALED)
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
                         Rd_trv.getRegVal() = Mem_rv;
 
                         Rd_trv.setTag(false);
+
+                        //Addr EA = Rs1_trv.getRegVal().capVal().cursor();
+                        //dyn_inst->initiateSetTag(EA, true);
 
                         Rd_trv = Rd_trv;
                     }});
@@ -650,11 +693,16 @@ decode QUADRANT default Unknown::unknown() {
                         NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
 
-                        if (static_cast<int>(Rd_trv.getRegVal().capVal().perm()) < 2)
+                        if(static_cast<int>(Rd_trv.getRegVal().capVal().perm()) < 3 ||
+                            Rd_trv.getRegVal().capVal().type() == SEALED)
                             return std::make_shared<IllegalInstFault>(
                                     "Rd doesn't have the necessary perms", machInst);
                     }}, {{ // ea_code
                         Addr EA = Rd_trv.getRegVal().capVal().cursor();
+
+                        if(EA + sizeof(RegVal) > Rd_trv.getRegVal().capVal().end())
+                            return std::make_shared<IllegalInstFault>(
+                                    "Illegal write - out of capability bounds!", machInst);
 
                         Mem_rv = Rs1_trv.getRegVal();
 
@@ -669,14 +717,20 @@ decode QUADRANT default Unknown::unknown() {
                     }}, {{ // comp_code
                         //completeAcc code
 
-                        Addr EA = Rd_trv.getRegVal().capVal().cursor();    
+                        RegVal& rdv = Rd_trv.getRegVal();
+
+                        Addr EA = rdv.capVal().cursor();
 
                         dyn_inst->initiateSetTag(EA, Rs1_trv.getTag());
                         if(Rs1_trv.getTag() && Rs1_trv.getRegVal().capVal().type() != CapType::NONLIN)
                             Rs1_trv.setTag(false);
 
+                        if(rdv.capVal().type() == CapType::UNINIT)
+                            rdv.capVal().setCursor(EA + sizeof(RegVal));
+
+                        Rd_trv = Rd_trv;
                         Rs1_trv = Rs1_trv;
-                    }});
+                    }}, IsStore);
                 }
                 format RNodeOp {
                     0x11: mrev ({{

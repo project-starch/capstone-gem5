@@ -1,3 +1,10 @@
+#ifdef USE_UNCOMPRESSED
+#define REG_SIZE  0x20
+#else
+#define REG_SIZE  0x10
+#endif
+
+
 #define REVOKE(reg)             .insn r 0x5B, 0x1, 0x0, x0, reg, x0
 
 #define CALL(rd,rs1)            .insn r 0x5B, 0x1, 0x1, rd, rs1, x0
@@ -46,8 +53,10 @@
 // Capability-related constants
 #define CAP_PERM_NA 0
 #define CAP_PERM_RO 1
-#define CAP_PERM_RW 2
-#define CAP_PERM_RWX 3
+#define CAP_PERM_RX 2
+#define CAP_PERM_RW 3
+#define CAP_PERM_RWX 4
+
 
 #define CAP_TYPE_LIN 0
 #define CAP_TYPE_NONLIN 1

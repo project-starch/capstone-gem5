@@ -39,9 +39,9 @@ struct CompressedCapBound {
 enum class CapPerm {
     NA = 0, // no access
     RO = 1,
-    RW = 2,
-    RWX = 3,
-    RX = 4
+    RX = 2,
+    RW = 3,
+    RWX = 4
 };
 
 enum class CapType {

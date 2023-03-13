@@ -1274,9 +1274,9 @@ IEW::executeInsts()
         CapPerm pc_perm = pcCaps[thread_id].perm();
         if(!capInBound(pcCaps[thread_id], inst->pcState().instAddr()) ||
             (pc_perm != CapPerm::RX && pc_perm != CapPerm::RWX)) {
-            DPRINTFN("Cap %llx %llx %llx %u\n", pcCaps[thread_id].start(), pcCaps[thread_id].end(), 
-                pcCaps[thread_id].start(), pcCaps[thread_id].end(),
-                inst->pcState().instAddr());
+            DPRINTFN("Cap %llx %llx %llx (perm = %d)\n", pcCaps[thread_id].start(), pcCaps[thread_id].end(),
+                inst->pcState().instAddr(), static_cast<int>(pc_perm));
+            panic("PC capability checks failed");
         } else {
             fault = inst->getFault();
         }

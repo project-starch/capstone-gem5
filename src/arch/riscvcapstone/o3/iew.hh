@@ -506,6 +506,25 @@ class IEW
         statistics::Formula wbFanout;
     } iewStats;
 
+  public:
+    void setPCCap(Cap newPC, uint64_t threadID) {
+      assert(threadID < MaxThreads);
+
+      uint64_t start, end, cursor, nodeID;
+      CapPerm perm; CapType type;
+
+      start = newPC.start();
+      end = newPC.end();
+      cursor = newPC.cursor();
+      perm = newPC.perm();
+      type = newPC.type();
+      nodeID = newPC.nodeId();
+
+      pcCaps[threadID].setAddresses(start, end, cursor);
+      pcCaps[threadID].setPerm(perm);
+      pcCaps[threadID].setType(type);
+      pcCaps[threadID].setNodeId(nodeID);
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3
