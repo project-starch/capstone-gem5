@@ -4,6 +4,10 @@
 #define REG_SIZE  0x10
 #endif
 
+#define EXIT_STUB li a0, 0; \
+    li a7, 93; \
+    ecall
+
 
 #define REVOKE(reg)             .insn r 0x5B, 0x1, 0x0, x0, reg, x0
 
