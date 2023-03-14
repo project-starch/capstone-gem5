@@ -143,9 +143,12 @@ def template CallsExecute {{
         
         uint64_t cur_addr = base_addr;
         
-        uint8_t dummy[MAX_REQUEST_SIZE];
-
-        for(int i = 0; i < REQUEST_N; i ++, cur_addr += MAX_REQUEST_SIZE) {
+        // uint8_t dummy[MAX_REQUEST_SIZE];
+        RegVal dummy;
+        // for(int i = 0; i < REQUEST_N; i ++, cur_addr += MAX_REQUEST_SIZE) {
+        //     initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
+        // }
+        for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
             initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
         }
         
@@ -169,27 +172,22 @@ def template CallsCompleteAcc {{
         RiscvcapstoneISAInst::PCState pc_state;
         set(pc_state, xc->pcState());
         
-        int reg_idx = 0;
+        for(int reg_idx = 0; reg_idx < NumIntArchRegs; reg_idx ++) {
+            RegVal& v = *(RegVal*)(inst->getMemReadRes(reg_idx));
+            ConstTagRef tag = inst->getTagQueryRes(reg_idx);
+            DPRINTFN("Reg %d  = 0x%llx (tag = %d)\n",
+                reg_idx, v.intVal(), tag);
+            
+            // write back to registers
+            if(reg_idx == 0) {
+                assert(tag);
+                pc_state.npc(v.capVal().cursor());
+                inst->cpu->getIEWObject().setPCCap(v.capVal(),
+                                               inst->threadNumber);
 
-        for(int i = 0; i < REQUEST_N; i ++) {
-            RegVal* vals = (RegVal*)(inst->getMemReadRes(i));
-            for(int j = 0; j * sizeof(RegVal) < MAX_REQUEST_SIZE; ++ j, ++ reg_idx){
-                RegVal& v = vals[j];
-                ConstTagRef tag = inst->getTagQueryRes(reg_idx);
-                DPRINTFN("Reg %d (request %d val %d) = 0x%llx (tag = %d)\n",
-                    reg_idx, i, j, vals[j].intVal(), tag);
-                
-                // write back to registers
-                if(reg_idx == 0) {
-                    assert(tag);
-                    pc_state.npc(v.capVal().cursor());
-                    inst->cpu->getIEWObject().setPCCap(v.capVal(),
-                                                   inst->threadNumber);
-
-                } else {
-                    ConstTaggedRegVal tagged_val(v, tag);
-                    inst->setTaggedRegOperand(this, reg_idx, tagged_val);
-                }
+            } else {
+                ConstTaggedRegVal tagged_val(v, tag);
+                inst->setTaggedRegOperand(this, reg_idx, tagged_val);
             }
         }
         xc->pcState(pc_state);

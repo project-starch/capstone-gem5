@@ -1579,11 +1579,10 @@ IEW::tick()
 
     ldstQueue.tick();
     ncQueue.tick();
-    // FIXME: only for testing
-    for(auto threads = activeThreads->begin(); threads != activeThreads->end();
-            ++ threads) {
-        assert(!ncQueue.isFull(*threads));
-    }
+    // for(auto threads = activeThreads->begin(); threads != activeThreads->end();
+    //         ++ threads) {
+    //     assert(!ncQueue.isFull(*threads));
+    // }
 
     sortInsts();
 
