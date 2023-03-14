@@ -169,6 +169,8 @@ class DynInst : public ExecContext, public RefCounted
     bool memReadCompleted[MAX_QUERY_N];
     int memReadN = 0, completedMemReadN = 0;
     
+    int memWriteN = 0;
+    
     PacketPtr lastPacket = nullptr;
     
     

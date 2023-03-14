@@ -160,18 +160,18 @@ swap_byte(T x)
     return swap_byte128((uint128_t)x);
 }
 
-//static_assert(std::is_convertible_v<gem5::RiscvcapstoneISA::o3::UncompressedCap, uint256_t>, 
-        //"UncompressedCap should be convertible with uint256_t");
-//static_assert(std::is_convertible_v<gem5::RiscvcapstoneISA::o3::CompressedCap, uint128_t>, 
-        //"CompressedCap should be convertible with uint128_t");
+static_assert(std::is_convertible_v<gem5::RiscvcapstoneISA::o3::UncompressedCap, uint256_t>, 
+        "UncompressedCap should be convertible with uint256_t");
+static_assert(std::is_convertible_v<gem5::RiscvcapstoneISA::o3::CompressedCap, uint128_t>, 
+        "CompressedCap should be convertible with uint128_t");
 
-// #ifdef CAPSTONE_USE_UNCOMPRESSED
-// static_assert(std::is_convertible_v<RegVal, uint256_t>, 
-//         "UncompressedCap should be convertible with uint256_t");
-// #else
-// static_assert(std::is_convertible_v<RegVal, uint128_t>, 
-//         "CompressedCap should be convertible with uint128_t");
-// #endif
+#ifdef CAPSTONE_USE_UNCOMPRESSED
+static_assert(std::is_convertible_v<RegVal, uint256_t>, 
+        "UncompressedCap should be convertible with uint256_t");
+#else
+static_assert(std::is_convertible_v<RegVal, uint128_t>, 
+        "CompressedCap should be convertible with uint128_t");
+#endif
 
 #endif
 

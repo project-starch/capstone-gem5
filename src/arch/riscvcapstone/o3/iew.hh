@@ -507,23 +507,14 @@ class IEW
     } iewStats;
 
   public:
-    void setPCCap(Cap newPC, uint64_t threadID) {
-      assert(threadID < MaxThreads);
+    void setPCCap(Cap newPC, ThreadID threadID) {
+      assert(threadID < numThreads);
 
-      uint64_t start, end, cursor, nodeID;
-      CapPerm perm; CapType type;
-
-      start = newPC.start();
-      end = newPC.end();
-      cursor = newPC.cursor();
-      perm = newPC.perm();
-      type = newPC.type();
-      nodeID = newPC.nodeId();
-
-      pcCaps[threadID].setAddresses(start, end, cursor);
-      pcCaps[threadID].setPerm(perm);
-      pcCaps[threadID].setType(type);
-      pcCaps[threadID].setNodeId(nodeID);
+      pcCaps[threadID] = newPC;
+    }
+    
+    const Cap& getPCCap(ThreadID threadID) const {
+      return pcCaps[threadID];
     }
 };
 

@@ -195,6 +195,15 @@ struct RegVal {
     RegVal(const Cap& cap) {
         val.cap = cap;
     }
+#ifdef CAPSTONE_USE_UNCOMPRESSED
+    RegVal(uint256_t v)
+#else
+    RegVal(uint128_t v)
+#endif
+    {
+        val.cap = v;
+    }
+
     RegVal& operator = (uint64_t v) {
         val.intv = v;
         return *this;
@@ -230,11 +239,13 @@ struct RegVal {
     }
 
 #ifdef CAPSTONE_USE_UNCOMPRESSED
-    operator uint256_t() const {
+    operator uint256_t() const
+#else
+    operator uint128_t() const
+#endif
+    {
         return val.cap;
     }
-#else
-#endif
 };
 
 class ConstTaggedRegVal;

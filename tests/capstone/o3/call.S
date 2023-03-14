@@ -45,7 +45,7 @@ _start:
     SDC(a3, a4)
     SEAL(a3)
     
-    .rept 200
+    .rept 320 # FIXME: fix the hazard
     nop
     .endr
 

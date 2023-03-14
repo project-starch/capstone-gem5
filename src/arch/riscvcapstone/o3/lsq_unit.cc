@@ -1758,6 +1758,7 @@ LSQUnit::postExecCheck(const DynInstPtr& inst) {
         }
 
         if (inst->isStoreConditional() || inst->isAtomic()) {
+            panic("This is not handled yet");
             // Store conditionals and Atomics need to set themselves as able to
             // writeback if we haven't had a fault by here.
             storeQueue[store_idx].canWB() = true;

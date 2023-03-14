@@ -1579,6 +1579,7 @@ IEW::tick()
 
     ldstQueue.tick();
     ncQueue.tick();
+    tagController.tick();
     // for(auto threads = activeThreads->begin(); threads != activeThreads->end();
     //         ++ threads) {
     //     assert(!ncQueue.isFull(*threads));

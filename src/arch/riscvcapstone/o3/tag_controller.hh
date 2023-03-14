@@ -4,6 +4,8 @@
 #include<type_traits>
 #include<unordered_set>
 #include<unordered_map> 
+#include<queue>
+#include<utility>
 #include<list>
 #include<vector>
 #include "base/types.hh"
@@ -45,9 +47,9 @@ class BaseTagController {
         std::vector<TagQueue> tagQueues; // uncommitted tags
 
         static bool aligned(Addr addr) {
-            return (addr & ((1 << CAPSTONE_NODE_SIZE_SHIFT) - 1)) == 0;
+            // return (addr & ((1 << CAPSTONE_NODE_SIZE_SHIFT) - 1)) == 0;
+            return (addr & (sizeof(RegVal) - 1)) == 0;
         }
-
 
         BaseTagController(int thread_count, int queue_size);
 
@@ -138,12 +140,12 @@ class MemoryTagController : public BaseTagController {
         TagCachePort tcachePort;
 
         std::unordered_map<PacketId, TagCacheRequest> ongoingRequests;
+        std::queue<std::pair<PacketPtr, TagCacheRequest>> blockedRequests;
             
         Addr getTagAddr(Addr addr) const {
             assert(aligned(addr));
-            //return BASE_ADDRESS + (node_id >> (CAPSTONE_NODE_SIZE_SHIFT + 3));
             // each tag takes one bit only
-            return BASE_ADDRESS + (addr >> CAPSTONE_NODE_SIZE_SHIFT);
+            return BASE_ADDRESS + addr / sizeof(RegVal);
             // TODO: let's be wasteful now and store each tag using a byte
         }
 
@@ -163,6 +165,7 @@ class MemoryTagController : public BaseTagController {
 
         bool getCommittedTag(const DynInstPtr& inst, Addr addr, bool& delayed) override;
         void tick() override;
+        void writeback() override;
 
         RequestPort& getTagPort() {
             return tcachePort;

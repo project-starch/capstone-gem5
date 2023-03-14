@@ -51,6 +51,7 @@ def template CallsDeclare {{
      */
     class %(class_name)s : public %(base_class)s
     {
+    
         private:
             RegId srcRegIdxArr[NumIntArchRegs]; RegId destRegIdxArr[NumIntArchRegs];
 
@@ -99,18 +100,20 @@ def template CallsExecute {{
         assert(inst);
 
         ConstTaggedRegVal Rs1, Rd;
-        
+
         int Rs1_src_idx = RS1 - 1;
         int Rd_src_idx = RD - 1;
-        
-        if(Rs1_src_idx >= 0) {
+
+        if (Rs1_src_idx >= 0)
+        {
             Rs1 = inst->getTaggedRegOperand(this, Rs1_src_idx);
         }
-        
-        if(Rd_src_idx >= 0) {
+
+        if (Rd_src_idx >= 0)
+        {
             Rd = inst->getTaggedRegOperand(this, Rd_src_idx);
         }
-        
+
         if(!Rs1.getTag()) {
             return std::make_shared<IllegalInstFault>("Operand needs to be a capability", machInst);
         }
@@ -167,10 +170,13 @@ def template CallsCompleteAcc {{
 
         DynInst* inst = dynamic_cast<DynInst*>(xc);
         assert(inst);
-        assert(inst->memReadN == REQUEST_N);
+        assert(inst->memReadN == NumIntArchRegs);
         
         RiscvcapstoneISAInst::PCState pc_state;
         set(pc_state, xc->pcState());
+        uint64_t npc = pc_state.npc();
+        Cap pc_cap = inst->cpu->getIEWObject().getPCCap(inst->threadNumber);
+        pc_cap.setCursor(npc); // prepare the PC cap to save
         
         for(int reg_idx = 0; reg_idx < NumIntArchRegs; reg_idx ++) {
             RegVal& v = *(RegVal*)(inst->getMemReadRes(reg_idx));
@@ -191,6 +197,53 @@ def template CallsCompleteAcc {{
             }
         }
         xc->pcState(pc_state);
+        
+        
+        ConstTaggedRegVal Rs1, Rd;
+
+        int Rs1_src_idx = RS1 - 1;
+        int Rd_src_idx = RD - 1;
+
+        if (Rs1_src_idx >= 0)
+        {
+            Rs1 = inst->getTaggedRegOperand(this, Rs1_src_idx);
+        }
+
+        if (Rd_src_idx >= 0)
+        {
+            Rd = inst->getTaggedRegOperand(this, Rd_src_idx);
+        }
+
+        const Cap& Rs1_cap = Rs1.getRegVal().capVal();
+        uint64_t base_addr = Rs1_cap.start();
+        
+        // TODO: save context
+        // save PC cap
+        // no need to change tag as we already know it is tagged
+        // TODO: optimisation: write multiple regs at one time
+        // Fault fault = writeMemTimingLE(xc, traceData, RegVal(pc_cap), base_addr,
+        //     Request::Flags(), nullptr);
+        // if(fault != NoFault) {
+        //     return fault;
+        // }
+
+        // uint64_t cur_addr = base_addr + sizeof(RegVal);
+
+        // for(int i = 1; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
+        //     ConstTaggedRegVal v = inst->getTaggedRegOperand(this, i);
+        //     // store value
+        //     fault = writeMemTimingLE(xc, traceData, v.getRegVal(), cur_addr, 
+        //         Request::Flags(), nullptr);
+        //     if(fault != NoFault) {
+        //         return fault;
+        //     }
+        //     // store tag
+        //     fault = inst->initiateSetTag(cur_addr, v.getTag());
+        // }
+
+        // TODO: seal
+        // TODO: update ref counts
+
 
         return NoFault;
     }
