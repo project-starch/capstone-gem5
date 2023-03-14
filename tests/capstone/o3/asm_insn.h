@@ -1,7 +1,9 @@
 #ifdef USE_UNCOMPRESSED
 #define REG_SIZE  0x20
+#define REG_SIZE_LOG2 5
 #else
 #define REG_SIZE  0x10
+#define REG_SIZE_LOG2 4
 #endif
 
 #define EXIT_STUB li a0, 0; \

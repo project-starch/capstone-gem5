@@ -17,7 +17,7 @@ _start:
     CAPPERM(a3, a1)
 
     la a1, _context
-    li a2, 0x100000
+    la a2, _context_end
     CAPBOUND(a3, a1, a2)
     CAPPRINT(a3)
     
@@ -62,6 +62,8 @@ _stub:
 
 _stub_end:
 
-.align REG_SIZE
+.align REG_SIZE_LOG2
 _context:
-    .fill 64, REG_SIZE, 0 # FIXME: should be 32
+    .fill REG_SIZE * 32 / 8, 8, 0
+    
+_context_end:
