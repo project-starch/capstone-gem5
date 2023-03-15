@@ -39,8 +39,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_O3_THREAD_CONTEXT_HH__
-#define __CPU_O3_THREAD_CONTEXT_HH__
+#ifndef __CAPSTONE_CPU_O3_THREAD_CONTEXT_HH__
+#define __CAPSTONE_CPU_O3_THREAD_CONTEXT_HH__
 
 #include "config/the_isa.hh"
 #include "arch/riscvcapstone/o3/cpu.hh"

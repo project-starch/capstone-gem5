@@ -27,8 +27,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_O3_SCOREBOARD_HH__
-#define __CPU_O3_SCOREBOARD_HH__
+#ifndef __CAPSTONE_CPU_O3_SCOREBOARD_HH__
+#define __CAPSTONE_CPU_O3_SCOREBOARD_HH__
 
 #include <cassert>
 #include <vector>

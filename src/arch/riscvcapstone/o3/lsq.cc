@@ -855,6 +855,7 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
 
         if (cpu->checker) {
             inst->reqToVerify = std::make_shared<Request>(*request->req());
+            inst->reqIdxToVerify = request->reqIdx;
         }
         Fault fault;
         if (isLoad)
@@ -1113,6 +1114,9 @@ LSQ::LSQRequest::install()
         // to this storeQueue
         _port.storeQueue[_inst->sqIdx].pushRequest(this);
     }
+
+    reqIdx = _inst->memData.size();
+    _inst->memData.push_back(nullptr);
 }
 
 bool LSQ::LSQRequest::squashed() const { return _inst->isSquashed(); }
@@ -1227,7 +1231,7 @@ LSQ::SplitDataRequest::recvTimingResp(PacketPtr pkt)
             ? Packet::createRead(_mainReq)
             : Packet::createWrite(_mainReq);
         if (isLoad())
-            resp->dataStatic(_inst->memData);
+            resp->dataStatic(_inst->memData[reqIdx]);
         else
             resp->dataStatic(_data);
         resp->senderState = this;
@@ -1247,7 +1251,7 @@ LSQ::SingleDataRequest::buildPackets()
                 isLoad()
                     ?  Packet::createRead(req())
                     :  Packet::createWrite(req()));
-        _packets.back()->dataStatic(_inst->memData);
+        _packets.back()->dataStatic(_inst->memData[reqIdx]);
         _packets.back()->senderState = this;
 
         // hardware transactional memory
@@ -1280,7 +1284,7 @@ LSQ::SplitDataRequest::buildPackets()
         /* New stuff */
         if (isLoad()) {
             _mainPacket = Packet::createRead(_mainReq);
-            _mainPacket->dataStatic(_inst->memData);
+            _mainPacket->dataStatic(_inst->memData[reqIdx]);
 
             // hardware transactional memory
             // If request originates in a transaction,
@@ -1303,11 +1307,11 @@ LSQ::SplitDataRequest::buildPackets()
                                      : Packet::createWrite(req);
             ptrdiff_t offset = req->getVaddr() - base_address;
             if (isLoad()) {
-                pkt->dataStatic(_inst->memData + offset);
+                pkt->dataStatic(_inst->memData[reqIdx] + offset);
             } else {
                 uint8_t* req_data = new uint8_t[req->getSize()];
                 std::memcpy(req_data,
-                        _inst->memData + offset,
+                        _inst->memData[reqIdx] + offset,
                         req->getSize());
                 pkt->dataDynamic(req_data);
             }

@@ -43,8 +43,8 @@
  * also generates a protobuf trace of the instruction fetch requests.
  */
 
-#ifndef __CPU_O3_PROBE_ELASTIC_TRACE_HH__
-#define __CPU_O3_PROBE_ELASTIC_TRACE_HH__
+#ifndef __CAPSTONE_CPU_O3_PROBE_ELASTIC_TRACE_HH__
+#define __CAPSTONE_CPU_O3_PROBE_ELASTIC_TRACE_HH__
 
 #include <set>
 #include <unordered_map>
@@ -563,4 +563,4 @@ class ElasticTrace : public ProbeListenerObject
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5
 
-#endif//__CPU_O3_PROBE_ELASTIC_TRACE_HH__
+#endif//__CAPSTONE_CPU_O3_PROBE_ELASTIC_TRACE_HH__

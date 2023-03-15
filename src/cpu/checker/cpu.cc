@@ -51,9 +51,24 @@
 #include "cpu/utils.hh"
 #include "params/CheckerCPU.hh"
 #include "sim/full_system.hh"
+#include "cpu/o3/dyn_inst.hh"
+
+#include "arch/riscvcapstone/o3/dyn_inst.hh"
+
+// #include "cpu/checker/cpu_impl.hh"
 
 namespace gem5
 {
+    
+uint8_t* getMemData(o3::DynInst* v) {
+    return v->memData;
+}
+
+#ifdef TARGET_RISCVCapstone
+uint8_t* getMemData(RiscvcapstoneISA::o3::DynInst* v) {
+    return v->memData[v->reqIdxToVerify];
+}
+#endif
 
 void
 CheckerCPU::init()

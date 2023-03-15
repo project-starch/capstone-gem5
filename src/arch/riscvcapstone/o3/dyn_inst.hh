@@ -39,14 +39,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_O3_DYN_INST_HH__
-#define __CPU_O3_DYN_INST_HH__
+#ifndef __CAPSTONE_CPU_O3_DYN_INST_HH__
+#define __CAPSTONE_CPU_O3_DYN_INST_HH__
 
 #include <algorithm>
 #include <array>
 #include <deque>
 #include <list>
 #include <string>
+#include <vector>
 
 #include "base/refcnt.hh"
 #include "base/trace.hh"
@@ -75,6 +76,7 @@ class Packet;
 namespace RiscvcapstoneISA::o3
 {
     class NodeCommand;
+    class CPU;
     typedef NodeCommand* NodeCommandPtr;
     
     const int MAX_QUERY_N = 64; // TODO: optimise this
@@ -404,7 +406,7 @@ class DynInst : public ExecContext, public RefCounted
     unsigned effSize;
 
     /** Pointer to the data for the memory access. */
-    uint8_t *memData = nullptr;
+    std::vector<uint8_t*> memData;
 
     /** Load queue index. */
     ssize_t lqIdx = -1;
@@ -432,6 +434,8 @@ class DynInst : public ExecContext, public RefCounted
     /////////////////////// Checker //////////////////////
     // Need a copy of main request pointer to verify on writes.
     RequestPtr reqToVerify;
+
+    int reqIdxToVerify;
 
   public:
     /** Records changes to result? */
@@ -1344,4 +1348,4 @@ class DynInst : public ExecContext, public RefCounted
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5
 
-#endif // __CPU_O3_DYN_INST_HH__
+#endif // __CAPSTONE_CPU_O3_DYN_INST_HH__

@@ -83,8 +83,7 @@ def template CallsConstructor {{
 
         flags[IsInteger] = true;
         flags[IsLoad] = true;
-        // flags[IsStore] = true;
-        flags[IsStore] = false;
+        flags[IsStore] = true;
         hasNodeOp = true;
     }
 }};
@@ -221,11 +220,11 @@ def template CallsCompleteAcc {{
         // save PC cap
         // no need to change tag as we already know it is tagged
         // TODO: optimisation: write multiple regs at one time
-        // Fault fault = writeMemTimingLE(xc, traceData, RegVal(pc_cap), base_addr,
-        //     Request::Flags(), nullptr);
-        // if(fault != NoFault) {
-        //     return fault;
-        // }
+        Fault fault = writeMemTimingLE(xc, traceData, RegVal(pc_cap), base_addr,
+            Request::Flags(), nullptr);
+        if(fault != NoFault) {
+            return fault;
+        }
 
         // uint64_t cur_addr = base_addr + sizeof(RegVal);
 

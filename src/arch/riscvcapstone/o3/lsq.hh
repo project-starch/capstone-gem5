@@ -39,8 +39,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_O3_LSQ_HH__
-#define __CPU_O3_LSQ_HH__
+#ifndef __CAPSTONE_CPU_O3_LSQ_HH__
+#define __CAPSTONE_CPU_O3_LSQ_HH__
 
 #include <cassert>
 #include <cstdint>
@@ -258,6 +258,8 @@ class LSQ
         uint32_t _numOutstandingPackets;
         AtomicOpFunctorPtr _amo_op;
         bool _hasStaleTranslation;
+
+        int reqIdx; // index of this request in DynInst
 
       protected:
         LSQUnit* lsqUnit() { return &_port; }
@@ -980,4 +982,4 @@ class LSQ
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5
 
-#endif // __CPU_O3_LSQ_HH__
+#endif // __CAPSTONE_CPU_O3_LSQ_HH__

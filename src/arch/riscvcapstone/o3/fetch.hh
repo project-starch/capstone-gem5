@@ -38,8 +38,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_O3_FETCH_HH__
-#define __CPU_O3_FETCH_HH__
+#ifndef __CAPSTONE_CPU_O3_FETCH_HH__
+#define __CAPSTONE_CPU_O3_FETCH_HH__
 
 #include "arch/generic/decoder.hh"
 #include "arch/generic/mmu.hh"
@@ -592,4 +592,4 @@ class Fetch
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5
 
-#endif //__CPU_O3_FETCH_HH__
+#endif //__CAPSTONE_CPU_O3_FETCH_HH__

@@ -180,11 +180,14 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
             }
 
             writeback(inst, request->mainPacket());
-            if (inst->isStore() || inst->isAtomic()) {
+            // if (inst->isStore() || inst->isAtomic()) {
+            if (pkt->isWrite()) {
+                assert(inst->isStore());
                 request->writebackDone();
                 completeStore(request->instruction()->sqIt);
             }
-        } else if (inst->isStore()) {
+        } else if (pkt->isWrite()) {
+            assert(inst->isStore());
             // This is a regular store (i.e., not store conditionals and
             // atomics), so it can complete without writing back
             completeStore(request->instruction()->sqIt);
@@ -890,20 +893,22 @@ LSQUnit::writebackStores()
 
         storeWBIt->committed() = true;
 
-        assert(!inst->memData);
-        inst->memData = new uint8_t[request->_size];
+        // why do we even need this?
+        uint8_t*& mem_data = inst->memData[request->reqIdx];
+        assert(!mem_data); // FIXME: here we need to adapt to multiple stores
+        mem_data = new uint8_t[request->_size];
 
         if (storeWBIt->isAllZeros())
-            memset(inst->memData, 0, request->_size);
+            memset(mem_data, 0, request->_size);
         else
-            memcpy(inst->memData, storeWBIt->data(), request->_size);
+            memcpy(mem_data, storeWBIt->data(), request->_size);
 
         request->buildPackets();
 
         DPRINTF(LSQUnit, "D-Cache: Writing back store idx:%i PC:%s "
                 "to Addr:%#x, data:%#x [sn:%lli]\n",
                 storeWBIt.idx(), inst->pcState(),
-                request->mainReq()->getPaddr(), (int)*(inst->memData),
+                request->mainReq()->getPaddr(), (int)*(mem_data),
                 inst->seqNum);
 
         // @todo: Remove this SC hack once the memory system handles it.
@@ -942,7 +947,7 @@ LSQUnit::writebackStores()
             gem5::ThreadContext *thread = cpu->tcBase(lsqID);
             PacketPtr main_pkt = new Packet(request->mainReq(),
                                             MemCmd::WriteReq);
-            main_pkt->dataStatic(inst->memData);
+            main_pkt->dataStatic(mem_data);
             request->mainReq()->localAccessor(thread, main_pkt);
             delete main_pkt;
             completeStore(storeWBIt);
@@ -1410,15 +1415,17 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 request->mainReq());
         load_inst->recordResult(true);
     }
+    
+    uint8_t*& mem_data = load_inst->memData[request->reqIdx];
 
     if (request->mainReq()->isLocalAccess()) {
-        assert(!load_inst->memData);
-        load_inst->memData = new uint8_t[MaxDataBytes];
+        assert(!mem_data);
+        mem_data = new uint8_t[MaxDataBytes];
 
         gem5::ThreadContext *thread = cpu->tcBase(lsqID);
         PacketPtr main_pkt = new Packet(request->mainReq(), MemCmd::ReadReq);
 
-        main_pkt->dataStatic(load_inst->memData);
+        main_pkt->dataStatic(mem_data);
 
         Cycles delay = request->mainReq()->localAccessor(thread, main_pkt);
 
@@ -1502,15 +1509,15 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                     store_it->instruction()->effAddr;
 
                 // Allocate memory if this is the first time a load is issued.
-                if (!load_inst->memData) {
-                    load_inst->memData =
+                if (!mem_data) {
+                    mem_data =
                         new uint8_t[request->mainReq()->getSize()];
                 }
                 if (store_it->isAllZeros())
-                    memset(load_inst->memData, 0,
+                    memset(mem_data, 0,
                             request->mainReq()->getSize());
                 else
-                    memcpy(load_inst->memData,
+                    memcpy(mem_data,
                         store_it->data() + shift_amt,
                         request->mainReq()->getSize());
 
@@ -1520,7 +1527,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
                 PacketPtr data_pkt = new Packet(request->mainReq(),
                         MemCmd::ReadReq);
-                data_pkt->dataStatic(load_inst->memData);
+                data_pkt->dataStatic(mem_data);
 
                 // hardware transactional memory
                 // Store to load forwarding within a transaction
@@ -1621,8 +1628,8 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
             load_inst->seqNum, load_inst->pcState());
 
     // Allocate memory if this is the first time a load is issued.
-    if (!load_inst->memData) {
-        load_inst->memData = new uint8_t[request->mainReq()->getSize()];
+    if (!mem_data) {
+        mem_data = new uint8_t[request->mainReq()->getSize()];
     }
 
 
@@ -1631,7 +1638,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
         // this is a simple sanity check
         // the Ruby cache controller will set
         // memData to 0x0ul if successful.
-        *load_inst->memData = (uint64_t) 0x1ull;
+        *mem_data = (uint64_t) 0x1ull;
     }
 
     // For now, load throughput is constrained by the number of

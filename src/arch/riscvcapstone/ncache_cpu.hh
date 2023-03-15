@@ -38,8 +38,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_SIMPLE_TIMING_HH__
-#define __CPU_SIMPLE_TIMING_HH__
+#ifndef __CAPSTONE_CPU_SIMPLE_TIMING_HH__
+#define __CAPSTONE_CPU_SIMPLE_TIMING_HH__
 
 #include <optional>
 #include <queue>
@@ -450,4 +450,4 @@ class TimingSimpleNCacheCPU : public BaseSimpleCPUWithNodeController
 
 } // namespace gem5::RiscvcapstoneISA
 
-#endif // __CPU_SIMPLE_TIMING_HH__
+#endif // __CAPSTONE_CPU_SIMPLE_TIMING_HH__

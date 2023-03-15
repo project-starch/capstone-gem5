@@ -115,6 +115,22 @@ Checker<DynInstPtr>::handlePendingInt()
     curMacroStaticInst = nullStaticInstPtr;
 }
 
+namespace o3 {
+    class DynInst;
+}
+
+uint8_t* getMemData(gem5::o3::DynInst* v);
+
+
+#ifdef TARGET_RISCVCapstone
+namespace RiscvcapstoneISA {
+    namespace o3 {
+        class DynInst;
+    }
+}
+uint8_t* getMemData(gem5::RiscvcapstoneISA::o3::DynInst* v);
+#endif
+
 template <class DynInstPtr>
 void
 Checker<DynInstPtr>::verify(const DynInstPtr &completed_inst)
@@ -192,7 +208,7 @@ Checker<DynInstPtr>::verify(const DynInstPtr &completed_inst)
                 unverifiedInst->seqNum, unverifiedInst->pcState());
         unverifiedReq = NULL;
         unverifiedReq = unverifiedInst->reqToVerify;
-        unverifiedMemData = unverifiedInst->memData;
+        unverifiedMemData = getMemData(unverifiedInst.get());
         // Make sure results queue is empty
         while (!result.empty()) {
             result.pop();

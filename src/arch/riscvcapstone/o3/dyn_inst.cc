@@ -242,7 +242,11 @@ DynInst::~DynInst()
     }
 #endif
 
-    delete [] memData;
+    for(uint8_t* v : memData) {
+        if(v) {
+            delete [] v;
+        }
+    }
     delete traceData;
     fault = NoFault;
 
@@ -385,12 +389,14 @@ DynInst::completeMemAcc(PacketPtr pkt)
         }
     }
 
-    assert(pkt && pkt->isRead());
-    int i;
-    for(i = 0; i < memReadN && !pkt->matchAddr(memReads[i].addr, false);
-            i ++);
-    assert(i >= 0 && i < memReadN);
-    completeMemRead(i, pkt);
+    if(pkt && pkt->isRead()) {
+        int i;
+        for (i = 0; i < memReadN && !pkt->matchAddr(memReads[i].addr, false);
+             i++)
+            ;
+        assert(i >= 0 && i < memReadN);
+        completeMemRead(i, pkt);
+    }
     
     thread->noSquashFromTC = no_squash_from_TC;
 

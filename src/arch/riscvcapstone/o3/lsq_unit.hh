@@ -39,8 +39,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_O3_LSQ_UNIT_HH__
-#define __CPU_O3_LSQ_UNIT_HH__
+#ifndef __CAPSTONE_CPU_O3_LSQ_UNIT_HH__
+#define __CAPSTONE_CPU_O3_LSQ_UNIT_HH__
 
 #include <algorithm>
 #include <cstring>
@@ -618,4 +618,4 @@ namespace gem5
   } // namespace RiscvcapstoneISA::o3
 } // namespace gem5
 
-#endif // __CPU_O3_LSQ_UNIT_HH__
+#endif // __CAPSTONE_CPU_O3_LSQ_UNIT_HH__

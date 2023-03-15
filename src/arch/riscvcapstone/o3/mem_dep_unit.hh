@@ -38,8 +38,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_O3_MEM_DEP_UNIT_HH__
-#define __CPU_O3_MEM_DEP_UNIT_HH__
+#ifndef __CAPSTONE_CPU_O3_MEM_DEP_UNIT_HH__
+#define __CAPSTONE_CPU_O3_MEM_DEP_UNIT_HH__
 
 #include <list>
 #include <memory>
@@ -57,6 +57,11 @@
 namespace gem5
 {
 
+struct CapstoneBaseO3CPUParams;
+
+namespace RiscvcapstoneISA::o3
+{
+  
 struct SNHash
 {
     size_t
@@ -68,10 +73,7 @@ struct SNHash
     }
 };
 
-struct CapstoneBaseO3CPUParams;
 
-namespace RiscvcapstoneISA::o3
-{
 
 class CPU;
 class InstructionQueue;
@@ -282,4 +284,4 @@ class MemDepUnit
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5
 
-#endif // __CPU_O3_MEM_DEP_UNIT_HH__
+#endif // __CAPSTONE_CPU_O3_MEM_DEP_UNIT_HH__
