@@ -1237,7 +1237,7 @@ IEW::executeInsts()
 
         DynInstPtr inst = instQueue.getInstToExecute();
         
-        assert(!inst->isExecuted());
+        assert(!inst->isExecuted() && !inst->isExecuteCalled());
 
         DPRINTF(IEW, "Execute: Processing PC %s, [tid:%i] [sn:%llu].\n",
                 inst->pcState(), inst->threadNumber,inst->seqNum);
@@ -1391,10 +1391,15 @@ IEW::executeInsts()
         }
 
         if(fault != NoFault) {
-            //cpu->trap(fault, inst->threadNumber, inst->staticInst); // shouldn't do this
+            inst->setExecuted();
+            // instToCommit(inst);
+            // cpu->trap(fault, inst->threadNumber, inst->staticInst); // FIXME: shouldn't do this
         }
 
-        inst->setExecuted();
+        if(!inst->isLoad() && !inst->hasNodeOp() &&
+            !inst->hasTagReq()) {
+            inst->setExecuted();
+        }
 
 
 #if(0)
@@ -1669,7 +1674,7 @@ IEW::tick()
 
         if (fromCommit->commitInfo[tid].nonSpecSeqNum != 0) {
 
-            //DPRINTF(IEW,"NonspecInst from thread %i",tid);
+            DPRINTF(IEW,"NonspecInst from thread %i",tid);
             if (fromCommit->commitInfo[tid].strictlyOrdered) {
                 instQueue.replayMemInst(
                     fromCommit->commitInfo[tid].strictlyOrderedLoad);

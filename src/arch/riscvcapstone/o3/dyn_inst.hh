@@ -837,7 +837,7 @@ class DynInst : public ExecContext, public RefCounted
     bool isQueryCompleted() const {
         return completedTagQueryN == tagQueryN &&
             completedMemReadN == memReadN &&
-            isExecuted();
+            isExecuteCalled();
     }
 
     /** Marks the result as ready. */
@@ -865,9 +865,9 @@ class DynInst : public ExecContext, public RefCounted
     void clearIssued() { status.reset(Issued); }
 
     /** Sets this instruction as executed. */
-    void setExecuted() { status.set(Executed); checkQueryCompleted(); }
+    void setExecuted() { status.set(Executed); }
     
-    void setExecuteCalled() { status.set(ExecuteCalled); }
+    void setExecuteCalled() { status.set(ExecuteCalled); checkQueryCompleted(); }
 
     void setNodeExecuted() { status.set(NodeExecuted); }
 

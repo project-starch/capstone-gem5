@@ -543,6 +543,8 @@ DynInst::checkQueryCompleted() {
         if(fault == NoFault) {
             auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
             rv_inst->completeAcc(lastPacket, this, traceData); // FIXME: pass the packet somehow
+            setExecuted();
+            cpu->getIEWObject().checkMisprediction(dynamic_cast<DynInstPtr::PtrType>(this));
         }
         cpu->iewInstToCommitIfExeced(dynamic_cast<DynInstPtr::PtrType>(this));
     }

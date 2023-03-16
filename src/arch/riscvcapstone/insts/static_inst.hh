@@ -104,7 +104,7 @@ class RiscvStaticInst : public StaticInst
 
   public:
     bool hasNodeOp = false;
-    bool hasTagReq = true; // TODO: a hack
+    bool hasTagReq = false;
     bool hasNodeWB = false;
       
     ExtMachInst machInst;

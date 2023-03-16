@@ -84,6 +84,9 @@ def template CallsConstructor {{
         flags[IsInteger] = true;
         flags[IsLoad] = true;
         flags[IsStore] = true;
+        flags[IsCall] = true;
+        flags[IsIndirectControl] = true;
+        flags[IsUncondControl] = true;
         hasNodeOp = true;
     }
 }};

@@ -618,6 +618,7 @@ InstructionQueue::insertNonSpec(const DynInstPtr &new_inst)
 
     assert(new_inst);
 
+    assert(nonSpecInsts.find(new_inst->seqNum) == nonSpecInsts.end());
     nonSpecInsts[new_inst->seqNum] = new_inst;
 
     DPRINTF(IQ, "Adding non-speculative instruction [sn:%llu] PC %s "

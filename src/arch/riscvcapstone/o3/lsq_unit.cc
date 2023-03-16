@@ -1177,7 +1177,7 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
     iewStage->activityThisCycle();
 
     // see if this load changed the PC
-    iewStage->checkMisprediction(inst);
+    // iewStage->checkMisprediction(inst);
 }
 
 void
