@@ -34,6 +34,9 @@
 #define SPLIT(rd,rs1,rs2)       .insn r 0x5B, 0x1, 0x12, rd, rs1, rs2
 #define LDS(rd,rs1)             .insn r 0x5B, 0x1, 0x13, rd, rs1, x0
 
+#define RETURN(rd,rs1)          .insn r 0x5B, 0x1, 0x14, rd, rs1, x0
+#define RETSEAL(rd,rs1)         .insn r 0x5B, 0x1, 0x15, rd, rs1, x0
+
 // Test instructions for node ops
 #define QUERY(reg)              .insn r 0x5B, 0x0, 0x0, x0, reg, x0
 #define DROP(reg)               .insn r 0x5B, 0x0, 0x1, x0, reg, x0

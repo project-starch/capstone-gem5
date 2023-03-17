@@ -390,6 +390,9 @@ class DynInst : public ExecContext, public RefCounted
 
     /** How many source registers are ready. */
     uint8_t readyRegs = 0;
+    
+    /** Custom data for instruction execution. */
+    uint8_t executionData[sizeof(RegVal)] = { 0 };
 
   public:
     /////////////////////// Load Store Data //////////////////////

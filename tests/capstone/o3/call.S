@@ -50,15 +50,25 @@ _start:
     .endr
 
     li a2, 0
-    CALL(a2, a3)
+    CALL(a3, a2)
+    
+    li a1, 0xf00dd00d
+    CAPPRINT(a1)
     
     j exit
 
 _stub:
+    CAPPRINT(x2)
+    
     li a1, 0xdeadbeef
     CAPPRINT(a1)
+
+    .rept 320 # FIXME: fix the hazard
+    nop
+    .endr
     
-    EXIT_STUB
+    RETURN(x2, x0)
+    # EXIT_STUB
 
 _stub_end:
 

@@ -411,6 +411,12 @@ decode QUADRANT default Unknown::unknown() {
                         // swap the context sealed in Rd
                         
                     }});
+                    0x14: return ({{
+                        Rs1, Rd;
+                    }});
+                    0x15: retseal ({{
+                        Rs1, Rd;
+                    }});
                 }
                 format ROp {
                     0x2: jmp ({{
