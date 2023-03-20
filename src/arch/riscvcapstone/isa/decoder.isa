@@ -572,8 +572,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         assert(Rs1_trv.getTag());
 
-                        //TODO: is it needed?
-                        //Rs1_trv.setTag(false);
+                        Rs1_trv.setTag(false);
 
                         using namespace gem5::RiscvcapstoneISA::o3;
 
