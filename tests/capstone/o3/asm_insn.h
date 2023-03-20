@@ -31,6 +31,10 @@
 #define SBC(rd,rs1)             .insn r 0x5B, 0x1, 0x15, rd, rs1, x0
 #define LBS(rd,rs1)             .insn r 0x5B, 0x1, 0x16, rd, rs1, x0
 #define LHS(rd,rs1)             .insn r 0x5B, 0x1, 0x17, rd, rs1, x0
+#define L16S(rd,rs1)            .insn r 0x5B, 0x1, 0x18, rd, rs1, x0
+#define L32S(rd,rs1)            .insn r 0x5B, 0x1, 0x19, rd, rs1, x0
+#define S16C(rd,rs1)            .insn r 0x5B, 0x1, 0x1a, rd, rs1, x0
+#define S32C(rd,rs1)            .insn r 0x5B, 0x1, 0x1b, rd, rs1, x0
 
 // Test instructions for node ops
 #define QUERY(reg)              .insn r 0x5B, 0x0, 0x0, x0, reg, x0
@@ -69,4 +73,12 @@
 #define CAP_TYPE_SEALED 4
 #define CAP_TYPE_SEALEDRET 5
 
-
+#define INIT_RWX_CAP(reg) \
+    CAPCREATE(reg);\
+    li a1, CAP_TYPE_LIN;\
+    CAPTYPE(reg, a1);\
+    li a1, NODE_ID_INVALID;\
+    ALLOC(a2, a1);\
+    CAPNODE(reg, a2);\
+    li a1, CAP_PERM_RWX;\
+    CAPPERM(reg, a1);
