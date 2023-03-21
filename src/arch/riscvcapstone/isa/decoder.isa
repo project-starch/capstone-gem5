@@ -885,7 +885,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rd_trv;
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
-                    0x15: sbc ({{ // check_code
+                    0x1d: sbc ({{ // check_code
                         Rd_trv; Rs1_trv;
 
                         assert(Rd_trv.getTag());
@@ -931,7 +931,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rd_trv;
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
-                    0x14: shc ({{ // check_code
+                    0x1c: shc ({{ // check_code
                         Rd_trv; Rs1_trv;
 
                         assert(Rd_trv.getTag());

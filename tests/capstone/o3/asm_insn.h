@@ -33,8 +33,8 @@
 #define MREV(rd,rs1)            .insn r 0x5B, 0x1, 0x11, rd, rs1, x0
 #define SPLIT(rd,rs1,rs2)       .insn r 0x5B, 0x1, 0x12, rd, rs1, rs2
 #define LWS(rd,rs1)             .insn r 0x5B, 0x1, 0x13, rd, rs1, x0
-#define SHC(rd,rs1)             .insn r 0x5B, 0x1, 0x14, rd, rs1, x0
-#define SBC(rd,rs1)             .insn r 0x5B, 0x1, 0x15, rd, rs1, x0
+#define SHC(rd,rs1)             .insn r 0x5B, 0x1, 0x1c, rd, rs1, x0
+#define SBC(rd,rs1)             .insn r 0x5B, 0x1, 0x1d, rd, rs1, x0
 #define LBS(rd,rs1)             .insn r 0x5B, 0x1, 0x16, rd, rs1, x0
 #define LHS(rd,rs1)             .insn r 0x5B, 0x1, 0x17, rd, rs1, x0
 #define L16S(rd,rs1)            .insn r 0x5B, 0x1, 0x18, rd, rs1, x0

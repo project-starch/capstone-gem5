@@ -42,7 +42,7 @@ _start:
     CAPPRINT(a4)
     
     # write capability to the start of the context region
-    SDC(a3, a4)
+    SWC(a3, a4)
     SEAL(a3)
     
     .rept 320 # FIXME: fix the hazard
