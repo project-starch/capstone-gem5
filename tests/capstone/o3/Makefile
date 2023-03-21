@@ -36,12 +36,12 @@ $(RUN_TARGETS):run-%:$(SRC_DIR)/%
 	timeout $(GEM5_TEST_TIMEOUT) $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^ 2>&1 | tee $$tmpfile; \
 	outcode=$${PIPESTATUS[0]}; \
 	if [ -f $^.code ]; then \
-		expected="$$(cat $(SRC_DIR)/$^.code)"; \
+		expected="$$(cat $^.code)"; \
 	else \
 		expected=0; \
 	fi; \
 	if [ -f $^.out ]; then \
-		grep -q "$$(cat $(SRC_DIR)/$^.out)" $$tmpfile; \
+		grep -q "$$(cat $^.out)" $$tmpfile; \
 	else \
 		test $$outcode -eq "$$expected"; \
 	fi;
