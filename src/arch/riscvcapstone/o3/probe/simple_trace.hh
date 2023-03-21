@@ -41,8 +41,8 @@
  * and simply outputs those events as a dissassembled instruction stream
  * to the trace output.
  */
-#ifndef __CPU_O3_PROBE_SIMPLE_TRACE_HH__
-#define __CPU_O3_PROBE_SIMPLE_TRACE_HH__
+#ifndef __CAPSTONE_CPU_O3_PROBE_SIMPLE_TRACE_HH__
+#define __CAPSTONE_CPU_O3_PROBE_SIMPLE_TRACE_HH__
 
 #include "arch/riscvcapstone/o3/dyn_inst_ptr.hh"
 #include "params/CapstoneSimpleTrace.hh"
@@ -81,4 +81,4 @@ class SimpleTrace : public ProbeListenerObject
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5
 
-#endif//__CPU_O3_PROBE_SIMPLE_TRACE_HH__
+#endif//__CAPSTONE_CPU_O3_PROBE_SIMPLE_TRACE_HH__

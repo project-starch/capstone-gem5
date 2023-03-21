@@ -104,7 +104,7 @@ class RiscvStaticInst : public StaticInst
 
   public:
     bool hasNodeOp = false;
-    bool hasTagReq = true; // TODO: a hack
+    bool hasTagReq = false;
     bool hasNodeWB = false;
       
     ExtMachInst machInst;
@@ -163,8 +163,6 @@ class RiscvStaticInst : public StaticInst
     virtual Fault completeAcc(PacketPtr pkt, ExecContext *xc, Trace::InstRecord *traceData) const {
         return NoFault;
     }
-
-    virtual Fault completeAcc(ExecContext *xc, Trace::InstRecord *traceData) const;
 };
 
 /**

@@ -1236,6 +1236,8 @@ IEW::executeInsts()
         DPRINTF(IEW, "Execute: Executing instructions from IQ.\n");
 
         DynInstPtr inst = instQueue.getInstToExecute();
+        
+        assert(!inst->isExecuted() && !inst->isExecuteCalled());
 
         DPRINTF(IEW, "Execute: Processing PC %s, [tid:%i] [sn:%llu].\n",
                 inst->pcState(), inst->threadNumber,inst->seqNum);
@@ -1272,9 +1274,10 @@ IEW::executeInsts()
         CapPerm pc_perm = pcCaps[thread_id].perm();
         if(!capInBound(pcCaps[thread_id], inst->pcState().instAddr()) ||
             (pc_perm != CapPerm::RX && pc_perm != CapPerm::RWX)) {
-            DPRINTFN("Cap %llx %llx %llx (perm = %d)\n", pcCaps[thread_id].start(), pcCaps[thread_id].end(),
+            DPRINTF(IEW, "Cap %llx %llx %llx (perm = %d)\n", pcCaps[thread_id].start(), pcCaps[thread_id].end(),
                 inst->pcState().instAddr(), static_cast<int>(pc_perm));
-            panic("PC capability checks failed");
+            fault = std::make_shared<IllegalInstFault>("PC cap check failed", 
+                dynamic_cast<RiscvStaticInst*>(inst->staticInst.get())->machInst);
         } else {
             fault = inst->getFault();
         }
@@ -1290,6 +1293,7 @@ IEW::executeInsts()
         if(fault == NoFault) {
             DPRINTF(IEW, "Execute instruction %i\n", inst->seqNum);
             fault = inst->execute();
+            inst->setExecuteCalled();
             if(inst->isMemRef()) {
                 DPRINTF(IEW, "Memref fault = %d\n", fault == NoFault);
             } else {
@@ -1387,10 +1391,15 @@ IEW::executeInsts()
         }
 
         if(fault != NoFault) {
-            //cpu->trap(fault, inst->threadNumber, inst->staticInst); // shouldn't do this
+            inst->setExecuted();
+            // instToCommit(inst);
+            // cpu->trap(fault, inst->threadNumber, inst->staticInst); // FIXME: shouldn't do this
         }
 
-        inst->setExecuted();
+        if(!inst->isLoad() && !inst->hasNodeOp() &&
+            !inst->hasTagReq()) {
+            inst->setExecuted();
+        }
 
 
 #if(0)
@@ -1575,11 +1584,11 @@ IEW::tick()
 
     ldstQueue.tick();
     ncQueue.tick();
-    // FIXME: only for testing
-    for(auto threads = activeThreads->begin(); threads != activeThreads->end();
-            ++ threads) {
-        assert(!ncQueue.isFull(*threads));
-    }
+    tagController.tick();
+    // for(auto threads = activeThreads->begin(); threads != activeThreads->end();
+    //         ++ threads) {
+    //     assert(!ncQueue.isFull(*threads));
+    // }
 
     sortInsts();
 
@@ -1623,9 +1632,12 @@ IEW::tick()
         broadcast_free_entries = true;
     }
 
+    // Send loads to the cache.
+    ldstQueue.sendLoads();
+
     // Writeback any stores using any leftover bandwidth.
     ldstQueue.writebackStores();
-
+    
     // Writeback any node commands using any leftover bandwidth.
     ncQueue.writebackCommands();
 
@@ -1662,7 +1674,7 @@ IEW::tick()
 
         if (fromCommit->commitInfo[tid].nonSpecSeqNum != 0) {
 
-            //DPRINTF(IEW,"NonspecInst from thread %i",tid);
+            DPRINTF(IEW,"NonspecInst from thread %i",tid);
             if (fromCommit->commitInfo[tid].strictlyOrdered) {
                 instQueue.replayMemInst(
                     fromCommit->commitInfo[tid].strictlyOrderedLoad);

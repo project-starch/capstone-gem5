@@ -39,8 +39,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_O3_LSQ_HH__
-#define __CPU_O3_LSQ_HH__
+#ifndef __CAPSTONE_CPU_O3_LSQ_HH__
+#define __CAPSTONE_CPU_O3_LSQ_HH__
 
 #include <cassert>
 #include <cstdint>
@@ -259,6 +259,8 @@ class LSQ
         AtomicOpFunctorPtr _amo_op;
         bool _hasStaleTranslation;
 
+        int reqIdx; // index of this request in DynInst
+
       protected:
         LSQUnit* lsqUnit() { return &_port; }
         LSQRequest(LSQUnit* port, const DynInstPtr& inst, bool isLoad);
@@ -267,18 +269,6 @@ class LSQ
                 const Request::Flags& flags_, PacketDataPtr data=nullptr,
                 uint64_t* res=nullptr, AtomicOpFunctorPtr amo_op=nullptr,
                 bool stale_translation=false);
-
-        bool
-        isLoad() const
-        {
-            return flags.isSet(Flag::IsLoad);
-        }
-
-        bool
-        isAtomic() const
-        {
-            return flags.isSet(Flag::IsAtomic);
-        }
 
         /** Install the request in the LQ/SQ. */
         void install();
@@ -380,6 +370,19 @@ class LSQ
             assert (_reqs.size() == 1);
             return req();
         }
+        
+        bool
+        isLoad() const
+        {
+            return flags.isSet(Flag::IsLoad);
+        }
+
+        bool
+        isAtomic() const
+        {
+            return flags.isSet(Flag::IsAtomic);
+        }
+
 
         /**
          * Test if there is any in-flight translation or mem access request
@@ -391,6 +394,14 @@ class LSQ
                 _numOutstandingPackets > 0 ||
                 (flags.isSet(Flag::WritebackScheduled) &&
                  !flags.isSet(Flag::WritebackDone));
+        }
+        
+        void
+        clearOutstandingPackets() {
+            _numOutstandingPackets = 0;
+            if(isReleased()) {
+                delete this;
+            }
         }
 
         /**
@@ -714,6 +725,12 @@ class LSQ
     void writebackStores();
     /** Same as above, but only for one thread. */
     void writebackStores(ThreadID tid);
+    
+    /**
+     * Attempts to send loads to the cache.
+     * 
+    */
+    void sendLoads();
 
     /**
      * Squash instructions from a thread until the specified sequence number.
@@ -965,4 +982,4 @@ class LSQ
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5
 
-#endif // __CPU_O3_LSQ_HH__
+#endif // __CAPSTONE_CPU_O3_LSQ_HH__

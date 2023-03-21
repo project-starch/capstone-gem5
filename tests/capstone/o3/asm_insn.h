@@ -1,8 +1,14 @@
 #ifdef USE_UNCOMPRESSED
 #define REG_SIZE  0x20
+#define REG_SIZE_LOG2 5
 #else
 #define REG_SIZE  0x10
+#define REG_SIZE_LOG2 4
 #endif
+
+#define EXIT_STUB li a0, 0; \
+    li a7, 93; \
+    ecall
 
 
 #define REVOKE(reg)             .insn r 0x5B, 0x1, 0x0, x0, reg, x0
@@ -35,6 +41,9 @@
 #define L32S(rd,rs1)            .insn r 0x5B, 0x1, 0x19, rd, rs1, x0
 #define S16C(rd,rs1)            .insn r 0x5B, 0x1, 0x1a, rd, rs1, x0
 #define S32C(rd,rs1)            .insn r 0x5B, 0x1, 0x1b, rd, rs1, x0
+
+#define RETURN(rd,rs1)          .insn r 0x5B, 0x1, 0x14, rd, rs1, x0
+#define RETSEAL(rd,rs1)         .insn r 0x5B, 0x1, 0x15, rd, rs1, x0
 
 // Test instructions for node ops
 #define QUERY(reg)              .insn r 0x5B, 0x0, 0x0, x0, reg, x0

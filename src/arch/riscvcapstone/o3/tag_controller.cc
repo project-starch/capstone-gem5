@@ -108,7 +108,6 @@ BaseTagController::insertInstruction(const DynInstPtr& inst) {
 
 void
 BaseTagController::writeback() {
-    // TODO: multithreaded scenario?
     for(auto tq_it = tagQueues.begin();
             tq_it != tagQueues.end();
             ++ tq_it) {
@@ -179,11 +178,8 @@ MemoryTagController::getCommittedTag(const DynInstPtr& inst,
     PacketPtr pkt = Packet::createRead(req);
     pkt->setSize(1);
     pkt->allocate();
-
-    tcachePort.trySendPacket(pkt);
-
-    assert(ongoingRequests.find(pkt->id) == ongoingRequests.end());
-    ongoingRequests[pkt->id] = TagCacheRequest {
+    
+    TagCacheRequest tcache_req = {
         .inst = inst,
         .op = TagOp {
             .addr = addr,
@@ -191,6 +187,15 @@ MemoryTagController::getCommittedTag(const DynInstPtr& inst,
         },
         .isWrite = false
     };
+
+    if(!tcachePort.canSend()) {
+        blockedRequests.push(std::make_pair(pkt, tcache_req));
+    } else {
+        tcachePort.trySendPacket(pkt);
+
+        assert(ongoingRequests.find(pkt->id) == ongoingRequests.end());
+        ongoingRequests[pkt->id] = tcache_req;
+    }
 
     return false; // does not actually matter what we return since
                   // it is delayed
@@ -290,6 +295,20 @@ MemoryTagController::TagCachePort::recvReqRetry() {
     assert(blocked);
     blocked = false;
     trySendPacket(blockedPacket);
+}
+
+void
+MemoryTagController::writeback() {
+    while(!blockedRequests.empty() && tcachePort.canSend()) {
+        auto req = blockedRequests.front();
+        blockedRequests.pop();
+        tcachePort.trySendPacket(req.first);
+
+        assert(ongoingRequests.find(req.first->id) == ongoingRequests.end());
+        ongoingRequests[req.first->id] = req.second;        
+    }
+    
+    BaseTagController::writeback();
 }
 
 

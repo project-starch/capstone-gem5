@@ -38,8 +38,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_SIMPLE_ATOMIC_NCACHE_HH__
-#define __CPU_SIMPLE_ATOMIC_NCACHE_HH__
+#ifndef __CAPSTONE_CPU_SIMPLE_ATOMIC_NCACHE_HH__
+#define __CAPSTONE_CPU_SIMPLE_ATOMIC_NCACHE_HH__
 
 #include "cpu/simple/base.hh"
 #include "arch/riscvcapstone/node_controller.hh"
@@ -277,4 +277,4 @@ class AtomicSimpleNCacheCPU : public BaseSimpleCPUWithNodeController
 
 } // namespace gem5::RiscvcapstoneISA
 
-#endif // __CPU_SIMPLE_ATOMIC_NCACHE_HH__
+#endif // __CAPSTONE_CPU_SIMPLE_ATOMIC_NCACHE_HH__

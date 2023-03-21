@@ -67,6 +67,8 @@ LSQUnit::WritebackEvent::WritebackEvent(const DynInstPtr &_inst,
     : Event(Default_Pri, AutoDelete),
       inst(_inst), pkt(_pkt), lsqPtr(lsq_ptr)
 {
+    // assert(_inst->savedRequest);
+    // _inst->savedRequest->writebackScheduled();
 }
 
 void
@@ -76,6 +78,11 @@ LSQUnit::WritebackEvent::process()
 
     lsqPtr->writeback(inst, pkt);
 
+    // assert(inst->savedRequest);
+    // inst->savedRequest->writebackDone();
+    //if(!pkt->isRead()) {
+        //delete pkt;
+    //}
 }
 
 const char *
@@ -173,11 +180,14 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
             }
 
             writeback(inst, request->mainPacket());
-            if (inst->isStore() || inst->isAtomic()) {
+            // if (inst->isStore() || inst->isAtomic()) {
+            if (pkt->isWrite()) {
+                assert(inst->isStore());
                 request->writebackDone();
                 completeStore(request->instruction()->sqIt);
             }
-        } else if (inst->isStore()) {
+        } else if (pkt->isWrite()) {
+            assert(inst->isStore());
             // This is a regular store (i.e., not store conditionals and
             // atomics), so it can complete without writing back
             completeStore(request->instruction()->sqIt);
@@ -228,6 +238,7 @@ LSQUnit::resetState()
     htmStarts = htmStops = 0;
 
     storeWBIt = storeQueue.begin();
+    loadSendIt = loadQueue.begin();
 
     retryPkt = NULL;
     memDepViolator = NULL;
@@ -797,6 +808,34 @@ LSQUnit::writebackBlockedStore()
 }
 
 void
+LSQUnit::sendLoads()
+{
+    while(loadSendIt.dereferenceable() &&
+        loadSendIt->valid() && loadSendIt->instruction()->isExecuteCalled()) {
+        while(loadSendIt->hasRequest()) {
+            LSQRequest* req = loadSendIt->request();
+            if(!req->isSent()) {
+                req->buildPackets();
+                req->sendPacketToCache();
+                if(!req->isSent()) {
+                    break;
+                }
+            }
+            if(!req->isComplete()) {
+                break;
+            }
+            req->freeLSQEntry();
+            req = nullptr;
+            loadSendIt->popRequest();
+        }
+        if(loadSendIt->hasRequest()) {
+            break;
+        }
+        ++ loadSendIt;
+    }
+}
+
+void
 LSQUnit::writebackStores()
 {
     if (isStoreBlocked) {
@@ -854,20 +893,22 @@ LSQUnit::writebackStores()
 
         storeWBIt->committed() = true;
 
-        assert(!inst->memData);
-        inst->memData = new uint8_t[request->_size];
+        // why do we even need this?
+        uint8_t*& mem_data = inst->memData[request->reqIdx];
+        assert(!mem_data); // FIXME: here we need to adapt to multiple stores
+        mem_data = new uint8_t[request->_size];
 
         if (storeWBIt->isAllZeros())
-            memset(inst->memData, 0, request->_size);
+            memset(mem_data, 0, request->_size);
         else
-            memcpy(inst->memData, storeWBIt->data(), request->_size);
+            memcpy(mem_data, storeWBIt->data(), request->_size);
 
         request->buildPackets();
 
         DPRINTF(LSQUnit, "D-Cache: Writing back store idx:%i PC:%s "
                 "to Addr:%#x, data:%#x [sn:%lli]\n",
                 storeWBIt.idx(), inst->pcState(),
-                request->mainReq()->getPaddr(), (int)*(inst->memData),
+                request->mainReq()->getPaddr(), (int)*(mem_data),
                 inst->seqNum);
 
         // @todo: Remove this SC hack once the memory system handles it.
@@ -906,7 +947,7 @@ LSQUnit::writebackStores()
             gem5::ThreadContext *thread = cpu->tcBase(lsqID);
             PacketPtr main_pkt = new Packet(request->mainReq(),
                                             MemCmd::WriteReq);
-            main_pkt->dataStatic(inst->memData);
+            main_pkt->dataStatic(mem_data);
             request->mainReq()->localAccessor(thread, main_pkt);
             delete main_pkt;
             completeStore(storeWBIt);
@@ -1108,6 +1149,24 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
         auto htm_fault = std::dynamic_pointer_cast<
             GenericHtmFailureFault>(inst->fault);
 
+        if (!htm_fault) {
+            assert(dynamic_cast<ReExec*>(inst->fault.get()) != nullptr); //||
+                    // inst->savedRequest->isPartialFault());
+
+        } else if (!pkt->htmTransactionFailedInCache()) {
+            // Situation in which the instruction has a hardware
+            // transactional memory fault but not the packet itself. This
+            // can occur with ldp_uop microops since access is spread over
+            // multiple packets.
+            DPRINTF(HtmCpu,
+                    "%s writeback with HTM failure fault, "
+                    "however, completing packet is not aware of "
+                    "transaction failure. cause=%s htmUid=%u\n",
+                    inst->staticInst->getName(),
+                    htmFailureToStr(htm_fault->getHtmFailureFaultCause()),
+                    htm_fault->getHtmUid());
+        }
+
         DPRINTF(LSQUnit, "Not completing instruction [sn:%lli] access "
                 "due to pending fault.\n", inst->seqNum);
     }
@@ -1118,7 +1177,7 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
     iewStage->activityThisCycle();
 
     // see if this load changed the PC
-    iewStage->checkMisprediction(inst);
+    // iewStage->checkMisprediction(inst);
 }
 
 void
@@ -1308,7 +1367,9 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     LQEntry& load_entry = loadQueue[load_idx];
     const DynInstPtr& load_inst = load_entry.instruction();
 
-    load_entry.setRequest(request);
+    // load_entry.pushRequest(request);
+    // assert(!load_entry.hasRequest());
+    // load_entry.setRequest(request);
     assert(load_inst);
 
     assert(!load_inst->isExecuted());
@@ -1332,7 +1393,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
         // Must delete request now that it wasn't handed off to
         // memory.  This is quite ugly.  @todo: Figure out the proper
         // place to really handle request deletes.
-        load_entry.setRequest(nullptr);
+        load_entry.popRequest();
         request->discard();
         return std::make_shared<GenericISA::M5PanicFault>(
             "Strictly ordered load [sn:%llx] PC %s\n",
@@ -1354,18 +1415,23 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 request->mainReq());
         load_inst->recordResult(true);
     }
+    
+    uint8_t*& mem_data = load_inst->memData[request->reqIdx];
 
     if (request->mainReq()->isLocalAccess()) {
-        assert(!load_inst->memData);
-        load_inst->memData = new uint8_t[MaxDataBytes];
+        assert(!mem_data);
+        mem_data = new uint8_t[MaxDataBytes];
 
         gem5::ThreadContext *thread = cpu->tcBase(lsqID);
         PacketPtr main_pkt = new Packet(request->mainReq(), MemCmd::ReadReq);
 
-        main_pkt->dataStatic(load_inst->memData);
+        main_pkt->dataStatic(mem_data);
 
         Cycles delay = request->mainReq()->localAccessor(thread, main_pkt);
 
+        request->packetSent(); // prevent the load queue to send packets for this request later
+        request->complete();
+        request->clearOutstandingPackets();
         WritebackEvent *wb = new WritebackEvent(load_inst, main_pkt, this);
         cpu->schedule(wb, cpu->clockEdge(delay));
         return NoFault;
@@ -1443,15 +1509,15 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                     store_it->instruction()->effAddr;
 
                 // Allocate memory if this is the first time a load is issued.
-                if (!load_inst->memData) {
-                    load_inst->memData =
+                if (!mem_data) {
+                    mem_data =
                         new uint8_t[request->mainReq()->getSize()];
                 }
                 if (store_it->isAllZeros())
-                    memset(load_inst->memData, 0,
+                    memset(mem_data, 0,
                             request->mainReq()->getSize());
                 else
-                    memcpy(load_inst->memData,
+                    memcpy(mem_data,
                         store_it->data() + shift_amt,
                         request->mainReq()->getSize());
 
@@ -1461,7 +1527,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
                 PacketPtr data_pkt = new Packet(request->mainReq(),
                         MemCmd::ReadReq);
-                data_pkt->dataStatic(load_inst->memData);
+                data_pkt->dataStatic(mem_data);
 
                 // hardware transactional memory
                 // Store to load forwarding within a transaction
@@ -1501,6 +1567,9 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                     request->discard();
                 }
 
+                request->packetSent(); // prevent the load queue to send packets later
+                request->complete();
+                request->clearOutstandingPackets();
                 WritebackEvent *wb = new WritebackEvent(load_inst, data_pkt,
                         this);
 
@@ -1548,7 +1617,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
                 // Must discard the request.
                 request->discard();
-                load_entry.setRequest(nullptr);
+                load_entry.popRequest();
                 return NoFault;
             }
         }
@@ -1559,8 +1628,8 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
             load_inst->seqNum, load_inst->pcState());
 
     // Allocate memory if this is the first time a load is issued.
-    if (!load_inst->memData) {
-        load_inst->memData = new uint8_t[request->mainReq()->getSize()];
+    if (!mem_data) {
+        mem_data = new uint8_t[request->mainReq()->getSize()];
     }
 
 
@@ -1569,7 +1638,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
         // this is a simple sanity check
         // the Ruby cache controller will set
         // memData to 0x0ul if successful.
-        *load_inst->memData = (uint64_t) 0x1ull;
+        *mem_data = (uint64_t) 0x1ull;
     }
 
     // For now, load throughput is constrained by the number of
@@ -1581,8 +1650,8 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     // if we the cache is not blocked, do cache access
     request->buildPackets();
     request->sendPacketToCache();
-    if (!request->isSent())
-        iewStage->blockMemInst(load_inst);
+    // if (!request->isSent())
+    //     iewStage->blockMemInst(load_inst);
 
     return NoFault;
 }
@@ -1597,7 +1666,7 @@ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
             store_idx - 1, request->req()->getPaddr(), storeQueue.head() - 1,
             storeQueue[store_idx].instruction()->seqNum);
 
-    storeQueue[store_idx].setRequest(request);
+    // storeQueue[store_idx].setRequest(request);
     unsigned size = request->_size;
     storeQueue[store_idx].size() = size; // so before this the size of the request is 0
                                          // this should be what makes read() skip bypass from reordered stores whose data is not yet available
@@ -1644,7 +1713,7 @@ LSQUnit::postExecCheck(const DynInstPtr& inst) {
         if(mem_read_n == 0) {
             return NoFault;
         }
-        assert(mem_read_n == 1); // only supporting one read for now
+        // assert(mem_read_n == 1); // only supporting one read for now
         if(!inst->readMemAccPredicate()) {
             assert(inst->readPredicate());
             inst->completeMemRead(0, nullptr);
@@ -1696,6 +1765,7 @@ LSQUnit::postExecCheck(const DynInstPtr& inst) {
         }
 
         if (inst->isStoreConditional() || inst->isAtomic()) {
+            panic("This is not handled yet");
             // Store conditionals and Atomics need to set themselves as able to
             // writeback if we haven't had a fault by here.
             storeQueue[store_idx].canWB() = true;

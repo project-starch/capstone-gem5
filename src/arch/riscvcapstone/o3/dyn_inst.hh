@@ -39,14 +39,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_O3_DYN_INST_HH__
-#define __CPU_O3_DYN_INST_HH__
+#ifndef __CAPSTONE_CPU_O3_DYN_INST_HH__
+#define __CAPSTONE_CPU_O3_DYN_INST_HH__
 
 #include <algorithm>
 #include <array>
 #include <deque>
 #include <list>
 #include <string>
+#include <vector>
 
 #include "base/refcnt.hh"
 #include "base/trace.hh"
@@ -75,8 +76,9 @@ class Packet;
 namespace RiscvcapstoneISA::o3
 {
     class NodeCommand;
+    class CPU;
     typedef NodeCommand* NodeCommandPtr;
-
+    
     const int MAX_QUERY_N = 64; // TODO: optimise this
 
 class DynInst : public ExecContext, public RefCounted
@@ -162,12 +164,16 @@ class DynInst : public ExecContext, public RefCounted
 
     struct MemReadRecord {
         Addr addr;
-        PacketPtr res_pkt;
+        uint8_t data[MAX_REQUEST_SIZE];
     };
     
     MemReadRecord memReads[MAX_QUERY_N];
     bool memReadCompleted[MAX_QUERY_N];
     int memReadN = 0, completedMemReadN = 0;
+    
+    int memWriteN = 0;
+    
+    PacketPtr lastPacket = nullptr;
     
     
     // NodeCommandPtr nodeCommands[MAX_QUERY_N];
@@ -188,10 +194,10 @@ class DynInst : public ExecContext, public RefCounted
         return memReadN;
     }
 
-    PacketPtr getMemReadRes(int idx) const {
+    const uint8_t* getMemReadRes(int idx) const {
         assert(idx < memReadN);
         assert(memReadCompleted[idx]);
-        return memReads[idx].res_pkt;
+        return memReads[idx].data;
     }
 
   protected:
@@ -223,6 +229,7 @@ class DynInst : public ExecContext, public RefCounted
         SerializeAfter,          /// Needs to serialize instructions behind it
         SerializeHandled,        /// Serialization has been handled
         NodeExecuted,
+        ExecuteCalled,
         NumStatus
     };
 
@@ -383,6 +390,9 @@ class DynInst : public ExecContext, public RefCounted
 
     /** How many source registers are ready. */
     uint8_t readyRegs = 0;
+    
+    /** Custom data for instruction execution. */
+    uint8_t executionData[sizeof(RegVal)] = { 0 };
 
   public:
     /////////////////////// Load Store Data //////////////////////
@@ -399,7 +409,7 @@ class DynInst : public ExecContext, public RefCounted
     unsigned effSize;
 
     /** Pointer to the data for the memory access. */
-    uint8_t *memData = nullptr;
+    std::vector<uint8_t*> memData;
 
     /** Load queue index. */
     ssize_t lqIdx = -1;
@@ -417,9 +427,18 @@ class DynInst : public ExecContext, public RefCounted
     typename BaseTagController::TQIterator tqIt;
 
 
+    /////////////////////// TLB Miss //////////////////////
+    /**
+     * Saved memory request (needed when the DTB address translation is
+     * delayed due to a hw page table walk).
+     */
+    // LSQ::LSQRequest *savedRequest; 
+
     /////////////////////// Checker //////////////////////
     // Need a copy of main request pointer to verify on writes.
     RequestPtr reqToVerify;
+
+    int reqIdxToVerify;
 
   public:
     /** Records changes to result? */
@@ -821,7 +840,7 @@ class DynInst : public ExecContext, public RefCounted
     bool isQueryCompleted() const {
         return completedTagQueryN == tagQueryN &&
             completedMemReadN == memReadN &&
-            isExecuted();
+            isExecuteCalled();
     }
 
     /** Marks the result as ready. */
@@ -849,7 +868,9 @@ class DynInst : public ExecContext, public RefCounted
     void clearIssued() { status.reset(Issued); }
 
     /** Sets this instruction as executed. */
-    void setExecuted() { status.set(Executed); checkQueryCompleted(); }
+    void setExecuted() { status.set(Executed); }
+    
+    void setExecuteCalled() { status.set(ExecuteCalled); checkQueryCompleted(); }
 
     void setNodeExecuted() { status.set(NodeExecuted); }
 
@@ -861,8 +882,13 @@ class DynInst : public ExecContext, public RefCounted
 
     bool isTagCompleted() { return tagQueryN == completedTagQueryN; }
 
-    /** Returns whether or not this instruction has executed. */
+    /** Returns whether or not this instruction has executed.
+     *  Note that this is set only when all the loads are complete.
+     */
     bool isExecuted() const { return status[Executed]; }
+    
+    /** Whether the execute() method has been called. */
+    bool isExecuteCalled() const { return status[ExecuteCalled]; }
 
     /** Sets this instruction as ready to commit. */
     void setCanCommit() { status.set(CanCommit); }
@@ -1325,4 +1351,4 @@ class DynInst : public ExecContext, public RefCounted
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5
 
-#endif // __CPU_O3_DYN_INST_HH__
+#endif // __CAPSTONE_CPU_O3_DYN_INST_HH__

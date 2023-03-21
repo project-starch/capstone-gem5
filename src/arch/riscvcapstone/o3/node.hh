@@ -9,7 +9,7 @@ namespace RiscvcapstoneISA {
 namespace o3 {
 
 constexpr const size_t CAPSTONE_NODE_SIZE = 128; // in bits
-constexpr const size_t CAPSTONE_NODE_SIZE_SHIFT = bitwidth(CAPSTONE_NODE_SIZE) - 3;
+constexpr const size_t CAPSTONE_NODE_SIZE_SHIFT = bitwidth(CAPSTONE_NODE_SIZE) - 4;
 
 /*
     revocation node structure

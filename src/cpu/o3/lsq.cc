@@ -833,32 +833,30 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     }
 
     /* This is the place were instructions get the effAddr. */
-    if (request->isTranslationComplete()) {
-        if (request->isMemAccessRequired()) {
-            inst->effAddr = request->getVaddr();
-            inst->effSize = size;
-            inst->effAddrValid(true);
+    if (request->isMemAccessRequired()) {
+        inst->effAddr = request->getVaddr();
+        inst->effSize = size;
+        inst->effAddrValid(true);
 
-            if (cpu->checker) {
-                inst->reqToVerify = std::make_shared<Request>(*request->req());
-            }
-            Fault fault;
-            if (isLoad)
-                fault = read(request, inst->lqIdx);
-            else
-                fault = write(request, data, inst->sqIdx);
-            // inst->getFault() may have the first-fault of a
-            // multi-access split request at this point.
-            // Overwrite that only if we got another type of fault
-            // (e.g. re-exec).
-            if (fault != NoFault)
-                inst->getFault() = fault;
-        } else if (isLoad) {
-            inst->setMemAccPredicate(false);
-            // Commit will have to clean up whatever happened.  Set this
-            // instruction as executed.
-            inst->setExecuted();
+        if (cpu->checker) {
+            inst->reqToVerify = std::make_shared<Request>(*request->req());
         }
+        Fault fault;
+        if (isLoad)
+            fault = read(request, inst->lqIdx);
+        else
+            fault = write(request, data, inst->sqIdx);
+        // inst->getFault() may have the first-fault of a
+        // multi-access split request at this point.
+        // Overwrite that only if we got another type of fault
+        // (e.g. re-exec).
+        if (fault != NoFault)
+            inst->getFault() = fault;
+    } else if (isLoad) {
+        inst->setMemAccPredicate(false);
+        // Commit will have to clean up whatever happened.  Set this
+        // instruction as executed.
+        inst->setExecuted();
     }
 
     if (inst->traceData)

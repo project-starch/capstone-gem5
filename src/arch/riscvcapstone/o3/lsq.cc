@@ -282,6 +282,19 @@ LSQ::writebackStores()
 }
 
 void
+LSQ::sendLoads()
+{
+    std::list<ThreadID>::iterator threads = activeThreads->begin();
+    std::list<ThreadID>::iterator end = activeThreads->end();
+
+    while (threads != end) {
+        ThreadID tid = *threads++;
+        thread[tid].sendLoads();
+    }
+}
+
+
+void
 LSQ::squash(const InstSeqNum &squashed_num, ThreadID tid)
 {
     thread.at(tid).squash(squashed_num);
@@ -792,7 +805,7 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     [[maybe_unused]] bool isAtomic = !isLoad && amo_op;
 
     ThreadID tid = cpu->contextToThread(inst->contextId());
-    auto cacheLineSize = cpu->cacheLineSize();
+    auto cacheLineSize = cpu->cacheLineSize(); // default: 64
     bool needs_burst = transferNeedsBurst(addr, size, cacheLineSize);
     LSQRequest* request = nullptr;
 
@@ -807,16 +820,21 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     const bool htm_cmd = isLoad && (flags & Request::HTM_CMD);
     const bool tlbi_cmd = isLoad && (flags & Request::TLBI_CMD);
 
-    if (htm_cmd || tlbi_cmd) {
+    if (htm_cmd || tlbi_cmd)
+    {
         assert(addr == 0x0lu);
         assert(size == 8);
         request = new UnsquashableDirectRequest(&thread[tid], inst, flags);
-    } else if (needs_burst) {
+    }
+    else if (needs_burst)
+    {
         request = new SplitDataRequest(&thread[tid], inst, isLoad, addr,
-                size, flags, data, res);
-    } else {
+                                       size, flags, data, res);
+    }
+    else
+    {
         request = new SingleDataRequest(&thread[tid], inst, isLoad, addr,
-                size, flags, data, res, std::move(amo_op));
+                                        size, flags, data, res, std::move(amo_op));
     }
     assert(request);
     request->_byteEnable = byte_enable;
@@ -837,12 +855,15 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
 
         if (cpu->checker) {
             inst->reqToVerify = std::make_shared<Request>(*request->req());
+            inst->reqIdxToVerify = request->reqIdx;
         }
         Fault fault;
         if (isLoad)
             fault = read(request, inst->lqIdx);
-        else
+        else {
+            ++ inst->memWriteN;
             fault = write(request, data, inst->sqIdx);
+        }
         // inst->getFault() may have the first-fault of a
         // multi-access split request at this point.
         // Overwrite that only if we got another type of fault
@@ -956,6 +977,7 @@ LSQ::SingleDataRequest::initiateTranslation()
         setState(State::Translation);
         flags.set(Flag::TranslationStarted);
 
+        // _inst->savedRequest = this;
         sendFragmentToTranslation(0);
     } else {
         _inst->setMemAccPredicate(false);
@@ -1030,6 +1052,7 @@ LSQ::SplitDataRequest::initiateTranslation()
         _inst->translationStarted(true);
         setState(State::Translation);
         flags.set(Flag::TranslationStarted);
+        // _inst->savedRequest = this;
         numInTranslationFragments = 0;
         numTranslatedFragments = 0;
         _fault.resize(_reqs.size());
@@ -1083,13 +1106,17 @@ LSQ::LSQRequest::LSQRequest(
 void
 LSQ::LSQRequest::install()
 {
+    DPRINTF(LSQ, "push request for instruction %llu\n", _inst->seqNum);
     if (isLoad()) {
-        _port.loadQueue[_inst->lqIdx].setRequest(this);
+        _port.loadQueue[_inst->lqIdx].pushRequest(this);
     } else {
         // Store, StoreConditional, and Atomic requests are pushed
         // to this storeQueue
-        _port.storeQueue[_inst->sqIdx].setRequest(this);
+        _port.storeQueue[_inst->sqIdx].pushRequest(this);
     }
+
+    reqIdx = _inst->memData.size();
+    _inst->memData.push_back(nullptr);
 }
 
 bool LSQ::LSQRequest::squashed() const { return _inst->isSquashed(); }
@@ -1128,6 +1155,7 @@ LSQ::LSQRequest::addReq(Addr addr, unsigned size,
 LSQ::LSQRequest::~LSQRequest()
 {
     assert(!isAnyOutstandingRequest());
+    // _inst->savedRequest = nullptr;
 
     for (auto r: _packets)
         delete r;
@@ -1203,7 +1231,7 @@ LSQ::SplitDataRequest::recvTimingResp(PacketPtr pkt)
             ? Packet::createRead(_mainReq)
             : Packet::createWrite(_mainReq);
         if (isLoad())
-            resp->dataStatic(_inst->memData);
+            resp->dataStatic(_inst->memData[reqIdx]);
         else
             resp->dataStatic(_data);
         resp->senderState = this;
@@ -1223,7 +1251,7 @@ LSQ::SingleDataRequest::buildPackets()
                 isLoad()
                     ?  Packet::createRead(req())
                     :  Packet::createWrite(req()));
-        _packets.back()->dataStatic(_inst->memData);
+        _packets.back()->dataStatic(_inst->memData[reqIdx]);
         _packets.back()->senderState = this;
 
         // hardware transactional memory
@@ -1256,7 +1284,7 @@ LSQ::SplitDataRequest::buildPackets()
         /* New stuff */
         if (isLoad()) {
             _mainPacket = Packet::createRead(_mainReq);
-            _mainPacket->dataStatic(_inst->memData);
+            _mainPacket->dataStatic(_inst->memData[reqIdx]);
 
             // hardware transactional memory
             // If request originates in a transaction,
@@ -1279,11 +1307,11 @@ LSQ::SplitDataRequest::buildPackets()
                                      : Packet::createWrite(req);
             ptrdiff_t offset = req->getVaddr() - base_address;
             if (isLoad()) {
-                pkt->dataStatic(_inst->memData + offset);
+                pkt->dataStatic(_inst->memData[reqIdx] + offset);
             } else {
                 uint8_t* req_data = new uint8_t[req->getSize()];
                 std::memcpy(req_data,
-                        _inst->memData + offset,
+                        _inst->memData[reqIdx] + offset,
                         req->getSize());
                 pkt->dataDynamic(req_data);
             }
@@ -1314,18 +1342,27 @@ LSQ::SplitDataRequest::buildPackets()
 void
 LSQ::SingleDataRequest::sendPacketToCache()
 {
+    assert(!isSent());
     assert(_numOutstandingPackets == 0);
-    if (lsqUnit()->trySendPacket(isLoad(), _packets.at(0)))
+    if (lsqUnit()->trySendPacket(isLoad(), _packets.at(0))) {
+        DPRINTF(LSQ, "Packet %d (load = %d) sent for instruction %llu\n",
+            _numOutstandingPackets,
+            isLoad(), instruction()->seqNum);
         _numOutstandingPackets = 1;
+    }
 }
 
 void
 LSQ::SplitDataRequest::sendPacketToCache()
 {
+    assert(!isSent());
     /* Try to send the packets. */
     while (numReceivedPackets + _numOutstandingPackets < _packets.size() &&
             lsqUnit()->trySendPacket(isLoad(),
                 _packets.at(numReceivedPackets + _numOutstandingPackets))) {
+        DPRINTF(LSQ, "Packet %d (load = %d) sent for instruction %llu\n",
+            numReceivedPackets + _numOutstandingPackets,
+            isLoad(), instruction()->seqNum);
         _numOutstandingPackets++;
     }
 }
@@ -1454,6 +1491,7 @@ LSQ::UnsquashableDirectRequest::initiateTranslation()
         _inst->fault = NoFault;
         _inst->physEffAddr = _reqs.back()->getPaddr();
         _inst->memReqFlags = _reqs.back()->getFlags();
+        // _inst->savedRequest = this;
 
         flags.set(Flag::TranslationStarted);
         flags.set(Flag::TranslationFinished);

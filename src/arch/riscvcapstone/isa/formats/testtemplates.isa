@@ -44,9 +44,7 @@ def template TestRcUpdateExecute {{
         assert(dyn_inst);
         
         NodeID node_id = static_cast<NodeID>(xc->getRegOperand(this, 0));
-        DPRINTFN("Test RcUpdate node_id = %u\n", node_id);
         int delta = static_cast<int>(xc->getRegOperand(this, 1));
-        DPRINTFN("delta = %u\n", delta);
         return dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, delta));
     }
 }};
@@ -58,8 +56,6 @@ def template TestAllocExecute {{
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
         using namespace gem5::RiscvcapstoneISA::o3;
-
-        DPRINTFN("Testalloc parent id = %lu\n", xc->getRegOperand(this, 0));
 
         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
         assert(dyn_inst);
@@ -87,7 +83,6 @@ def template TestDropExecute {{
         assert(dyn_inst);
         
         NodeID node_id = static_cast<NodeID>(xc->getRegOperand(this, 0));
-        DPRINTFN("Test Drop node_id = %u\n", node_id);
         return dyn_inst->initiateNodeCommand(new NodeDrop(node_id));
     }
 }};

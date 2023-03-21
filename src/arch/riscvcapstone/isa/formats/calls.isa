@@ -44,12 +44,14 @@ def format Calls(code, *opt_flags) {{
 }};
 
 def template CallsDeclare {{
-    static constexpr uint64_t CONTEXT_SIZE = (NumIntArchRegs + 4) * (o3::CAPSTONE_CAP_SIZE >> 3); // in bytes
     /**
      * Static instruction class for "%(mnemonic)s".
      */
     class %(class_name)s : public %(base_class)s
     {
+        static constexpr uint64_t CONTEXT_SIZE = NumIntArchRegs * sizeof(RegVal); // in bytes
+        static constexpr uint64_t REQUEST_N = CONTEXT_SIZE / MAX_REQUEST_SIZE;
+    
         private:
             RegId srcRegIdxArr[NumIntArchRegs]; RegId destRegIdxArr[NumIntArchRegs];
 
@@ -81,8 +83,10 @@ def template CallsConstructor {{
 
         flags[IsInteger] = true;
         flags[IsLoad] = true;
-        // flags[IsStore] = true;
-        flags[IsStore] = false;
+        flags[IsStore] = true;
+        flags[IsCall] = true;
+        flags[IsIndirectControl] = true;
+        flags[IsUncondControl] = true;
         hasNodeOp = true;
     }
 }};
@@ -98,34 +102,39 @@ def template CallsExecute {{
         assert(inst);
 
         ConstTaggedRegVal Rs1, Rd;
-        
+
         int Rs1_src_idx = RS1 - 1;
         int Rd_src_idx = RD - 1;
-        
-        if(Rs1_src_idx >= 0) {
+
+        if (Rs1_src_idx >= 0)
+        {
             Rs1 = inst->getTaggedRegOperand(this, Rs1_src_idx);
         }
-        
-        if(Rd_src_idx >= 0) {
+
+        if (Rd_src_idx >= 0)
+        {
             Rd = inst->getTaggedRegOperand(this, Rd_src_idx);
         }
-        
-        if(!Rs1.getTag()) {
+
+        if(!Rd.getTag()) {
             return std::make_shared<IllegalInstFault>("Operand needs to be a capability", machInst);
         }
         
-        const Cap& Rs1_cap = Rs1.getRegVal().capVal();
+        const Cap& Rd_cap = Rd.getRegVal().capVal();
         
-        if(Rs1_cap.type() != CapType::SEALED) {
+        *((Cap*)inst->executionData) = Rd_cap;
+        
+        if(Rd_cap.type() != CapType::SEALED &&
+            Rd_cap.type() != CapType::SEALEDRET) {
             return std::make_shared<IllegalInstFault>("Operand can only be a sealed capability", machInst);
         }
         
-        if(Rs1_cap.perm() == CapPerm::NA) {
+        if(Rd_cap.perm() == CapPerm::NA) {
             return std::make_shared<IllegalInstFault>("Operation not permitted with the given capability", machInst);
         }
         
-        uint64_t base_addr = Rs1_cap.start();
-        uint64_t end_addr = Rs1_cap.end();
+        uint64_t base_addr = Rd_cap.start();
+        uint64_t end_addr = Rd_cap.end();
         assert(end_addr >= base_addr);
         uint64_t len = end_addr - base_addr;
         
@@ -133,7 +142,7 @@ def template CallsExecute {{
             return std::make_shared<IllegalInstFault>("Memory region too small for a domain context", machInst);
         }
 
-        Fault fault = inst->initiateNodeCommand(new NodeQuery(Rs1_cap.nodeId()));
+        Fault fault = inst->initiateNodeCommand(new NodeQuery(Rd_cap.nodeId()));
         if(fault != NoFault) {
             return fault;
         }
@@ -141,10 +150,55 @@ def template CallsExecute {{
         DPRINTFN("Call checks passed\n");
         
         uint64_t cur_addr = base_addr;
-        RegVal dummy = { };
-        // for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += o3::CAPSTONE_CAP_SIZE >> 3) {
-            initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
+        
+        // uint8_t dummy[MAX_REQUEST_SIZE];
+        RegVal dummy;
+        // for(int i = 0; i < REQUEST_N; i ++, cur_addr += MAX_REQUEST_SIZE) {
+        //     initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
         // }
+        for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
+            initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
+        }
+        
+        for(cur_addr = base_addr; cur_addr < base_addr + CONTEXT_SIZE; cur_addr += sizeof(RegVal)) {
+            inst->initiateGetTag(cur_addr);
+        }
+        
+
+        RiscvcapstoneISAInst::PCState pc_state;
+        set(pc_state, xc->pcState());
+        uint64_t npc = pc_state.npc();
+        Cap pc_cap = inst->cpu->getIEWObject().getPCCap(inst->threadNumber);
+        pc_cap.setCursor(npc); // prepare the PC cap to save
+        
+        // TODO: save context
+        // save PC cap
+        // no need to change tag as we already know it is tagged
+        // TODO: optimisation: write multiple regs at one time
+        fault = writeMemTimingLE(xc, traceData, RegVal(pc_cap), base_addr,
+            Request::Flags(), nullptr);
+        if(fault != NoFault) {
+            return fault;
+        }
+
+        cur_addr = base_addr + sizeof(RegVal);
+
+        // TODO: this should be moved to execute
+        for(int i = 1; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
+            ConstTaggedRegVal v = inst->getTaggedRegOperand(this, i);
+            // store value
+            DPRINTFN("Write context %d %llx\n", i, v.getRegVal().intVal());
+            fault = writeMemTimingLE(xc, traceData, v.getRegVal(), cur_addr, 
+                Request::Flags(), nullptr);
+            if(fault != NoFault) {
+                return fault;
+            }
+            // store tag
+            fault = inst->initiateSetTag(cur_addr, v.getTag());
+            if(fault != NoFault) {
+                return fault;
+            }
+        }
         
         return NoFault;
     }
@@ -153,8 +207,52 @@ def template CallsExecute {{
 def template CallsCompleteAcc {{
     Fault
     %(class_name)s::completeAcc(PacketPtr pkt, ExecContext* xc, Trace::InstRecord* traceData) const {
-        // RegVal mem_val = Mem_rv;
-        DPRINTFN("got the values\n");
+        using namespace gem5::RiscvcapstoneISA::o3;
+
+        DynInst* inst = dynamic_cast<DynInst*>(xc);
+        assert(inst);
+        assert(inst->memReadN == NumIntArchRegs);
+        
+        RiscvcapstoneISAInst::PCState pc_state;
+        set(pc_state, xc->pcState());
+        uint64_t npc = pc_state.npc();
+        Cap pc_cap = inst->cpu->getIEWObject().getPCCap(inst->threadNumber);
+        pc_cap.setCursor(npc); // prepare the PC cap to save
+        
+        for(int reg_idx = 0; reg_idx < NumIntArchRegs; reg_idx ++) {
+            RegVal& v = *(RegVal*)(inst->getMemReadRes(reg_idx));
+            ConstTagRef tag = inst->getTagQueryRes(reg_idx);
+            DPRINTFN("Load context reg %d  = 0x%llx (tag = %d)\n",
+                reg_idx, v.intVal(), tag);
+            
+            // write back to registers
+            if(reg_idx == 0) {
+                assert(tag);
+                pc_state.npc(v.capVal().cursor());
+                inst->cpu->getIEWObject().setPCCap(v.capVal(),
+                                               inst->threadNumber);
+
+            } else if(reg_idx != 0) {
+                ConstTaggedRegVal tagged_val(v, tag);
+                inst->setTaggedRegOperand(this, reg_idx, tagged_val);
+            }
+        }
+        xc->pcState(pc_state);
+        
+        
+        const Cap& Rd_cap = *((Cap*)inst->executionData);
+        uint64_t base_addr = Rd_cap.start();
+        
+
+        // x1 always stores the sealed return cap
+        Cap ret_cap = Rd_cap;
+        ret_cap.setType(CapType::SEALEDRET);
+        ConstTaggedRegVal ret_cap_v(ret_cap, true);
+        inst->setTaggedRegOperand(this, 1, ret_cap_v); // sealed ret capability
+
+        // TODO: update ref counts
+
+
         return NoFault;
     }
 

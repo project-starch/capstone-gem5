@@ -38,8 +38,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CPU_O3_COMMIT_HH__
-#define __CPU_O3_COMMIT_HH__
+#ifndef __CAPSTONE_CPU_O3_COMMIT_HH__
+#define __CAPSTONE_CPU_O3_COMMIT_HH__
 
 #include <queue>
 
@@ -512,4 +512,4 @@ class Commit
 } // namespace RiscvcapstoneISA::o3
 } // namespace gem5
 
-#endif // __CPU_O3_COMMIT_HH__
+#endif // __CAPSTONE_CPU_O3_COMMIT_HH__

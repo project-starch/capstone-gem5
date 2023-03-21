@@ -62,7 +62,7 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
       _readySrcIdx(arrays.readySrcIdx), macroop(_macroop)
 {
     std::fill(_readySrcIdx, _readySrcIdx + (numSrcs() + 7) / 8, 0);
-
+    
     status.reset();
 
     instFlags.reset();
@@ -242,7 +242,11 @@ DynInst::~DynInst()
     }
 #endif
 
-    delete [] memData;
+    for(uint8_t* v : memData) {
+        if(v) {
+            delete [] v;
+        }
+    }
     delete traceData;
     fault = NoFault;
 
@@ -385,16 +389,15 @@ DynInst::completeMemAcc(PacketPtr pkt)
         }
     }
 
-    //if(pkt && pkt->isRead()) {
-    if(pkt) {
+    if(pkt && pkt->isRead()) {
         int i;
-        for(i = 0; i < memReadN && !pkt->matchAddr(memReads[i].addr, false);
-                i ++);
+        for (i = 0; i < memReadN && !pkt->matchAddr(memReads[i].addr, false);
+             i++)
+            ;
+        assert(i >= 0 && i < memReadN);
         completeMemRead(i, pkt);
-    } else{
-        completeMemRead(0, pkt);
-        //fault = staticInst->completeAcc(pkt, this, traceData);
     }
+    
     thread->noSquashFromTC = no_squash_from_TC;
 
     return fault;
@@ -413,8 +416,7 @@ DynInst::initiateMemRead(Addr addr, unsigned size, Request::Flags flags,
     assert(byte_enable.size() == size);
 
     memReads[memReadN] = MemReadRecord {
-        .addr = addr,
-        .res_pkt = nullptr
+        .addr = addr
     };
     memReadCompleted[memReadN] = false;
     ++ memReadN;
@@ -500,10 +502,17 @@ DynInst::initiateGetTag(Addr addr) {
 
 void
 DynInst::completeMemRead(int idx, PacketPtr pkt) {
+    DPRINTF(DynInst, "Inst %llu complete memory read %d with packet at %p.\n",
+        seqNum, idx, pkt);
     assert(idx >= 0 && idx < memReadN);
     assert(!memReadCompleted[idx]);
+    
+    lastPacket = pkt;
+    
+    // handle the packet here and move data to a separate buffer
+    assert(pkt->getSize() <= MAX_REQUEST_SIZE);
+    memcpy(memReads[idx].data, pkt->getPtr<uint8_t>(), pkt->getSize());
 
-    memReads[idx].res_pkt = pkt;
     memReadCompleted[idx] = true;
     ++ completedMemReadN;
     checkQueryCompleted();
@@ -533,10 +542,9 @@ DynInst::checkQueryCompleted() {
     if(isQueryCompleted()) {
         if(fault == NoFault) {
             auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
-            rv_inst->completeAcc(this, traceData);
-        }
-        for(int i = 0; i < memReadN; i ++){
-            memReads[i].res_pkt = nullptr; // just to make sure 
+            rv_inst->completeAcc(lastPacket, this, traceData); // FIXME: pass the packet somehow
+            setExecuted();
+            cpu->getIEWObject().checkMisprediction(dynamic_cast<DynInstPtr::PtrType>(this));
         }
         cpu->iewInstToCommitIfExeced(dynamic_cast<DynInstPtr::PtrType>(this));
     }
