@@ -1,13 +1,16 @@
 SHELL:=/bin/bash
 
-ASM_SOURCES=$(wildcard *.S)
-STATIC_LIB=exit
-HEADERS=asm_insn.h
+SRC_DIR=./src/capstone
+
+ASM_SOURCES=$(wildcard $(SRC_DIR)/*.S)
+STATIC_LIB=$(SRC_DIR)/exit
+HEADERS=$(SRC_DIR)/asm_insn.h
 OBJECTS=$(patsubst %.S,%.o,$(ASM_SOURCES))
 TARGETS=$(filter-out $(STATIC_LIB),$(patsubst %.S,%,$(ASM_SOURCES)))
-RUN_TARGETS=$(patsubst %,run-%,$(TARGETS))
-DEBUG_TARGETS=$(patsubst %,debug-%,$(TARGETS))
-MEMCHECK_TARGETS=$(patsubst %,memcheck-%,$(TARGETS))
+TARGET_NAMES=$(patsubst $(SRC_DIR)/%,%,$(TARGETS))
+RUN_TARGETS=$(patsubst %,run-%,$(TARGET_NAMES))
+DEBUG_TARGETS=$(patsubst %,debug-%,$(TARGET_NAMES))
+MEMCHECK_TARGETS=$(patsubst %,memcheck-%,$(TARGET_NAMES))
 GEM5?=gem5.opt
 GEM5_FLAGS?=
 GEM5_CONFIG?=config.py
@@ -22,29 +25,31 @@ all: $(TARGETS)
 $(TARGETS):%:$(STATIC_LIB).o %.o
 	$(GCC) -o $@ -nostdlib -static $^
 
+$(TARGET_NAMES):%:$(SRC_DIR)/%
+
 $(OBJECTS):%.o:%.S $(HEADERS)
 	$(GCC) $(CAPSTONE_TESTS_CFLAGS) -c -o $@ $<
 
-$(RUN_TARGETS):run-%:%
+$(RUN_TARGETS):run-%:$(SRC_DIR)/%
 	$(info Running testcase $^)
 	@tmpfile=$$(mktemp); \
 	timeout $(GEM5_TEST_TIMEOUT) $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^ 2>&1 | tee $$tmpfile; \
 	outcode=$${PIPESTATUS[0]}; \
 	if [ -f $^.code ]; then \
-		expected="$$(cat $^.code)"; \
+		expected="$$(cat $(SRC_DIR)/$^.code)"; \
 	else \
 		expected=0; \
 	fi; \
 	if [ -f $^.out ]; then \
-		grep -q "$$(cat $^.out)" $$tmpfile; \
+		grep -q "$$(cat $(SRC_DIR)/$^.out)" $$tmpfile; \
 	else \
 		test $$outcode -eq "$$expected"; \
 	fi;
 	
-$(DEBUG_TARGETS):debug-%:%
+$(DEBUG_TARGETS):debug-%:$(SRC_DIR)/%
 	gdb --args $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
 
-$(MEMCHECK_TARGETS):memcheck-%:%
+$(MEMCHECK_TARGETS):memcheck-%:$(SRC_DIR)/%
 	valgrind $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
 
 run: $(RUN_TARGETS)
@@ -52,6 +57,6 @@ run: $(RUN_TARGETS)
 clean:
 	rm -rf $(TARGETS) $(OBJECTS)
 
-.PHONY: all clean run $(RUN_TARGETS) $(DEBUG_TARGETS)
+.PHONY: all clean run $(RUN_TARGETS) $(DEBUG_TARGETS) $(TARGET_NAMES)
 
 
