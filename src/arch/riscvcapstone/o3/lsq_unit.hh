@@ -46,7 +46,7 @@
 #include <cstring>
 #include <map>
 #include <memory>
-#include <queue>
+#include <list>
 
 #include "arch/generic/debugfaults.hh"
 #include "arch/generic/vec_reg.hh"
@@ -100,19 +100,21 @@ namespace gem5
         /** The instruction. */
         DynInstPtr _inst;
         /** The requests. */
-        std::queue<LSQRequest *> _requests;
+        std::list<LSQRequest *> _requests;
         /** The size of the operation. */
         uint32_t _size = 0;
         /** Valid entry. */
         bool _valid = false;
 
       public:
+        int outstandingRequests = 0;
+
         ~LSQEntry()
         {
           while (!_requests.empty())
           {
             LSQRequest *req = _requests.front();
-            _requests.pop();
+            _requests.pop_front();
             assert(req);
             req->freeLSQEntry();
           }
@@ -125,7 +127,7 @@ namespace gem5
           while (!_requests.empty())
           {
             LSQRequest *req = _requests.front();
-            _requests.pop();
+            _requests.pop_front();
             assert(req);
             req->freeLSQEntry();
           }
@@ -149,22 +151,26 @@ namespace gem5
         }
         void setRequest(LSQRequest *r)
         {
+          panic("Should not assume there is only one request");
           if (r) {
             if(!_requests.empty()) {
               assert(_requests.size() == 1);
-              _requests.pop();
+              _requests.pop_front();
             }
-            _requests.push(r);
+            _requests.push_back(r);
+            r->reqIdx = 0;
           } else if(!_requests.empty()) {
             assert(_requests.size() == 1);
-            _requests.pop();
+            _requests.pop_front();
           }
         }
-        void pushRequest(LSQRequest *r) {
-          _requests.push(r);
+        int pushRequest(LSQRequest *r) {
+          _requests.push_back(r);
+          r->reqIdx = _requests.size() - 1;
+          return r->reqIdx; // returns the index of the newly inserted request
         }
         void popRequest() {
-          _requests.pop();
+          _requests.pop_front();
         }
         bool hasRequest() { return !_requests.empty(); }
         /** Member accessors. */
@@ -180,7 +186,7 @@ namespace gem5
       {
       private:
         /** The store data. */
-        char _data[MaxDataBytes];
+        char _data[64][MaxDataBytes];
         /** Whether or not the store can writeback. */
         bool _canWB = false;
         /** Whether or not the store is committed. */
@@ -220,8 +226,8 @@ namespace gem5
         const bool &committed() const { return _committed; }
         bool &isAllZeros() { return _isAllZeros; }
         const bool &isAllZeros() const { return _isAllZeros; }
-        char *data() { return _data; }
-        const char *data() const { return _data; }
+        char *data(int idx) { return _data[idx]; }
+        const char *data(int idx) const { return _data[idx]; }
         /** @} */
       };
       using LQEntry = LSQEntry;

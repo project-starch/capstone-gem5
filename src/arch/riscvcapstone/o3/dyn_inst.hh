@@ -241,6 +241,7 @@ class DynInst : public ExecContext, public RefCounted
         PossibleLoadViolation,
         HitExternalSnoop,
         EffAddrValid,
+        LoadEffAddrValid,
         RecordResult,
         Predicate,
         MemAccPredicate,
@@ -396,17 +397,47 @@ class DynInst : public ExecContext, public RefCounted
 
   public:
     /////////////////////// Load Store Data //////////////////////
-    /** The effective virtual address (lds & stores only). */
+    
+    /** Effective addresses for stores */
+    /** The effective virtual address (stores only). */
     Addr effAddr = 0;
 
     /** The effective physical address. */
     Addr physEffAddr = 0;
 
-    /** The memory request flags (from translation). */
-    unsigned memReqFlags = 0;
-
     /** The size of the request */
     unsigned effSize;
+
+    void setEffAddrs(Addr addr, unsigned size) {
+        assert(!effAddrValid());
+        physEffAddr = effAddr = addr;
+        effSize = size;
+        effAddrValid(true);
+    }
+
+    // -------------------------------------
+
+    /** Effective addresses for loads*/
+    /** Effective virtual address */
+    Addr loadEffAddr = 0;
+
+    /** Effective physical address */
+    Addr loadPhysEffAddr = 0;
+
+    /** Effective size */
+    unsigned loadEffSize;
+
+    void setLoadEffAddrs(Addr addr, unsigned size) {
+        assert(!loadEffAddrValid());
+        loadPhysEffAddr = loadEffAddr = addr;
+        loadEffSize = size;
+        loadEffAddrValid(true);
+    }
+
+    // -------------------------------------
+
+    /** The memory request flags (from translation). */
+    unsigned memReqFlags = 0;
 
     /** Pointer to the data for the memory access. */
     std::vector<uint8_t*> memData;
@@ -447,6 +478,9 @@ class DynInst : public ExecContext, public RefCounted
     /** Is the effective virtual address valid. */
     bool effAddrValid() const { return instFlags[EffAddrValid]; }
     void effAddrValid(bool b) { instFlags[EffAddrValid] = b; }
+
+    bool loadEffAddrValid() const { return instFlags[LoadEffAddrValid]; }
+    void loadEffAddrValid(bool b) { instFlags[LoadEffAddrValid] = b; }
 
     /** Whether or not the memory operation is done. */
     bool memOpDone() const { return instFlags[MemOpDone]; }

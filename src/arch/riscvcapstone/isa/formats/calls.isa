@@ -137,6 +137,9 @@ def template CallsExecute {{
         uint64_t end_addr = Rd_cap.end();
         assert(end_addr >= base_addr);
         uint64_t len = end_addr - base_addr;
+
+        inst->setLoadEffAddrs(base_addr, CONTEXT_SIZE);
+        inst->setEffAddrs(base_addr, CONTEXT_SIZE);
         
         if(len < CONTEXT_SIZE) {
             return std::make_shared<IllegalInstFault>("Memory region too small for a domain context", machInst);
@@ -194,6 +197,7 @@ def template CallsExecute {{
                 return fault;
             }
             // store tag
+            DPRINTFN("Set tag %d %d\n", i, v.getTag());
             fault = inst->initiateSetTag(cur_addr, v.getTag());
             if(fault != NoFault) {
                 return fault;
