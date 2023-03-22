@@ -410,13 +410,13 @@ decode QUADRANT default Unknown::unknown() {
                         // Rs is used to populate r1
                         // swap the context sealed in Rd
                         
-                    }});
+                    }}, {{ CALL_TYPE_CALL }});
                     0x14: return ({{
                         Rs1, Rd;
-                    }});
+                    }}, {{ CALL_TYPE_RETURN }});
                     0x15: retseal ({{
                         Rs1, Rd;
-                    }});
+                    }}, {{ CALL_TYPE_RETSEAL }});
                 }
                 format ROp {
                     0x2: jmp ({{

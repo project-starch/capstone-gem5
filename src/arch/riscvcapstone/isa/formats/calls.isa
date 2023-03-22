@@ -31,10 +31,11 @@
 //
 // Calls operation instructions : call, return, retseal
 //
-def format Calls(code, *opt_flags) {{
-    regs = ['srcRegIdx(0)', 'srcRegIdx(1)']
+def format Calls(code, call_type, *opt_flags) {{
+    regs = [] # FIXME: this is not actually used
     iop = InstObjParams(name, Name, 'CallsClass',
-           {'code': code, 'regs': ','.join(regs)},
+           {'code': code, 'regs': ','.join(regs), 
+           'call_type': call_type },
             opt_flags)
     header_output = CallsDeclare.subst(iop)
     decoder_output = CallsConstructor.subst(iop)
@@ -51,9 +52,19 @@ def template CallsDeclare {{
     {
         static constexpr uint64_t CONTEXT_SIZE = NumIntArchRegs * sizeof(RegVal); // in bytes
         static constexpr uint64_t REQUEST_N = CONTEXT_SIZE / MAX_REQUEST_SIZE;
+
+        static constexpr int RET_REG_IDX = 0;
     
         private:
-            RegId srcRegIdxArr[NumIntArchRegs]; RegId destRegIdxArr[NumIntArchRegs];
+            RegId srcRegIdxArr[NumIntArchRegs + 1]; RegId destRegIdxArr[NumIntArchRegs + 1];
+
+            enum CallType {
+                CALL_TYPE_CALL,
+                CALL_TYPE_RETURN,
+                CALL_TYPE_RETSEAL
+            };
+
+            const CallType callType;
 
         public:
         /// Constructor.
@@ -66,13 +77,16 @@ def template CallsDeclare {{
 
 def template CallsConstructor {{
     %(class_name)s::%(class_name)s(ExtMachInst machInst):
-        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s),
+        callType(%(call_type)s)
     {
         setRegIdxArrays(
             reinterpret_cast<RegIdArrayPtr>(
                 &std::remove_pointer_t<decltype(this)>::srcRegIdxArr),
             reinterpret_cast<RegIdArrayPtr>(
                 &std::remove_pointer_t<decltype(this)>::destRegIdxArr));
+
+        assert(_numSrcRegs == 0 && _numDestRegs == 0);
 
         for(int i = 1; i < NumIntArchRegs; i ++) {
             setSrcRegIdx(_numSrcRegs++, RegId(IntRegClass, i));
@@ -188,9 +202,9 @@ def template CallsExecute {{
 
         // TODO: this should be moved to execute
         for(int i = 1; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
-            ConstTaggedRegVal v = inst->getTaggedRegOperand(this, i);
+            ConstTaggedRegVal v = inst->getTaggedRegOperand(this, i - 1);
             // store value
-            DPRINTFN("Write context %d %llx\n", i, v.getRegVal().intVal());
+            DPRINTFN("Write context x%d %llx\n", i, v.getRegVal().intVal());
             fault = writeMemTimingLE(xc, traceData, v.getRegVal(), cur_addr, 
                 Request::Flags(), nullptr);
             if(fault != NoFault) {
@@ -238,7 +252,7 @@ def template CallsCompleteAcc {{
 
             } else if(reg_idx != 0) {
                 ConstTaggedRegVal tagged_val(v, tag);
-                inst->setTaggedRegOperand(this, reg_idx, tagged_val);
+                inst->setTaggedRegOperand(this, reg_idx - 1, tagged_val);
             }
         }
         xc->pcState(pc_state);
@@ -249,10 +263,12 @@ def template CallsCompleteAcc {{
         
 
         // x1 always stores the sealed return cap
-        Cap ret_cap = Rd_cap;
-        ret_cap.setType(CapType::SEALEDRET);
-        ConstTaggedRegVal ret_cap_v(ret_cap, true);
-        inst->setTaggedRegOperand(this, 1, ret_cap_v); // sealed ret capability
+        if(callType == CALL_TYPE_CALL) {
+            Cap ret_cap = Rd_cap;
+            ret_cap.setType(CapType::SEALEDRET);
+            ConstTaggedRegVal ret_cap_v(ret_cap, true);
+            inst->setTaggedRegOperand(this, RET_REG_IDX, ret_cap_v); // sealed ret capability
+        }
 
         // TODO: update ref counts
 
