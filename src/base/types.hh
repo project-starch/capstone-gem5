@@ -300,6 +300,12 @@ class ConstTaggedRegVal {
             tag(other.tag)
         {}
 
+        ConstTaggedRegVal& operator = (const RegVal& val) {
+            this->val = val;
+            tag = false;
+            return *this;
+        }
+
         bool getTag() const {
             return tag;
         }

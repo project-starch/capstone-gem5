@@ -393,7 +393,7 @@ class DynInst : public ExecContext, public RefCounted
     uint8_t readyRegs = 0;
     
     /** Custom data for instruction execution. */
-    uint8_t executionData[sizeof(RegVal)] = { 0 };
+    uint8_t executionData[64] = { 0 };
 
   public:
     /////////////////////// Load Store Data //////////////////////

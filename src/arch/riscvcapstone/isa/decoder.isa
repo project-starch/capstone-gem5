@@ -409,7 +409,6 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1, Rd;
                         // Rs is used to populate r1
                         // swap the context sealed in Rd
-                        
                     }}, {{ CALL_TYPE_CALL }});
                     0x14: return ({{
                         Rs1, Rd;
