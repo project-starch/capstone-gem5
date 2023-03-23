@@ -184,13 +184,23 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
             if (pkt->isWrite()) {
                 assert(inst->isStore());
                 request->writebackDone();
-                completeStore(request->instruction()->sqIt);
+
+                -- request->instruction()->sqIt->outstandingRequests;
+                assert(request->instruction()->sqIt->outstandingRequests >= 0);
+                if(request->instruction()->sqIt->outstandingRequests == 0) {
+                    completeStore(request->instruction()->sqIt);
+                }
             }
         } else if (pkt->isWrite()) {
             assert(inst->isStore());
+            request->freeLSQEntry();
             // This is a regular store (i.e., not store conditionals and
             // atomics), so it can complete without writing back
-            completeStore(request->instruction()->sqIt);
+            -- request->instruction()->sqIt->outstandingRequests;
+            assert(request->instruction()->sqIt->outstandingRequests >= 0);
+            if(request->instruction()->sqIt->outstandingRequests == 0) {
+                completeStore(request->instruction()->sqIt);
+            }
         }
     }
 }
@@ -522,8 +532,17 @@ Fault
 LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
         const DynInstPtr& inst)
 {
-    Addr inst_eff_addr1 = inst->effAddr >> depCheckShift;
-    Addr inst_eff_addr2 = (inst->effAddr + inst->effSize - 1) >> depCheckShift;
+    Addr inst_eff_addr1;
+    Addr inst_eff_addr2; 
+
+    if(inst->effAddrValid()) {
+        inst_eff_addr1 = inst->effAddr >> depCheckShift;
+        inst_eff_addr2 = (inst->effAddr + inst->effSize - 1) >> depCheckShift;
+    } else {
+        assert(inst->loadEffAddrValid());
+        inst_eff_addr1 = inst->loadEffAddr >> depCheckShift;
+        inst_eff_addr2 = (inst->loadEffAddr + inst->loadEffSize - 1) >> depCheckShift;
+    }
 
     /** @todo in theory you only need to check an instruction that has executed
      * however, there isn't a good way in the pipeline at the moment to check
@@ -532,14 +551,14 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
      */
     while (loadIt != loadQueue.end()) {
         DynInstPtr ld_inst = loadIt->instruction();
-        if (!ld_inst->effAddrValid() || ld_inst->strictlyOrdered()) {
+        if (!ld_inst->loadEffAddrValid() || ld_inst->strictlyOrdered()) {
             ++loadIt;
             continue;
         }
 
-        Addr ld_eff_addr1 = ld_inst->effAddr >> depCheckShift;
+        Addr ld_eff_addr1 = ld_inst->loadEffAddr >> depCheckShift;
         Addr ld_eff_addr2 =
-            (ld_inst->effAddr + ld_inst->effSize - 1) >> depCheckShift;
+            (ld_inst->loadEffAddr + ld_inst->loadEffSize - 1) >> depCheckShift;
 
         if (inst_eff_addr2 >= ld_eff_addr1 && inst_eff_addr1 <= ld_eff_addr2) {
             if (inst->isLoad()) {
@@ -875,95 +894,110 @@ LSQUnit::writebackStores()
         assert(!storeWBIt->committed());
 
         DynInstPtr inst = storeWBIt->instruction();
-        LSQRequest* request = storeWBIt->request();
 
-        // Process store conditionals or store release after all previous
-        // stores are completed
-        if ((request->mainReq()->isLLSC() ||
-             request->mainReq()->isRelease()) &&
-             (storeWBIt.idx() != storeQueue.head())) {
-            DPRINTF(LSQUnit, "Store idx:%i PC:%s to Addr:%#x "
-                "[sn:%lli] is %s%s and not head of the queue\n",
-                storeWBIt.idx(), inst->pcState(),
-                request->mainReq()->getPaddr(), inst->seqNum,
-                request->mainReq()->isLLSC() ? "SC" : "",
-                request->mainReq()->isRelease() ? "/Release" : "");
-            break;
-        }
+        LSQRequest *request = nullptr;
+        while(storeWBIt->hasRequest() && lsq->cachePortAvailable(false)) {
+            request = storeWBIt->request();
 
-        storeWBIt->committed() = true;
+            // Process store conditionals or store release after all previous
+            // stores are completed
+            if ((request->mainReq()->isLLSC() ||
+                 request->mainReq()->isRelease()) &&
+                (storeWBIt.idx() != storeQueue.head()))
+            {
+                DPRINTF(LSQUnit, "Store idx:%i PC:%s to Addr:%#x "
+                                 "[sn:%lli] is %s%s and not head of the queue\n",
+                        storeWBIt.idx(), inst->pcState(),
+                        request->mainReq()->getPaddr(), inst->seqNum,
+                        request->mainReq()->isLLSC() ? "SC" : "",
+                        request->mainReq()->isRelease() ? "/Release" : "");
+                break;
+            }
 
-        // why do we even need this?
-        uint8_t*& mem_data = inst->memData[request->reqIdx];
-        assert(!mem_data); // FIXME: here we need to adapt to multiple stores
-        mem_data = new uint8_t[request->_size];
+            // why do we even need this?
+            uint8_t *&mem_data = inst->memData[request->reqIdx];
+            assert(!mem_data); // FIXME: here we need to adapt to multiple stores
+            mem_data = new uint8_t[request->_size];
 
-        if (storeWBIt->isAllZeros())
-            memset(mem_data, 0, request->_size);
-        else
-            memcpy(mem_data, storeWBIt->data(), request->_size);
+            if (storeWBIt->isAllZeros())
+                memset(mem_data, 0, request->_size);
+            else
+                memcpy(mem_data, storeWBIt->data(request->reqIdx), request->_size);
 
-        request->buildPackets();
+            request->buildPackets();
 
-        DPRINTF(LSQUnit, "D-Cache: Writing back store idx:%i PC:%s "
-                "to Addr:%#x, data:%#x [sn:%lli]\n",
-                storeWBIt.idx(), inst->pcState(),
-                request->mainReq()->getPaddr(), (int)*(mem_data),
-                inst->seqNum);
+            DPRINTF(LSQUnit, "D-Cache: Writing back store idx:%i PC:%s "
+                             "to Addr:%#x, data:%#x [sn:%lli]\n",
+                    storeWBIt.idx(), inst->pcState(),
+                    request->mainReq()->getPaddr(), (int)*(mem_data),
+                    inst->seqNum);
 
-        // @todo: Remove this SC hack once the memory system handles it.
-        if (inst->isStoreConditional()) {
-            // Disable recording the result temporarily.  Writing to
-            // misc regs normally updates the result, but this is not
-            // the desired behavior when handling store conditionals.
-            inst->recordResult(false);
-            bool success = inst->tcBase()->getIsaPtr()->handleLockedWrite(
+            // @todo: Remove this SC hack once the memory system handles it.
+            if (inst->isStoreConditional())
+            {
+                // Disable recording the result temporarily.  Writing to
+                // misc regs normally updates the result, but this is not
+                // the desired behavior when handling store conditionals.
+                inst->recordResult(false);
+                bool success = inst->tcBase()->getIsaPtr()->handleLockedWrite(
                     inst.get(), request->mainReq(), cacheBlockMask);
-            inst->recordResult(true);
-            request->packetSent();
+                inst->recordResult(true);
+                request->packetSent();
 
-            if (!success) {
-                request->complete();
-                // Instantly complete this store.
-                DPRINTF(LSQUnit, "Store conditional [sn:%lli] failed.  "
-                        "Instantly completing it.\n",
-                        inst->seqNum);
-                PacketPtr new_pkt = new Packet(*request->packet());
-                WritebackEvent *wb = new WritebackEvent(inst,
-                        new_pkt, this);
-                cpu->schedule(wb, curTick() + 1);
-                completeStore(storeWBIt);
-                if (!storeQueue.empty())
-                    storeWBIt++;
-                else
-                    storeWBIt = storeQueue.end();
+                if (!success)
+                {
+                    request->complete();
+                    // Instantly complete this store.
+                    DPRINTF(LSQUnit, "Store conditional [sn:%lli] failed.  "
+                                     "Instantly completing it.\n",
+                            inst->seqNum);
+                    PacketPtr new_pkt = new Packet(*request->packet());
+                    WritebackEvent *wb = new WritebackEvent(inst,
+                                                            new_pkt, this);
+                    cpu->schedule(wb, curTick() + 1);
+                    completeStore(storeWBIt);
+                    continue;
+                }
+            }
+
+            if (request->mainReq()->isLocalAccess())
+            {
+                assert(!inst->isStoreConditional());
+                assert(!inst->inHtmTransactionalState());
+                gem5::ThreadContext *thread = cpu->tcBase(lsqID);
+                PacketPtr main_pkt = new Packet(request->mainReq(),
+                                                MemCmd::WriteReq);
+                main_pkt->dataStatic(mem_data);
+                request->mainReq()->localAccessor(thread, main_pkt);
+                delete main_pkt;
+
+                storeWBIt->popRequest();
+                // request->freeLSQEntry();
                 continue;
             }
-        }
+            /* Send to cache */
+            request->sendPacketToCache();
 
-        if (request->mainReq()->isLocalAccess()) {
-            assert(!inst->isStoreConditional());
-            assert(!inst->inHtmTransactionalState());
-            gem5::ThreadContext *thread = cpu->tcBase(lsqID);
-            PacketPtr main_pkt = new Packet(request->mainReq(),
-                                            MemCmd::WriteReq);
-            main_pkt->dataStatic(mem_data);
-            request->mainReq()->localAccessor(thread, main_pkt);
-            delete main_pkt;
-            completeStore(storeWBIt);
-            storeWBIt++;
-            continue;
+            /* If successful, do the post send */
+            if (request->isSent())
+            {
+                ++ storeWBIt->outstandingRequests;
+                storeWBIt->popRequest();
+                // request->freeLSQEntry();
+            }
+            else
+            {
+                DPRINTF(LSQUnit, "D-Cache became blocked when writing [sn:%lli], "
+                                 "will retry later\n",
+                        inst->seqNum);
+            }
         }
-        /* Send to cache */
-        request->sendPacketToCache();
-
-        /* If successful, do the post send */
-        if (request->isSent()) {
-            storePostSend();
+        if(storeWBIt->hasRequest()) {
+            break;
         } else {
-            DPRINTF(LSQUnit, "D-Cache became blocked when writing [sn:%lli], "
-                    "will retry later\n",
-                    inst->seqNum);
+            storeWBIt->committed() = true;
+            // completeStore(storeWBIt);
+            storePostSend();
         }
     }
     assert(storesToWB >= 0);
@@ -1454,7 +1488,8 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
         if (store_size != 0 && !store_it->instruction()->strictlyOrdered() &&
             !(store_it->request()->mainReq() &&
               store_it->request()->mainReq()->isCacheMaintenance())) {
-            assert(store_it->instruction()->effAddrValid());
+            assert(store_it->instruction()->effAddrValid() ||
+                store_it->instruction()->loadEffAddrValid());
 
             // Check if the store data is within the lower and upper bounds of
             // addresses that the request needs.
@@ -1518,7 +1553,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                             request->mainReq()->getSize());
                 else
                     memcpy(mem_data,
-                        store_it->data() + shift_amt,
+                        store_it->data(request->reqIdx) + shift_amt,
                         request->mainReq()->getSize());
 
                 DPRINTF(LSQUnit, "Forwarding from store idx %i to load to "
@@ -1679,7 +1714,7 @@ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
     if (!(request->req()->getFlags() & Request::CACHE_BLOCK_ZERO) &&
         !request->req()->isCacheMaintenance() &&
         !request->req()->isAtomic())
-        memcpy(storeQueue[store_idx].data(), data, size);
+        memcpy(storeQueue[store_idx].data(request->reqIdx), data, size);
 
     // This function only writes the data to the store queue, so no fault
     // can happen here.
@@ -1727,7 +1762,7 @@ LSQUnit::postExecCheck(const DynInstPtr& inst) {
                     inst->seqNum,
                     "predication");
             iewStage->activityThisCycle();
-        } else if(inst->effAddrValid()) {
+        } else if(inst->loadEffAddrValid()) {
             auto it = inst->lqIt;
             ++it;
 

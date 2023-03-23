@@ -849,9 +849,18 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
 
     /* This is the place were instructions get the effAddr. */
     if (request->isMemAccessRequired()) {
-        inst->effAddr = request->getVaddr();
-        inst->effSize = size;
-        inst->effAddrValid(true);
+        if(isLoad) {
+            if (!inst->loadEffAddrValid()) {
+                inst->setLoadEffAddrs(request->getVaddr(), size);
+            }
+            // otherwise, assume that the instruction has set the addresses in advance
+        } else {
+            // store
+            if (!inst->effAddrValid())
+            {
+                inst->setEffAddrs(request->getVaddr(), size);
+            }
+        }
 
         if (cpu->checker) {
             inst->reqToVerify = std::make_shared<Request>(*request->req());
@@ -899,7 +908,6 @@ LSQ::SingleDataRequest::finish(const Fault &fault, const RequestPtr &request,
 
         flags.set(Flag::TranslationFinished);
         if (fault == NoFault) {
-            _inst->physEffAddr = request->getPaddr();
             _inst->memReqFlags = request->getFlags();
             if (request->isCondSwap()) {
                 assert(_res);
@@ -940,7 +948,6 @@ LSQ::SplitDataRequest::finish(const Fault &fault, const RequestPtr &req,
 
             for (i = 0; i < _fault.size() && _fault[i] == NoFault; i++);
             if (i > 0) {
-                _inst->physEffAddr = LSQRequest::req()->getPaddr();
                 _inst->memReqFlags = _mainReq->getFlags();
                 if (_mainReq->isCondSwap()) {
                     assert (i == _fault.size());
