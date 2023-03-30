@@ -1150,7 +1150,10 @@ decode QUADRANT default Unknown::unknown() {
                         uint64_t start = Rs1_trv.getRegVal().capVal().start();
                         uint64_t end = Rs1_trv.getRegVal().capVal().end();
 
-                        assert(Rs2_ud >= start && Rs2_ud <= end);
+                        if(!(Rs2_ud > start && Rs2_ud < end)) {
+                            return std::make_shared<IllegalInstFault>(
+                                "Split address has to be strictly within bounds!", machInst);
+                        }
 
                         Rs1_trv.getRegVal().capVal().setAddresses(start, Rs2_ud, start);
                         
