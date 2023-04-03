@@ -1,5 +1,22 @@
 This is the gem5 simulator.
 
+To Run:
+
+```
+build/RISCVCapstone/gem5.debug configs/example/gem5_library/riscv-fs.py
+```
+
+By default this uses `bbl` bootloader with kernel image located in the project root as the kernel workload.
+
+To switch it to the workload from the official gem5 repo, switch out the kernel workload in `riscv-fs.py` to 
+```
+Resource("riscv-bootloader-vmlinux-5.10")
+```
+
+To interact with the terminal, you can use telnet or m5term (`<project-root>/util/term`)
+
+Steps to rebuild the kernel and/or disk image: http://resources.gem5.org/resources/riscv-fs
+
 The main website can be found at http://www.gem5.org
 
 A good starting point is http://www.gem5.org/about, and for
@@ -14,7 +31,7 @@ http://www.gem5.org/documentation/general_docs/building for more details
 concerning the minimum versions of these tools.
 
 Once you have all dependencies resolved, type 'scons
-build/<CONFIG>/gem5.opt' where CONFIG is one of the options in build_opts like
+build/CONFIG/gem5.opt' where CONFIG is one of the options in build_opts like
 ARM, NULL, MIPS, POWER, SPARC, X86, Garnet_standalone, etc. This will build an
 optimized version of the gem5 binary (gem5.opt) with the the specified
 configuration. See http://www.gem5.org/documentation/general_docs/building for

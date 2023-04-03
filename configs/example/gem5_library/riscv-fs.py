@@ -80,7 +80,7 @@ board = RiscvBoard(
 
 # Set the Full System workload.
 board.set_kernel_disk_workload(
-                   kernel=CustomResource("/mnt/archive1/aditya/workspace-capstone/bbl"),
+                   kernel=CustomResource("./bbl"),
                    disk_image=Resource("riscv-disk-img"),
 )
 
