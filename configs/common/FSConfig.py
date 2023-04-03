@@ -47,6 +47,7 @@ from common import ObjectList
 # Populate to reflect supported os types per target ISA
 os_types = { 'mips'  : [ 'linux' ],
              'riscv' : [ 'linux' ], # TODO that's a lie
+             'riscvcapstone' : [ 'linux' ],
              'sparc' : [ 'linux' ],
              'x86'   : [ 'linux' ],
              'arm'   : [ 'linux',

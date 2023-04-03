@@ -49,11 +49,11 @@ from gem5.components.cachehierarchies.classic.\
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
 from gem5.utils.requires import requires
-from gem5.resources.resource import Resource
+from gem5.resources.resource import Resource, CustomResource
 from gem5.simulate.simulator import Simulator
 
 # Run a check to ensure the right version of gem5 is being used.
-requires(isa_required=ISA.RISCV)
+# requires(isa_required=ISA.RISCV)
 
 # Setup the cache hierarchy.
 # For classic, PrivateL1PrivateL2 and NoCache have been tested.
@@ -67,7 +67,7 @@ memory = SingleChannelDDR3_1600()
 
 # Setup a single core Processor.
 processor = SimpleProcessor(
-    cpu_type=CPUTypes.TIMING, isa=ISA.RISCV, num_cores=1
+    cpu_type=CPUTypes.O3, isa=ISA.RISCVCapstone, num_cores=1
 )
 
 # Setup the board.
@@ -80,7 +80,7 @@ board = RiscvBoard(
 
 # Set the Full System workload.
 board.set_kernel_disk_workload(
-                   kernel=Resource("riscv-bootloader-vmlinux-5.10"),
+                   kernel=CustomResource("/mnt/archive1/aditya/workspace-capstone/bbl"),
                    disk_image=Resource("riscv-disk-img"),
 )
 

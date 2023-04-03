@@ -81,3 +81,18 @@ class RiscvUart8250(Uart8250):
             FdtPropertyWords("interrupt-parent", state.phandle(plic)))
         node.appendCompatible(["ns8250"])
         yield node
+
+class RiscvcapstoneUart8250(Uart8250):
+    def generateDeviceTree(self, state):
+        node = self.generateBasicPioDeviceNode(
+            state, "uart", self.pio_addr, self.pio_size)
+        platform = self.platform.unproxy(self)
+        plic = platform.plic
+        node.append(
+            FdtPropertyWords("interrupts", [platform.uart_int_id]))
+        node.append(
+            FdtPropertyWords("clock-frequency", [0x384000]))
+        node.append(
+            FdtPropertyWords("interrupt-parent", state.phandle(plic)))
+        node.appendCompatible(["ns8250"])
+        yield node
