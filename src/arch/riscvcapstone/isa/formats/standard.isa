@@ -58,6 +58,8 @@ def template ImmConstructor {{
         %(set_reg_idx_arr)s;
         %(constructor)s;
         %(imm_code)s;
+
+        hasNodeOp = true;
     }
 }};
 

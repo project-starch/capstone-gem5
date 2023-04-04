@@ -146,7 +146,20 @@ decode QUADRANT default Unknown::unknown() {
                     return std::make_shared<IllegalInstFault>(
                             "source reg x0", machInst);
                 }
-                Rc1_sd = imm;
+
+                using namespace gem5::RiscvcapstoneISA::o3;
+
+                DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                assert(dyn_inst);
+
+                if(Rc1_trv.getTag()) {
+                    Rc1_trv.setTag(false);
+                    NodeID node_id = Rc1_trv.getRegVal().capVal().nodeId();
+                    dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+                }
+
+                Rc1_trv.getRegVal().intVal() = imm;
+                Rc1_trv = Rc1_trv;
             }});
             0x3: decode RC1 {
                 0x2: c_addi16sp({{
@@ -1342,7 +1355,14 @@ decode QUADRANT default Unknown::unknown() {
             0x1: decode FS3 {
                 format IOp {
                     0x00: slli({{
-                        Rd = Rs1 << imm;
+                        if(Rd_trv.getTag() || Rs1_trv.getTag()) {
+                        return std::make_shared<IllegalInstFault>(
+                            "Can't perform this op on a capability!", machInst);
+                        }
+
+                        Rd_trv.getRegVal().intVal() = Rs1_trv.getRegVal().intVal() << imm;
+
+                        Rd_trv = Rd_trv;
                     }}, imm_type = uint64_t, imm_code = {{ imm = SHAMT6; }});
                     0x05: bseti({{
                         uint64_t index = imm & (64 - 1);
@@ -1380,7 +1400,13 @@ decode QUADRANT default Unknown::unknown() {
 
             format IOp {
                 0x0: addi({{
-                    Rd_sd = Rs1_sd + imm;
+                    if(Rs1_trv.getTag() || Rd_trv.getTag()) {
+                        return std::make_shared<IllegalInstFault>(
+                            "Can't perform this op on a capability!", machInst);
+                    }
+                    Rd_trv.getRegVal().intVal() = Rs1_trv.getRegVal().intVal() + imm;
+
+                    Rd_trv = Rd_trv;
                 }});
                 0x2: slti({{
                     Rd = (Rs1_sd < imm) ? 1 : 0;
@@ -1442,7 +1468,13 @@ decode QUADRANT default Unknown::unknown() {
         0x06: decode FUNCT3 {
             format IOp {
                 0x0: addiw({{
-                    Rd_sw = (int32_t)(Rs1_sw + imm);
+                    if(Rs1_trv.getTag()) {
+                        return std::make_shared<IllegalInstFault>(
+                            "Can't perform this op on a capability!", machInst);
+                    }
+                    Rs1_trv.getRegVal().intVal() = (int32_t)(Rs1_trv.getRegVal().intVal() + imm);
+
+                    Rs1_trv = Rs1_trv;
                 }}, int32_t);
                 0x1: decode FS3 {
                     0x0: slliw({{
@@ -1897,7 +1929,20 @@ decode QUADRANT default Unknown::unknown() {
         }
 
         0x0d: UOp::lui({{
-            Rd = (uint64_t)(sext<20>(imm) << 12);
+            using namespace gem5::RiscvcapstoneISA::o3;
+
+            DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+            assert(dyn_inst);
+
+            if(Rd_trv.getTag()) {
+                Rd_trv.setTag(false);
+                NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
+                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+            }
+
+            Rd_trv.getRegVal().intVal() = (uint64_t)(sext<20>(imm) << 12);
+
+            Rd_trv = Rd_trv;
         }});
 
         0x0e: decode FUNCT3 {
