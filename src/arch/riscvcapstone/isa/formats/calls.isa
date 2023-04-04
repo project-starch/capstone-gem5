@@ -53,10 +53,11 @@ def template CallsDeclare {{
         static constexpr uint64_t CONTEXT_SIZE = NumIntArchRegs * sizeof(RegVal); // in bytes
         static constexpr uint64_t REQUEST_N = CONTEXT_SIZE / MAX_REQUEST_SIZE;
 
-        static constexpr int RET_REG_IDX = 0;
+        static constexpr int RET_REG_IDX = 1 - 1;
+        static constexpr int ARG_REG_IDX = 10 - 1;
     
         private:
-            RegId srcRegIdxArr[NumIntArchRegs + 1]; RegId destRegIdxArr[NumIntArchRegs + 1];
+            RegId srcRegIdxArr[NumIntArchRegs]; RegId destRegIdxArr[NumIntArchRegs];
 
             enum CallType {
                 CALL_TYPE_CALL,
@@ -65,6 +66,11 @@ def template CallsDeclare {{
             };
 
             const CallType callType;
+
+            struct ExecData {
+                gem5::RiscvcapstoneISA::o3::Cap rd_cap;
+                gem5::ConstTaggedRegVal rs;
+            };
 
         public:
         /// Constructor.
@@ -93,8 +99,6 @@ def template CallsConstructor {{
             setDestRegIdx(_numDestRegs++, RegId(IntRegClass, i));
         }
         
-        %(constructor)s;
-
         flags[IsInteger] = true;
         flags[IsLoad] = true;
         flags[IsStore] = true;
@@ -120,11 +124,13 @@ def template CallsExecute {{
         int Rs1_src_idx = RS1 - 1;
         int Rd_src_idx = RD - 1;
 
+        // Rs1: argument to be passed
         if (Rs1_src_idx >= 0)
         {
             Rs1 = inst->getTaggedRegOperand(this, Rs1_src_idx);
         }
 
+        // Rd: target sealed capability for the call
         if (Rd_src_idx >= 0)
         {
             Rd = inst->getTaggedRegOperand(this, Rd_src_idx);
@@ -136,7 +142,11 @@ def template CallsExecute {{
         
         const Cap& Rd_cap = Rd.getRegVal().capVal();
         
-        *((Cap*)inst->executionData) = Rd_cap;
+        static_assert(sizeof(inst->executionData) >= sizeof(ExecData));
+        *((ExecData*)inst->executionData) = ExecData {
+            .rd_cap = Rd_cap,
+            .rs = Rs1
+        };
         
         if(Rd_cap.type() != CapType::SEALED &&
             Rd_cap.type() != CapType::SEALEDRET) {
@@ -187,22 +197,36 @@ def template CallsExecute {{
         uint64_t npc = pc_state.npc();
         Cap pc_cap = inst->cpu->getIEWObject().getPCCap(inst->threadNumber);
         pc_cap.setCursor(npc); // prepare the PC cap to save
-        
-        // TODO: save context
-        // save PC cap
-        // no need to change tag as we already know it is tagged
-        // TODO: optimisation: write multiple regs at one time
-        fault = writeMemTimingLE(xc, traceData, RegVal(pc_cap), base_addr,
-            Request::Flags(), nullptr);
-        if(fault != NoFault) {
-            return fault;
+
+
+        if(callType == CALL_TYPE_CALL) {
+
+            DPRINTFN("Write PC cap = %llx, %llx, %llx\n", pc_cap.start(), pc_cap.end(),
+                     pc_cap.cursor());
+
+            // TODO: save context
+            // save PC cap
+            // no need to change tag as we already know it is tagged
+            // TODO: optimisation: write multiple regs at one time
+            fault = writeMemTimingLE(xc, traceData, RegVal(pc_cap), base_addr,
+                                     Request::Flags(), nullptr);
+            if (fault != NoFault)
+            {
+                return fault;
+            }
         }
 
         cur_addr = base_addr + sizeof(RegVal);
 
         // TODO: this should be moved to execute
         for(int i = 1; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
-            ConstTaggedRegVal v = inst->getTaggedRegOperand(this, i - 1);
+            ConstTaggedRegVal v;
+            if(i == RS1 && v.getTag() && v.getRegVal().capVal().type() != CapType::NONLIN) {
+                // linear cap stored in rs1 needs to be cleared
+                v = 0;
+            } else {
+                v = inst->getTaggedRegOperand(this, i - 1);
+            }
             // store value
             DPRINTFN("Write context x%d %llx\n", i, v.getRegVal().intVal());
             fault = writeMemTimingLE(xc, traceData, v.getRegVal(), cur_addr, 
@@ -217,7 +241,7 @@ def template CallsExecute {{
                 return fault;
             }
         }
-        
+
         return NoFault;
     }
 }};
@@ -245,33 +269,38 @@ def template CallsCompleteAcc {{
             
             // write back to registers
             if(reg_idx == 0) {
+                // ret reg
                 assert(tag);
                 pc_state.npc(v.capVal().cursor());
                 inst->cpu->getIEWObject().setPCCap(v.capVal(),
                                                inst->threadNumber);
 
-            } else if(reg_idx != 0) {
+            } else if(reg_idx != ARG_REG_IDX) {
+                // ARG_REG_IDX is for receiving the argument and already set in execute()
                 ConstTaggedRegVal tagged_val(v, tag);
                 inst->setTaggedRegOperand(this, reg_idx - 1, tagged_val);
             }
         }
         xc->pcState(pc_state);
         
-        
-        const Cap& Rd_cap = *((Cap*)inst->executionData);
+        const ExecData& exec_data = *((ExecData*)inst->executionData);
+        const Cap& Rd_cap = exec_data.rd_cap;
+        const ConstTaggedRegVal& Rs = exec_data.rs;
+
         uint64_t base_addr = Rd_cap.start();
         
 
-        // x1 always stores the sealed return cap
         if(callType == CALL_TYPE_CALL) {
             Cap ret_cap = Rd_cap;
             ret_cap.setType(CapType::SEALEDRET);
             ConstTaggedRegVal ret_cap_v(ret_cap, true);
             inst->setTaggedRegOperand(this, RET_REG_IDX, ret_cap_v); // sealed ret capability
+
+            inst->setTaggedRegOperand(this, ARG_REG_IDX, Rs); // pass argument
         }
 
         // TODO: update ref counts
-
+        // TODO: exception handler register
 
         return NoFault;
     }
