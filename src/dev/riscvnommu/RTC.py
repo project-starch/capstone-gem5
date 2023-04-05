@@ -1,8 +1,14 @@
-# -*- mode:python -*-
-
 # Copyright (c) 2021 Huawei International
-# Copyright (c) 2022 EXAscale Performance SYStems (EXAPSYS)
 # All rights reserved.
+#
+# The license below extends only to copyright in the software and shall
+# not be construed as granting a license to any other intellectual
+# property including but not limited to intellectual property relating
+# to a hardware implementation of the functionality of the software
+# licensed hereunder.  You may use the software subject to the license
+# terms below provided that you ensure that this notice is replicated
+# unmodified and in its entirety in all distributions of the software,
+# modified or unmodified, in source code or in binary form.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -27,28 +33,19 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from m5.params import *
+from m5.proxy import *
+from m5.SimObject import SimObject
+from m5.objects.IntPin import IntSourcePin
 
-SimObject('HiFive.py', sim_objects=['HiFive', 'GenericRiscvcapstonePciHost'],
-          tags='riscvcapstone isa')
-#SimObject('LupV.py', sim_objects=['LupV'], tags='riscvcapstone isa')
-SimObject('Clint.py', sim_objects=['Clint'], tags='riscvcapstone isa')
-SimObject('PlicDevice.py', sim_objects=['PlicIntDevice'], tags='riscvcapstone isa')
-SimObject('Plic.py', sim_objects=['Plic'], tags='riscvcapstone isa')
-SimObject('RTC.py', sim_objects=['RiscvcapstoneRTC'], tags='riscvcapstone isa')
-SimObject('RiscvcapstoneVirtIOMMIO.py', sim_objects=['RiscvcapstoneMmioVirtIO'],
-    tags='riscvcapstone isa')
-
-#DebugFlag('Clint', tags='riscvcapstone isa')
-#DebugFlag('Plic', tags='riscvcapstone isa')
-#DebugFlag('VirtIOMMIO', tags='riscvcapstone isa')
-
-Source('pci_host.cc', tags='riscvcapstone isa')
-
-Source('hifive.cc', tags='riscvcapstone isa')
-#Source('lupv.cc', tags='riscvcapstone isa')
-Source('clint.cc', tags='riscvcapstone isa')
-Source('plic_device.cc', tags='riscvcapstone isa')
-Source('plic.cc', tags='riscvcapstone isa')
-Source('rtc.cc', tags='riscvcapstone isa')
-Source('vio_mmio.cc', tags='riscvcapstone isa')
+class RiscvnommuRTC(SimObject):
+    type = 'RiscvnommuRTC'
+    cxx_class='gem5::RiscvnommuRTC'
+    cxx_header = "dev/riscvnommu/rtc.hh"
+    time = Param.Time('01/01/2012',
+        "System time to use")
+    int_pin = IntSourcePin('Pin to signal RTC interrupts to')
+    # The default 1MHz setting is taken from SiFive's U54MC
+    # core complex. Set to other frequencies if necessary.
+    frequency = Param.Frequency("1MHz", "RTC Frequency")
+    bcd = Param.Bool(False, "Binary Coded Decimal Mode for MC146818")

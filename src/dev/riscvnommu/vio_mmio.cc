@@ -36,20 +36,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dev/riscvcapstone/vio_mmio.hh"
+#include "dev/riscvnommu/vio_mmio.hh"
 
 #include "debug/VirtIOMMIO.hh"
-#include "dev/riscvcapstone/hifive.hh"
+#include "dev/riscvnommu/hifive.hh"
 #include "mem/packet_access.hh"
-#include "params/RiscvcapstoneMmioVirtIO.hh"
+#include "params/RiscvnommuMmioVirtIO.hh"
 
 namespace gem5
 {
 
-namespace RiscvcapstoneISA
+namespace RiscvnommuISA
 {
 
-MmioVirtIO::MmioVirtIO(const RiscvcapstoneMmioVirtIOParams &params)
+MmioVirtIO::MmioVirtIO(const RiscvnommuMmioVirtIOParams &params)
     : PlicIntDevice(params),
       hostFeaturesSelect(0), guestFeaturesSelect(0), pageSize(0),
       interruptStatus(0), vio(*params.vio)
@@ -277,6 +277,6 @@ MmioVirtIO::setInterrupts(uint32_t value)
     }
 }
 
-} // namespace RiscvcapstoneISA
+} // namespace RiscvnommuISA
 
 } // namespace gem5

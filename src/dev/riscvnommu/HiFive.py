@@ -38,8 +38,8 @@ from m5.objects.Platform import Platform
 from m5.objects.PMAChecker import PMAChecker
 from m5.objects.Clint import Clint
 from m5.objects.Plic import Plic
-from m5.objects.RTC import RiscvcapstoneRTC
-from m5.objects.Uart import RiscvcapstoneUart8250
+from m5.objects.RTC import RiscvnommuRTC
+from m5.objects.Uart import RiscvnommuUart8250
 from m5.objects.Terminal import Terminal
 from m5.params import *
 from m5.proxy import *
@@ -47,10 +47,10 @@ from m5.util.fdthelper import *
 
 from m5.objects.PciHost import GenericPciHost
 
-class GenericRiscvcapstonePciHost(GenericPciHost):
-    type = 'GenericRiscvcapstonePciHost'
-    cxx_header = "dev/riscvcapstone/pci_host.hh"
-    cxx_class = 'gem5::GenericRiscvcapstonePciHost'
+class GenericRiscvnommuPciHost(GenericPciHost):
+    type = 'GenericRiscvnommuPciHost'
+    cxx_header = "dev/riscvnommu/pci_host.hh"
+    cxx_class = 'gem5::GenericRiscvnommuPciHost'
     int_base = Param.Int(0x10,
                         "Base number used as interrupt line and PLIC source.")
     int_count = Param.Unsigned(4,
@@ -75,13 +75,13 @@ class HiFive(Platform):
     Setup:
         The following sections outline the required
         setup for a RISC-V HiFive platform. See
-        configs/example/riscvcapstone/fs_linux.py for example.
+        configs/example/riscvnommu/fs_linux.py for example.
 
     Driving CLINT:
         CLINT has an interrupt pin which increments
         mtime. It can be connected to any interrupt
         source pin which acts as the RTCCLK pin. An
-        abstract RTC wrapper called RiscvcapstoneRTC can be
+        abstract RTC wrapper called RiscvnommuRTC can be
         used.
 
     Attaching PLIC devices:
@@ -111,7 +111,7 @@ class HiFive(Platform):
         fs_linux.py for setup example.
     """
     type = 'HiFive'
-    cxx_header = "dev/riscvcapstone/hifive.hh"
+    cxx_header = "dev/riscvnommu/hifive.hh"
     cxx_class = 'gem5::HiFive'
 
     # CLINT
@@ -121,11 +121,11 @@ class HiFive(Platform):
     plic = Param.Plic(Plic(pio_addr=0xc000000), "PLIC")
 
     #PCI
-    pci_host = GenericRiscvcapstonePciHost(conf_base=0x30000000, conf_size='256MB',
+    pci_host = GenericRiscvnommuPciHost(conf_base=0x30000000, conf_size='256MB',
         conf_device_bits=12, pci_pio_base=0x2f000000, pci_mem_base=0x40000000)
 
     # Uart
-    uart = RiscvcapstoneUart8250(pio_addr=0x10000000)
+    uart = RiscvnommuUart8250(pio_addr=0x10000000)
     # Int source ID to redirect console interrupts to
     # Set to 0 if using a pci interrupt for Uart instead
     uart_int_id = Param.Int(0xa, "PLIC Uart interrupt ID")
@@ -218,16 +218,16 @@ class HiFive(Platform):
     # For generating devicetree
     _cpu_count = 0
     def annotateCpuDeviceNode(self, cpu, state):
-        cpu.append(FdtPropertyStrings('mmu-type', 'riscvcapstone,sv48'))
+        cpu.append(FdtPropertyStrings('mmu-type', 'riscvnommu,sv48'))
         cpu.append(FdtPropertyStrings('status', 'okay'))
-        cpu.append(FdtPropertyStrings('riscvcapstone,isa', 'rv64imafdcsu'))
-        cpu.appendCompatible(["riscvcapstone"])
+        cpu.append(FdtPropertyStrings('riscvnommu,isa', 'rv64imafdcsu'))
+        cpu.appendCompatible(["riscvnommu"])
 
         int_node = FdtNode("interrupt-controller")
         int_state = FdtState(interrupt_cells=1)
         int_node.append(int_state.interruptCellsProperty())
         int_node.append(FdtProperty("interrupt-controller"))
-        int_node.appendCompatible("riscvcapstone,cpu-intc")
+        int_node.appendCompatible("riscvnommu,cpu-intc")
 
         cpus = self.system.unproxy(self).cpu
         phandle = int_state.phandle(cpus[self._cpu_count])

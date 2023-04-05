@@ -34,26 +34,40 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects.Device import BasicPioDevice
+from m5.objects.IntPin import IntSinkPin
 from m5.params import *
 from m5.proxy import *
 from m5.util.fdthelper import *
 
-class PlicIntDevice(BasicPioDevice):
-    type = 'PlicIntDevice'
-    cxx_header = 'dev/riscvcapstone/plic_device.hh'
-    cxx_class = 'gem5::PlicIntDevice'
-    abstract = True
+class Clint(BasicPioDevice):
+    """
+    This implementation of CLINT is based on
+    the SiFive U54MC datasheet:
+    https://sifive.cdn.prismic.io/sifive/fab000f6-
+    0e07-48d0-9602-e437d5367806_sifive_U54MC_rtl_
+    full_20G1.03.00_manual.pdf
+    """
+    type = 'Clint'
+    cxx_header = 'dev/riscvnommu/clint.hh'
+    cxx_class = 'gem5::Clint'
+    int_pin = IntSinkPin('Pin to receive RTC signal')
+    pio_size = Param.Addr(0xC000, "PIO Size")
+    num_threads = Param.Int("Number of threads in the system.")
 
-    platform = Param.Platform(Parent.any, "Platform")
-    pio_size = Param.Addr("PIO Size")
-    interrupt_id = Param.Int("PLIC Interrupt ID")
+    def generateDeviceTree(self, state):
+        node = self.generateBasicPioDeviceNode(state, "clint", self.pio_addr,
+                                               self.pio_size)
 
-    def generatePlicDeviceNode(self, state, name):
-        node = self.generateBasicPioDeviceNode(state, name,
-                self.pio_addr, self.pio_size)
+        cpus = self.system.unproxy(self).cpu
+        int_extended = list()
+        for cpu in cpus:
+            phandle = state.phandle(cpu)
+            int_extended.append(phandle)
+            int_extended.append(0x3)
+            int_extended.append(phandle)
+            int_extended.append(0x7)
 
-        plic = self.platform.unproxy(self).plic
+        node.append(FdtPropertyWords("interrupts-extended", int_extended))
+        node.appendCompatible(["riscvnommu,clint0"])
 
-        node.append(FdtPropertyWords("interrupts", [self.interrupt_id]))
-        node.append(FdtPropertyWords("interrupt-parent", state.phandle(plic)))
-        return node
+        yield node

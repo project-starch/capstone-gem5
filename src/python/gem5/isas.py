@@ -48,7 +48,7 @@ class ISA(Enum):
     """
     X86 = "x86"
     RISCV = "riscv"
-    RISCVCapstone = "riscvcapstone"
+    RISCVNoMMU = "riscvnommu"
     ARM = "arm"
     MIPS = "mips"
     POWER = "power"

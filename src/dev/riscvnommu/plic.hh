@@ -35,13 +35,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __DEV_RISCVCAPSTONE_PLIC_HH__
-#define __DEV_RISCVCAPSTONE_PLIC_HH__
+#ifndef __DEV_RISCVNOMMU_PLIC_HH__
+#define __DEV_RISCVNOMMU_PLIC_HH__
 
 #include <bitset>
 #include <map>
 
-#include "arch/riscvcapstone/interrupts.hh"
+#include "arch/riscvnommu/interrupts.hh"
 #include "dev/io_device.hh"
 #include "dev/reg_bank.hh"
 #include "mem/packet.hh"
@@ -52,7 +52,7 @@
 namespace gem5
 {
 
-using namespace RiscvcapstoneISA;
+using namespace RiscvnommuISA;
 /**
  * NOTE:
  * This implementation of CLINT is based on
@@ -284,4 +284,4 @@ class Plic : public BasicPioDevice
 
 } // namespace gem5
 
-#endif // __DEV_RISCVCAPSTONE_PLIC_HH__
+#endif // __DEV_RISCVNOMMU_PLIC_HH__

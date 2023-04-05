@@ -35,19 +35,45 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dev/riscvcapstone/plic_device.hh"
+#ifndef __DEV_RISCVNOMMU_PLIC_DEVICE_HH__
+#define __DEV_RISCVNOMMU_PLIC_DEVICE_HH__
+
+#include "dev/io_device.hh"
+#include "dev/platform.hh"
+#include "params/PlicIntDevice.hh"
+#include "sim/system.hh"
 
 namespace gem5
 {
 
-using namespace RiscvcapstoneISA;
+using namespace RiscvnommuISA;
 
-PlicIntDevice::PlicIntDevice(const Params &params) :
-    BasicPioDevice(params, params.pio_size),
-    system(params.system),
-    platform(params.platform),
-    _interruptID(params.interrupt_id)
+class PlicIntDevice : public BasicPioDevice
 {
-}
+  protected:
+    System *system;
+    Platform *platform;
+    int _interruptID;
+
+  public:
+    typedef PlicIntDeviceParams Params;
+
+    const Params &
+    params() const
+    {
+        return dynamic_cast<const Params &>(_params);
+    }
+
+    PlicIntDevice(const Params &params);
+
+    const int &
+    id()
+    {
+      return _interruptID;
+    }
+
+};
 
 } // namespace gem5
+
+#endif // __DEV_RISCVNOMMU_PLIC_DEVICE_HH__

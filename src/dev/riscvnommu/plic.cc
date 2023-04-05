@@ -36,7 +36,7 @@
  */
 
 
-#include "dev/riscvcapstone/plic.hh"
+#include "dev/riscvnommu/plic.hh"
 
 #include <algorithm>
 
@@ -50,7 +50,7 @@
 namespace gem5
 {
 
-using namespace RiscvcapstoneISA;
+using namespace RiscvnommuISA;
 
 Plic::Plic(const Params &params) :
     BasicPioDevice(params, params.pio_size),

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei International
+ * Copyright (c) 2022 EXAscale Performance SYStems (EXAPSYS)
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -33,45 +33,33 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  */
 
-#ifndef __DEV_RISCVCAPSTONE_HIFIVE_HH__
-#define __DEV_RISCVCAPSTONE_HIFIVE_HH__
+#ifndef __DEV_RISCVNOMMU_PCI_HOST_HH__
+#define __DEV_RISCVNOMMU_PCI_HOST_HH__
 
-#include "dev/platform.hh"
-#include "dev/riscvcapstone/clint.hh"
-#include "dev/riscvcapstone/plic.hh"
-#include "params/HiFive.hh"
+#include "dev/pci/host.hh"
+#include "params/GenericRiscvnommuPciHost.hh"
 
 namespace gem5
 {
 
-using namespace RiscvcapstoneISA;
-
-class HiFive : public Platform
+class GenericRiscvnommuPciHost : public GenericPciHost
 {
-  public:
-    Clint *clint;
-    Plic *plic;
-    int uartIntID;
+  private:
+    const uint32_t intBase;
+    const uint32_t intCount;
 
   public:
-    typedef HiFiveParams Params;
-    HiFive(const Params &params);
+    PARAMS(GenericRiscvnommuPciHost);
+    GenericRiscvnommuPciHost(const GenericRiscvnommuPciHostParams &p);
 
-    void postConsoleInt() override;
-
-    void clearConsoleInt() override;
-
-    void postPciInt(int line) override;
-
-    void clearPciInt(int line) override;
-
-    void serialize(CheckpointOut &cp) const override;
-
-    void unserialize(CheckpointIn &cp) override;
+  protected:
+    uint32_t mapPciInterrupt(const PciBusAddr &addr,
+                             PciIntPin pin) const override;
 };
 
-} // namespace gem5
+}
 
-#endif  // __DEV_RISCVCAPSTONE_HIFIVE_HH__
+#endif // __DEV_RISCVNOMMU_PCI_HOST_HH__

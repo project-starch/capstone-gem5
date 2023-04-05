@@ -82,7 +82,7 @@ class RiscvUart8250(Uart8250):
         node.appendCompatible(["ns8250"])
         yield node
 
-class RiscvcapstoneUart8250(Uart8250):
+class RiscvnommuUart8250(Uart8250):
     def generateDeviceTree(self, state):
         node = self.generateBasicPioDeviceNode(
             state, "uart", self.pio_addr, self.pio_size)

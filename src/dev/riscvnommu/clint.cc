@@ -35,7 +35,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dev/riscvcapstone/clint.hh"
+#include "dev/riscvnommu/clint.hh"
 
 #include "cpu/base.hh"
 #include "debug/Clint.hh"
@@ -47,7 +47,7 @@
 namespace gem5
 {
 
-using namespace RiscvcapstoneISA;
+using namespace RiscvnommuISA;
 
 Clint::Clint(const Params &params) :
     BasicPioDevice(params, params.pio_size),

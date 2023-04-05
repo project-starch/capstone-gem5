@@ -67,7 +67,7 @@ memory = SingleChannelDDR3_1600()
 
 # Setup a single core Processor.
 processor = SimpleProcessor(
-    cpu_type=CPUTypes.O3, isa=ISA.RISCVCapstone, num_cores=1
+    cpu_type=CPUTypes.TIMING, isa=ISA.RISCVNoMMU, num_cores=1
 )
 
 # Setup the board.
@@ -80,7 +80,8 @@ board = RiscvBoard(
 
 # Set the Full System workload.
 board.set_kernel_disk_workload(
-                   kernel=CustomResource("/mnt/archive1/aditya/workspace-capstone/bbl"),
+                   kernel=CustomResource("./bbl"),
+                   #kernel=Resource("riscv-bootloader-vmlinux-5.10"),
                    disk_image=Resource("riscv-disk-img"),
 )
 

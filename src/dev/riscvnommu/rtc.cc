@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 EXAscale Performance SYStems (EXAPSYS)
+ * Copyright (c) 2021 Huawei International
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -35,26 +35,67 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dev/riscvcapstone/pci_host.hh"
-#include "params/GenericRiscvcapstonePciHost.hh"
+#include "dev/riscvnommu/rtc.hh"
+
+#include "dev/mc146818.hh"
+#include "params/RiscvnommuRTC.hh"
 
 namespace gem5
 {
 
-GenericRiscvcapstonePciHost::GenericRiscvcapstonePciHost(const GenericRiscvcapstonePciHostParams &p)
-    : GenericPciHost(p), intBase(p.int_base), intCount(p.int_count)
+RiscvnommuRTC::RiscvnommuRTC(const Params &params) :
+    SimObject(params),
+    rtc(this, params.name, params.time, params.bcd,
+    params.frequency, params.port_int_pin_connection_count)
 {
 }
 
-uint32_t
-GenericRiscvcapstonePciHost::mapPciInterrupt(
-    const PciBusAddr &addr, PciIntPin pin) const
+RiscvnommuRTC::RTC::RTC(EventManager *em, const std::string &n,
+    const struct tm time, bool bcd, Tick frequency, int int_pin_count) :
+    MC146818(em, n, time, bcd, frequency)
 {
-    fatal_if(pin == PciIntPin::NO_INT,
-             "%02x:%02x.%i: Interrupt from a device without interrupts\n",
-             addr.bus, addr.dev, addr.func);
-
-    return intBase + (addr.dev % intCount);
+    for (int i = 0; i < int_pin_count; i++) {
+        intPin.emplace_back(new IntSourcePin<RTC>(
+                    csprintf("%s.int_pin[%d]", n, i), i, this));
+    }
 }
 
+void
+RiscvnommuRTC::RTC::handleEvent()
+{
+    for (auto &pin: intPin) {
+        pin->raise();
+        pin->lower();
+    }
 }
+
+Port &
+RiscvnommuRTC::getPort(const std::string &if_name, PortID idx)
+{
+    if (if_name == "int_pin")
+        return *rtc.intPin.at(idx);
+    else
+        panic("Getting invalid port " + if_name);
+}
+
+void
+RiscvnommuRTC::startup()
+{
+    rtc.startup();
+}
+
+void
+RiscvnommuRTC::serialize(CheckpointOut &cp) const
+{
+    // Serialize the timer
+    rtc.serialize("rtc", cp);
+}
+
+void
+RiscvnommuRTC::unserialize(CheckpointIn &cp)
+{
+    // Serialize the timer
+    rtc.unserialize("rtc", cp);
+}
+
+} // namespace gem5

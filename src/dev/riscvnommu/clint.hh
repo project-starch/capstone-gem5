@@ -35,10 +35,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __DEV_RISCVCAPSTONE_CLINT_HH__
-#define __DEV_RISCVCAPSTONE_CLINT_HH__
+#ifndef __DEV_RISCVNOMMU_CLINT_HH__
+#define __DEV_RISCVNOMMU_CLINT_HH__
 
-#include "arch/riscvcapstone/interrupts.hh"
+#include "arch/riscvnommu/interrupts.hh"
 #include "dev/intpin.hh"
 #include "dev/io_device.hh"
 #include "dev/mc146818.hh"
@@ -51,7 +51,7 @@
 namespace gem5
 {
 
-using namespace RiscvcapstoneISA;
+using namespace RiscvnommuISA;
 
 /**
  * NOTE:
@@ -148,4 +148,4 @@ class Clint : public BasicPioDevice
 
 } // namespace gem5
 
-#endif // __DEV_RISCVCAPSTONE_CLINT_HH__
+#endif // __DEV_RISCVNOMMU_CLINT_HH__

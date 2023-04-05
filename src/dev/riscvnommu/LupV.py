@@ -1,15 +1,5 @@
-# Copyright (c) 2021 Huawei International
-# Copyright (c) 2014, 2016-2018 ARM Limited
+# Copyright (c) 2021 The Regents of the University of California
 # All rights reserved.
-#
-# The license below extends only to copyright in the software and shall
-# not be construed as granting a license to any other intellectual
-# property including but not limited to intellectual property relating
-# to a hardware implementation of the functionality of the software
-# licensed hereunder.  You may use the software subject to the license
-# terms below provided that you ensure that this notice is replicated
-# unmodified and in its entirety in all distributions of the software,
-# modified or unmodified, in source code or in binary form.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -34,22 +24,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.SimObject import SimObject
-from m5.params import *
-from m5.proxy import *
-from m5.util.fdthelper import *
+from m5.objects.Platform import Platform
+from m5.params import Param
 
-from m5.objects.PlicDevice import PlicIntDevice
-from m5.objects.VirtIO import VirtIODummyDevice
-
-class RiscvcapstoneMmioVirtIO(PlicIntDevice):
-    type = 'RiscvcapstoneMmioVirtIO'
-    cxx_header = 'dev/riscvcapstone/vio_mmio.hh'
-    cxx_class = 'gem5::RiscvcapstoneISA::MmioVirtIO'
-    vio = Param.VirtIODeviceBase(VirtIODummyDevice(), "VirtIO device")
-
-    def generateDeviceTree(self, state):
-        node = self.generatePlicDeviceNode(state, "virtio_mmio")
-        node.appendCompatible(["virtio,mmio"])
-
-        yield node
+class LupV(Platform):
+    type = 'LupV'
+    cxx_header = "dev/riscvnommu/lupv.hh"
+    cxx_class = 'gem5::LupV'
+    pic = Param.LupioPIC("PIC")
+    uart_int_id = Param.Int("Interrupt ID to be used if the PLIC is used here")

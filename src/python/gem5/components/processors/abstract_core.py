@@ -130,7 +130,7 @@ class AbstractCore(SubSystem):
             ISA.SPARC : "Sparc",
             ISA.POWER : "Power",
             ISA.MIPS : "Mips",
-            ISA.RISCVCapstone : "Riscv",
+            ISA.RISCVNoMMU : "Riscv",
         }
 
         _cpu_types_string_map = {
@@ -169,7 +169,8 @@ class AbstractCore(SubSystem):
             cpu_class_str = f"{_isa_string_map[isa]}V8"\
                             f"{_cpu_types_string_map[cpu_type]}"
         else:
-            cpu_class_str = f"RiscvCapstoneO3CPU"
+            cpu_class_str = f"{_isa_string_map[isa]}"\
+                            f"{_cpu_types_string_map[cpu_type]}"
 
         try:
             to_return_cls = getattr(importlib.import_module(module_str),

@@ -26,61 +26,52 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dev/riscvcapstone/lupv.hh"
+#ifndef __DEV_RISCVNOMMU_LUPV_HH__
+#define __DEV_RISCVNOMMU_LUPV_HH__
 
 #include "dev/lupio/lupio_pic.hh"
+#include "dev/platform.hh"
 #include "params/LupV.hh"
 
 namespace gem5
 {
 
-using namespace RiscvcapstoneISA;
+using namespace RiscvnommuISA;
 
-LupV::LupV(const Params &params) :
-    Platform(params),
-    pic(params.pic),
-    uartIntID(params.uart_int_id)
-{
-}
+/**
+ * The LupV collection consists of a RISC-V processor, as well as the set of
+ * LupiIO devices. This LupV platform allows for us to not only use these
+ * devices, bu alsoseamlessly decide which interrupt controller we want to use.
+ * For example, this platform has been tested to use both the LupioPIC for
+ * interrupts, as well as the PLIC.
+ **/
 
-void
-LupV::postConsoleInt()
+class LupV : public Platform
 {
-    pic->post(uartIntID);
-}
+  public:
+    LupioPIC *pic;
+    int uartIntID;
 
-void
-LupV::clearConsoleInt()
-{
-    pic->clear(uartIntID);
-}
+  public:
 
-void
-LupV::postPciInt(int line)
-{
-    pic->post(line);
-}
+    PARAMS(LupV);
+    LupV(const Params &params);
 
-void
-LupV::clearPciInt(int line)
-{
-    pic->clear(line);
-}
+    void postConsoleInt() override;
 
-Addr
-LupV::pciToDma(Addr pciAddr) const
-{
-    panic("LupV::pciToDma() has not been implemented.");
-}
+    void clearConsoleInt() override;
 
-void
-LupV::serialize(CheckpointOut &cp) const
-{
-}
+    void postPciInt(int line) override;
 
-void
-LupV::unserialize(CheckpointIn &cp)
-{
-}
+    void clearPciInt(int line) override;
+
+    virtual Addr pciToDma(Addr pciAddr) const;
+
+    void serialize(CheckpointOut &cp) const override;
+
+    void unserialize(CheckpointIn &cp) override;
+};
 
 } // namespace gem5
+
+#endif  // __DEV_RISCVNOMMU_LUPV_HH__

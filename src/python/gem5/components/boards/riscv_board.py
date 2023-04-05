@@ -48,13 +48,13 @@ from m5.objects import (
     RiscvLinux,
     AddrRange,
     IOXBar,
-    RiscvcapstoneRTC,
+    RiscvnommuRTC,
     HiFive,
-    GenericRiscvcapstonePciHost,
+    GenericRiscvnommuPciHost,
     IGbE_e1000,
     CowDiskImage,
     RawDiskImage,
-    RiscvcapstoneMmioVirtIO,
+    RiscvnommuMmioVirtIO,
     VirtIOBlock,
     VirtIORng,
     Frequency,
@@ -92,7 +92,7 @@ class RiscvBoard(AbstractSystemBoard, KernelDiskWorkload):
     ) -> None:
         super().__init__(clk_freq, processor, memory, cache_hierarchy)
 
-        if processor.get_isa() != ISA.RISCVCapstone:
+        if processor.get_isa() != ISA.RISCVNoMMU:
             raise Exception("The RISCVBoard requires a processor using the"
                 "RISCV ISA. Current processor ISA: "
                 f"'{processor.get_isa().name}'.")
@@ -110,7 +110,7 @@ class RiscvBoard(AbstractSystemBoard, KernelDiskWorkload):
 
         # Add the RTC
         # TODO: Why 100MHz? Does something else need to change when this does?
-        self.platform.rtc = RiscvcapstoneRTC(frequency=Frequency("100MHz"))
+        self.platform.rtc = RiscvnommuRTC(frequency=Frequency("100MHz"))
         self.platform.clint.int_pin = self.platform.rtc.int_pin
 
         # Incoherent I/O bus
@@ -119,7 +119,7 @@ class RiscvBoard(AbstractSystemBoard, KernelDiskWorkload):
         self.iobus.default = self.iobus.badaddr_responder.pio
 
         # The virtio disk
-        self.disk = RiscvcapstoneMmioVirtIO(
+        self.disk = RiscvnommuMmioVirtIO(
             vio=VirtIOBlock(),
             interrupt_id=0x8,
             pio_size=4096,
@@ -127,7 +127,7 @@ class RiscvBoard(AbstractSystemBoard, KernelDiskWorkload):
         )
 
         # The virtio rng
-        self.rng = RiscvcapstoneMmioVirtIO(
+        self.rng = RiscvnommuMmioVirtIO(
             vio=VirtIORng(),
             interrupt_id=0x8,
             pio_size=4096,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 EXAscale Performance SYStems (EXAPSYS)
+ * Copyright (c) 2021 Huawei International
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -33,33 +33,55 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
-#ifndef __DEV_RISCVCAPSTONE_PCI_HOST_HH__
-#define __DEV_RISCVCAPSTONE_PCI_HOST_HH__
+#ifndef __DEV_RISCVNOMMU_RTC_HH__
+#define __DEV_RISCVNOMMU_RTC_HH__
 
-#include "dev/pci/host.hh"
-#include "params/GenericRiscvcapstonePciHost.hh"
+#include "dev/intpin.hh"
+#include "dev/mc146818.hh"
+#include "params/RiscvnommuRTC.hh"
+#include "sim/sim_object.hh"
 
 namespace gem5
 {
 
-class GenericRiscvcapstonePciHost : public GenericPciHost
+/**
+ * NOTE:
+ * This is a generic wrapper around the MC146818 RTC
+ */
+
+class RiscvnommuRTC : public SimObject
 {
-  private:
-    const uint32_t intBase;
-    const uint32_t intCount;
-
   public:
-    PARAMS(GenericRiscvcapstonePciHost);
-    GenericRiscvcapstonePciHost(const GenericRiscvcapstonePciHostParams &p);
 
-  protected:
-    uint32_t mapPciInterrupt(const PciBusAddr &addr,
-                             PciIntPin pin) const override;
+    class RTC: public MC146818
+    {
+      public:
+        using IntSource = IntSourcePin<RTC>;
+
+        std::vector<std::unique_ptr<IntSource>> intPin;
+
+        RTC(EventManager *em, const std::string &n, const struct tm time,
+                bool bcd, Tick frequency, int int_pin_count);
+
+      protected:
+        void handleEvent();
+    } rtc;
+
+    typedef RiscvnommuRTCParams Params;
+
+    RiscvnommuRTC(const Params &params);
+
+    Port & getPort(const std::string &if_name,
+                   PortID idx=InvalidPortID) override;
+
+    void startup() override;
+
+    void serialize(CheckpointOut &cp) const override;
+    void unserialize(CheckpointIn &cp) override;
 };
 
-}
+} // namespace gem5
 
-#endif // __DEV_RISCVCAPSTONE_PCI_HOST_HH__
+#endif //__DEV_RISCVNOMMU_RTC_HH__

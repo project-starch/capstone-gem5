@@ -35,45 +35,57 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __DEV_RISCVCAPSTONE_PLIC_DEVICE_HH__
-#define __DEV_RISCVCAPSTONE_PLIC_DEVICE_HH__
+#include "dev/riscvnommu/hifive.hh"
 
-#include "dev/io_device.hh"
-#include "dev/platform.hh"
-#include "params/PlicIntDevice.hh"
+#include "dev/riscvnommu/clint.hh"
+#include "dev/riscvnommu/plic.hh"
+#include "params/HiFive.hh"
 #include "sim/system.hh"
 
 namespace gem5
 {
 
-using namespace RiscvcapstoneISA;
+using namespace RiscvnommuISA;
 
-class PlicIntDevice : public BasicPioDevice
+HiFive::HiFive(const Params &params) :
+    Platform(params),
+    clint(params.clint), plic(params.plic),
+    uartIntID(params.uart_int_id)
 {
-  protected:
-    System *system;
-    Platform *platform;
-    int _interruptID;
+}
 
-  public:
-    typedef PlicIntDeviceParams Params;
+void
+HiFive::postConsoleInt()
+{
+    plic->post(uartIntID);
+}
 
-    const Params &
-    params() const
-    {
-        return dynamic_cast<const Params &>(_params);
-    }
+void
+HiFive::clearConsoleInt()
+{
+    plic->clear(uartIntID);
+}
 
-    PlicIntDevice(const Params &params);
+void
+HiFive::postPciInt(int line)
+{
+    plic->post(line);
+}
 
-    const int &
-    id()
-    {
-      return _interruptID;
-    }
+void
+HiFive::clearPciInt(int line)
+{
+    plic->clear(line);
+}
 
-};
+void
+HiFive::serialize(CheckpointOut &cp) const
+{
+}
+
+void
+HiFive::unserialize(CheckpointIn &cp)
+{
+}
 
 } // namespace gem5
-
-#endif // __DEV_RISCVCAPSTONE_PLIC_DEVICE_HH__
