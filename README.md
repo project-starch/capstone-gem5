@@ -2,7 +2,8 @@
 
 _Note that this is not a fully implemented GEM5 model for Capstone, but one that models the revocation tree operations only for an early performance evaluation._
 
-Please make sure that you have Docker installed on your system. If you have pulled and cached `corank/gem5-dev` on your
+Please make sure that you have Docker (version 20 or above recommended)
+installed on your system. If you have pulled and cached `corank/gem5-dev` on your
 system before, please make sure it is the latest with
 ```
 docker pull corank/gem5-dev
