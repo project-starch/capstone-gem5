@@ -1,4 +1,4 @@
-# Copyright 2023 National University of Singapore
+# Copyright (c) 2023 National University of Singapore
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,36 +24,27 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+FROM ubuntu:22.04
 
-from m5.params import *
+ENV TZ=Asia/Singapore
 
-from m5.objects.BaseSimpleCPU import BaseSimpleCPU
+RUN apt-get update
+RUN apt-get install -y gcc g++ scons mold wget make git tar
+RUN mkdir -p /toolchain
+ADD setup-toolchain.sh /toolchain
+RUN cd /toolchain && bash setup-toolchain.sh
+RUN rm /toolchain/setup-toolchain.sh
 
-from .NodeController import NodeController
+RUN apt-get install -y apt-utils m4 python-is-python3
+RUN apt-get install -y python-dev-is-python3
 
-class BaseAtomicSimpleNCacheCPU(BaseSimpleCPU):
-    type = 'BaseAtomicSimpleNCacheCPU'
-    cxx_header = 'arch/riscvcapstone/atomic_ncache_cpu.hh'
-    cxx_class = 'gem5::RiscvcapstoneISA::AtomicSimpleNCacheCPU'
+RUN apt-get install -y libgoogle-perftools-dev protobuf-compiler
 
-    width = Param.Int(1, "CPU width")
-    simulate_data_stalls = Param.Bool(False, "Simulate dcache stall cycles")
-    simulate_inst_stalls = Param.Bool(False, "Simulate icache stall cycles")
+RUN apt-get install -y gfortran
 
+ADD entrypoint.sh /entrypoint.sh
 
-    ncache_port = RequestPort('node cache port')
-    node_controller = Param.NodeController('node controller for revocation nodes')
+ENV RISCV_TOOLCHAIN=/toolchain/riscv
 
-    @classmethod
-    def memory_mode(cls):
-        return 'atomic'
-
-    @classmethod
-    def support_take_over(cls):
-        return True
-
-    def addSimPointProbe(self, interval):
-        simpoint = SimPoint()
-        simpoint.interval = interval
-        self.probeListener = simpoint
+ENTRYPOINT ["/entrypoint.sh"]
 

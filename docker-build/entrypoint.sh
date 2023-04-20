@@ -1,4 +1,6 @@
-# Copyright 2023 National University of Singapore
+#!/bin/bash
+
+# Copyright (c) 2023 National University of Singapore
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,36 +26,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+SCRIPT_PATH="$1"
 
-from m5.params import *
+cd $GITHUB_WORKSPACE/
 
-from m5.objects.BaseSimpleCPU import BaseSimpleCPU
+if ! [ -x "$SCRIPT_PATH" ]; then
+    echo "You need to specify the path to the script to execute!"
+    exit 1
+fi
 
-from .NodeController import NodeController
+# a hack to allow files to be removed by runner later
+umask o=rwx
 
-class BaseAtomicSimpleNCacheCPU(BaseSimpleCPU):
-    type = 'BaseAtomicSimpleNCacheCPU'
-    cxx_header = 'arch/riscvcapstone/atomic_ncache_cpu.hh'
-    cxx_class = 'gem5::RiscvcapstoneISA::AtomicSimpleNCacheCPU'
-
-    width = Param.Int(1, "CPU width")
-    simulate_data_stalls = Param.Bool(False, "Simulate dcache stall cycles")
-    simulate_inst_stalls = Param.Bool(False, "Simulate icache stall cycles")
-
-
-    ncache_port = RequestPort('node cache port')
-    node_controller = Param.NodeController('node controller for revocation nodes')
-
-    @classmethod
-    def memory_mode(cls):
-        return 'atomic'
-
-    @classmethod
-    def support_take_over(cls):
-        return True
-
-    def addSimPointProbe(self, interval):
-        simpoint = SimPoint()
-        simpoint.interval = interval
-        self.probeListener = simpoint
+# without further ado, let's start the real work
+PATH=$PATH:$RISCV_TOOLCHAIN/bin "$SCRIPT_PATH" ${@:2}
 

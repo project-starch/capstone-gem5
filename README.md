@@ -8,6 +8,12 @@ system before, please make sure it is the latest with
 docker pull corank/gem5-dev
 ```
 
+Alternatively, if you prefer to build the Docker image:
+```
+cd docker-build
+docker build . -t corank/gem5-dev
+```
+
 Build GEM5:
 ```
 ./run-docker build
