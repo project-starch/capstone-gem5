@@ -819,9 +819,13 @@ LSQUnit::commitStores(InstSeqNum &youngest_inst)
 void
 LSQUnit::writebackBlockedStore()
 {
+    /** 
+     * @todo: do we need to also process multiple requests here?
+    */
     assert(isStoreBlocked);
     storeWBIt->request()->sendPacketToCache();
     if (storeWBIt->request()->isSent()){
+        ++ storeWBIt->outstandingRequests;
         storePostSend();
     }
 }
@@ -896,7 +900,12 @@ LSQUnit::writebackStores()
         DynInstPtr inst = storeWBIt->instruction();
 
         LSQRequest *request = nullptr;
-        while(storeWBIt->hasRequest() && lsq->cachePortAvailable(false)) {
+        while(storeWBIt->hasRequest() && lsq->cachePortAvailable(false)
+                && !isStoreBlocked) {
+            /** 
+             * need the isStoreBlocked check to avoid a potential infinite loop
+             * in case the cache is blocked - the tick wouldn't progress otherwise
+             */
             request = storeWBIt->request();
 
             // Process store conditionals or store release after all previous
