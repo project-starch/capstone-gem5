@@ -124,7 +124,21 @@ decode QUADRANT default Unknown::unknown() {
                                 "immediate = 0", machInst);
                     }
                 }
-                Rc1_sd = Rc1_sd + imm;
+                using namespace gem5::RiscvcapstoneISA::o3;
+
+                DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                assert(dyn_inst);
+
+                if(Rc1_trv.getTag()) {
+                    Rc1_trv.setTag(false);
+                    NodeID node_id = Rc1_trv.getRegVal().capVal().nodeId();
+                    dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+                }
+
+                int64_t tmp = Rc1_trv.getRegVal().intVal();
+                tmp = tmp + imm;
+                Rc1_trv.getRegVal().intVal() = tmp;
+                Rc1_trv = Rc1_trv;
             }});
             0x1: c_addiw({{
                 imm = CIMM5;
@@ -189,7 +203,19 @@ decode QUADRANT default Unknown::unknown() {
                         return std::make_shared<IllegalInstFault>(
                                 "immediate = 0", machInst);
                     }
-                    Rc1_sd = imm;
+                    using namespace gem5::RiscvcapstoneISA::o3;
+
+                    DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                    assert(dyn_inst);
+
+                    if(Rc1_trv.getTag()) {
+                        Rc1_trv.setTag(false);
+                        NodeID node_id = Rc1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+                    }
+
+                    Rc1_trv.getRegVal().intVal() = imm;
+                    Rc1_trv = Rc1_trv;
                 }});
             }
         }
@@ -613,6 +639,7 @@ decode QUADRANT default Unknown::unknown() {
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
+                        //@todo: if Rd already holds a capability, need to reduce the refcount
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
                         if(EA + sizeof(RegVal) > Rs1_trv.getRegVal().capVal().end())
@@ -623,8 +650,8 @@ decode QUADRANT default Unknown::unknown() {
                         if(fault != NoFault)
                             return fault;
 
-                        DPRINTFN("MemReads count = %d, tag query count = %d\n",
-                                dyn_inst->memReadN, dyn_inst->tagQueryN);
+                        //DPRINTFN("MemReads count = %d, tag query count = %d\n",
+                        //        dyn_inst->memReadN, dyn_inst->tagQueryN);
 
                         //TODO: Maybe separate these statements
                         //and introduce a new type(s) of fault
@@ -740,6 +767,9 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
+                        //Addr alignment = EA & (sizeof(RegVal) - 1);
+                        //dyn_inst->initiateSetTag((EA - alignment), false);
+
                         uint8_t& cap = Mem_ub;
 
                         getMemLE(pkt, cap, traceData);
@@ -807,8 +837,8 @@ decode QUADRANT default Unknown::unknown() {
                         //TODO: retrieve tag bit to make sure it corresponds
                         //with the called inst?
 
-                        DPRINTFN("MemReads count = %d, tag query count = %d\n",
-                                dyn_inst->memReadN, dyn_inst->tagQueryN);
+                        //DPRINTFN("MemReads count = %d, tag query count = %d\n",
+                        //        dyn_inst->memReadN, dyn_inst->tagQueryN);
 
                         //TODO: Maybe separate these statements
                         //and introduce a new type(s) of fault
@@ -1247,7 +1277,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0x9: capbound ({{
-                        DPRINTFN("Set capability bound to (%llx, %llx)\n", Rs1, Rs2);
+                        //DPRINTFN("Set capability bound to (%llx, %llx)\n", Rs1, Rs2);
                         Rd_trv.getRegVal().val.cap.setAddresses(Rs1, Rs2, Rs1);
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
@@ -1261,6 +1291,12 @@ decode QUADRANT default Unknown::unknown() {
                                 static_cast<unsigned int>(reg_val.val.cap.type()),
                                 reg_val.val.cap.nodeId());
                     }});
+                    0xd: printregs ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
+                        DynInst *dyn_inst = dynamic_cast<DynInst *>(xc);
+                        assert(dyn_inst);
+                        dyn_inst->printRegs();
+                    }}, IsSerializing, IsNonSpeculative);
                 }
                 format TagAccessStore {
                     0xb: tagset ({{
@@ -1355,9 +1391,9 @@ decode QUADRANT default Unknown::unknown() {
             0x1: decode FS3 {
                 format IOp {
                     0x00: slli({{
-                        if(Rd_trv.getTag() || Rs1_trv.getTag()) {
+                        if(Rs1_trv.getTag()) {
                         return std::make_shared<IllegalInstFault>(
-                            "Can't perform this op on a capability!", machInst);
+                            "slli: Can't perform this op on a capability!", machInst);
                         }
 
                         Rd_trv.getRegVal().intVal() = Rs1_trv.getRegVal().intVal() << imm;
@@ -1400,9 +1436,9 @@ decode QUADRANT default Unknown::unknown() {
 
             format IOp {
                 0x0: addi({{
-                    if(Rs1_trv.getTag() || Rd_trv.getTag()) {
+                    if(Rs1_trv.getTag()) {
                         return std::make_shared<IllegalInstFault>(
-                            "Can't perform this op on a capability!", machInst);
+                            "addi: Can't perform this op on a capability!", machInst);
                     }
                     Rd_trv.getRegVal().intVal() = Rs1_trv.getRegVal().intVal() + imm;
 
@@ -1470,7 +1506,7 @@ decode QUADRANT default Unknown::unknown() {
                 0x0: addiw({{
                     if(Rs1_trv.getTag()) {
                         return std::make_shared<IllegalInstFault>(
-                            "Can't perform this op on a capability!", machInst);
+                            "addiw: Can't perform this op on a capability!", machInst);
                     }
                     Rs1_trv.getRegVal().intVal() = (int32_t)(Rs1_trv.getRegVal().intVal() + imm);
 

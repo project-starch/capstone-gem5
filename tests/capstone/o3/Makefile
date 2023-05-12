@@ -11,6 +11,7 @@ TARGET_NAMES=$(patsubst $(SRC_DIR)/%,%,$(TARGETS))
 RUN_TARGETS=$(patsubst %,run-%,$(TARGET_NAMES))
 DEBUG_TARGETS=$(patsubst %,debug-%,$(TARGET_NAMES))
 MEMCHECK_TARGETS=$(patsubst %,memcheck-%,$(TARGET_NAMES))
+RECORD_TARGETS=$(patsubst %,rr-%,$(TARGET_NAMES))
 GEM5?=gem5.opt
 GEM5_FLAGS?=
 GEM5_CONFIG?=config.py
@@ -51,6 +52,9 @@ $(DEBUG_TARGETS):debug-%:$(SRC_DIR)/%
 
 $(MEMCHECK_TARGETS):memcheck-%:$(SRC_DIR)/%
 	valgrind $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
+
+$(RECORD_TARGETS):rr-%:$(SRC_DIR)/%
+	rr record $(GEM5) $(GEM5_FLAGS) $(GEM5_CONFIG) $(GEM5_CONFIG_FLAGS) -- $^
 
 run: $(RUN_TARGETS)
 

@@ -1216,7 +1216,7 @@ bool
 LSQ::SingleDataRequest::recvTimingResp(PacketPtr pkt)
 {
     assert(_numOutstandingPackets == 1);
-    flags.set(Flag::Complete);
+    complete(); // flags.set(Flag::Complete);
     assert(pkt == _packets.front());
     _port.completeDataAccess(pkt);
     _hasStaleTranslation = false;

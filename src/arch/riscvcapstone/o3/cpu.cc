@@ -509,6 +509,25 @@ CPU::tick()
 }
 
 void
+CPU::printRegs()
+{
+    for(int i=0;i<IntRegNames.size();i++){
+        RegId my_reg(IntRegClass,i);
+        ConstTaggedRegVal tmp = getTaggedArchReg(my_reg, 0);
+        Cap c = tmp.getRegVal().capVal();
+        DPRINTFN("%s has value ",
+                IntRegNames[i]);
+        DPRINTFN("Capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
+                                tmp.getTag(),
+                                c.start(), c.end(),
+                                c.cursor(),
+                                static_cast<unsigned int>(c.perm()),
+                                static_cast<unsigned int>(c.type()),
+                                c.nodeId());
+    }
+}
+
+void
 CPU::init()
 {
     BaseCPU::init();

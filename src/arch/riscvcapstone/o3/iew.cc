@@ -1237,6 +1237,8 @@ IEW::executeInsts()
 
         DynInstPtr inst = instQueue.getInstToExecute();
         
+        DPRINTF(IEW, "isExecuted = %i, isExecuteCalled = %i, seqNum = %i, instName = %s\n",
+                    inst->isExecuted(), inst->isExecuteCalled(), inst->seqNum, inst->staticInst->getName());
         assert(!inst->isExecuted() && !inst->isExecuteCalled());
 
         DPRINTF(IEW, "Execute: Processing PC %s, [tid:%i] [sn:%llu].\n",
@@ -1291,7 +1293,7 @@ IEW::executeInsts()
         
 
         if(fault == NoFault) {
-            DPRINTF(IEW, "Execute instruction %i\n", inst->seqNum);
+            DPRINTF(IEW, "Execute instruction %i -> %s\n", inst->seqNum, inst->staticInst->getName());
             fault = inst->execute();
             inst->setExecuteCalled();
             if(inst->isMemRef()) {

@@ -119,6 +119,13 @@ class DynInst : public ExecContext, public RefCounted
 
     ~DynInst();
 
+    void printRegs() {
+        RiscvcapstoneISA::o3::CPU *o3cpu = dynamic_cast<RiscvcapstoneISA::o3::CPU *>(cpu);
+        assert(o3cpu != nullptr);
+
+        o3cpu->printRegs();
+    }
+
     /** Executes the instruction.*/
     Fault execute();
 
@@ -168,6 +175,7 @@ class DynInst : public ExecContext, public RefCounted
     };
     
     MemReadRecord memReads[MAX_QUERY_N];
+    PacketPtr xyz[MAX_QUERY_N];
     bool memReadCompleted[MAX_QUERY_N];
     int memReadN = 0, completedMemReadN = 0;
     
@@ -905,6 +913,8 @@ class DynInst : public ExecContext, public RefCounted
     void setExecuted() { status.set(Executed); }
     
     void setExecuteCalled() { status.set(ExecuteCalled); checkQueryCompleted(); }
+
+    void clearExecuteCalled() { status.reset(ExecuteCalled); }
 
     void setNodeExecuted() { status.set(NodeExecuted); }
 

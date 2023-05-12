@@ -119,6 +119,17 @@ class CPU : public BaseCPU
 
   private:
 
+    const std::vector<std::string> IntRegNames = {
+    "zero", "ra", "sp", "gp",
+    "tp", "t0", "t1", "t2",
+    "s0", "s1", "a0", "a1",
+    "a2", "a3", "a4", "a5",
+    "a6", "a7", "s2", "s3",
+    "s4", "s5", "s6", "s7",
+    "s8", "s9", "s10", "s11",
+    "t3", "t4", "t5", "t6"
+    };
+
     /** The tick event used for scheduling CPU ticks. */
     EventFunctionWrapper tickEvent;
 
@@ -255,6 +266,8 @@ class CPU : public BaseCPU
 
     /** Terminate all threads that are ready to exit */
     void exitThreads();
+
+    void printRegs();
 
   public:
     /** Starts draining the CPU's pipeline of all instructions in

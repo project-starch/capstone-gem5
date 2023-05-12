@@ -247,6 +247,13 @@ DynInst::~DynInst()
             delete [] v;
         }
     }
+
+    // for(int i = 0; i < MAX_QUERY_N; i++) {
+    //     if(xyz[i] != nullptr) {
+    //         delete xyz[i];
+    //     }
+    // }
+
     delete traceData;
     fault = NoFault;
 
@@ -348,6 +355,8 @@ DynInst::execute()
     // the TC).  Fix this.
     bool no_squash_from_TC = thread->noSquashFromTC;
     thread->noSquashFromTC = true;
+
+    // printRegs();
 
     fault = staticInst->execute(this, traceData);
 
@@ -507,11 +516,18 @@ DynInst::completeMemRead(int idx, PacketPtr pkt) {
     assert(idx >= 0 && idx < memReadN);
     assert(!memReadCompleted[idx]);
     
-    lastPacket = pkt;
+    /** 
+     * Need to create a new local Packet object as LSQUnit may delete
+     * the original to free up space, before completeAcc can be called.
+    */
+    // lastPacket = pkt;
+    xyz[idx] = new Packet(pkt, false, true);
+    lastPacket = xyz[idx];
     
     // handle the packet here and move data to a separate buffer
     assert(pkt->getSize() <= MAX_REQUEST_SIZE);
     memcpy(memReads[idx].data, pkt->getPtr<uint8_t>(), pkt->getSize());
+    lastPacket->setData(memReads[idx].data);
 
     memReadCompleted[idx] = true;
     ++ completedMemReadN;

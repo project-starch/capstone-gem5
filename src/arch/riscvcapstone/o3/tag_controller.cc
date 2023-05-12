@@ -211,7 +211,7 @@ MemoryTagController::writebackTagOp(DynInstPtr& inst, TagOp& tag_op) {
     if(!tcachePort.canSend())
         return false;
 
-    DPRINTF(TagController, "Tag controller writebackTaOp for inst %u\n",
+    DPRINTF(TagController, "Tag controller writebackTagOp for inst %u\n",
             inst->seqNum);
 
     Addr addr = getTagAddr(tag_op.addr);

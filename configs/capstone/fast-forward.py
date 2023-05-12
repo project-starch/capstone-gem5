@@ -18,6 +18,7 @@ parser.add_argument('--checkpoint-period', type=int, default=0, help='interval b
 parser.add_argument('--checkpoint-folder', type=str, default='./checkpoints', help='where to store the checkpoints')
 parser.add_argument('--cpu', type=str, default='simple', help='CPU model (atomic, simple, o3)')
 parser.add_argument('--mocktag', action='store_true', help='use mock tag')
+parser.add_argument('--ckpt', type=str, default ='', help='restore checkpoint from here')
 
 if '--' not in sys.argv:
     sys.stderr.write('Usage: fast-forward.py [flags] -- <commands>')
@@ -178,7 +179,8 @@ if args.skip > 0:
     system.switch_cpus = [switchedout_cpu]
     switch_list = [(system.cpu, switchedout_cpu)]
 
-m5.instantiate()
+#print('instantiating with ', args.ckpt)
+m5.instantiate(args.ckpt)
 if args.skip > 0:
     print("Beginning simulation (fast-forward)!")
 
@@ -200,5 +202,14 @@ exit_event = m5.simulate()
 print('Simulation exiting @ tick {} because {}'
         .format(m5.curTick(), exit_event.getCause()))
 
-# m5.checkpoint('m5out/ckp')
+if exit_event.getCause() == 'checkpoint':
+    m5.checkpoint('m5out/ckp')
 
+if exit_event.getCause() == 'm5_exit instruction encountered':
+    m5.stats.reset()
+    #m5.stats.dump()
+    exit_event = m5.simulate()
+    print('Simulation exiting @ tick {} because {}'
+        .format(m5.curTick(), exit_event.getCause()))
+
+#m5.stats.dump(system.cpu.tcache.demandAccesses)

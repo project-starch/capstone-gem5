@@ -1080,6 +1080,8 @@ InstructionQueue::addReadyMemInst(const DynInstPtr &ready_inst)
         addToOrderList(op_class);
     }
 
+    // ready_inst->clearExecuteCalled();
+
     DPRINTF(IQ, "Instruction is ready to issue, putting it onto "
             "the ready list, PC %s opclass:%i [sn:%llu].\n",
             ready_inst->pcState(), op_class, ready_inst->seqNum);
@@ -1095,6 +1097,7 @@ InstructionQueue::rescheduleMemInst(const DynInstPtr &resched_inst)
     resched_inst->translationCompleted(false);
 
     resched_inst->clearCanIssue();
+    //resched_inst->clearExecuteCalled();
     memDepUnit[resched_inst->threadNumber].reschedule(resched_inst);
 }
 

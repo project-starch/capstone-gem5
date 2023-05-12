@@ -821,11 +821,14 @@ LSQUnit::writebackBlockedStore()
 {
     /** 
      * @todo: do we need to also process multiple requests here?
+     * Also, does the popRequest stay or go? Seems to be working fine
+     * either way for existing testcases
     */
     assert(isStoreBlocked);
     storeWBIt->request()->sendPacketToCache();
     if (storeWBIt->request()->isSent()){
         ++ storeWBIt->outstandingRequests;
+        storeWBIt->popRequest();
         storePostSend();
     }
 }
@@ -835,7 +838,9 @@ LSQUnit::sendLoads()
 {
     while(loadSendIt.dereferenceable() &&
         loadSendIt->valid() && loadSendIt->instruction()->isExecuteCalled()) {
+            DPRINTF(LSQUnit, "sendLoads: inside while\n");
         while(loadSendIt->hasRequest()) {
+            DPRINTF(LSQUnit, "sendLoads: inside while hasRequest\n");
             LSQRequest* req = loadSendIt->request();
             if(!req->isSent()) {
                 req->buildPackets();
@@ -1410,6 +1415,8 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     LQEntry& load_entry = loadQueue[load_idx];
     const DynInstPtr& load_inst = load_entry.instruction();
 
+    DPRINTF(LSQUnit, "read: sn:%d\n", load_inst->seqNum);
+
     // load_entry.pushRequest(request);
     // assert(!load_entry.hasRequest());
     // load_entry.setRequest(request);
@@ -1548,6 +1555,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
             }
 
             if (coverage == AddrRangeCoverage::FullAddrRangeCoverage) {
+                DPRINTF(LSQUnit, "read: FullAddrRangeCoverage sn:%d\n", load_inst->seqNum);
                 // Get shift amount for offset into the store's data.
                 int shift_amt = request->mainReq()->getVaddr() -
                     store_it->instruction()->effAddr;
@@ -1628,6 +1636,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 return NoFault;
             } else if (
                     coverage == AddrRangeCoverage::PartialAddrRangeCoverage) {
+                DPRINTF(LSQUnit, "read: PartialAddrRangeCoverage sn:%d\n", load_inst->seqNum);
                 // If it's already been written back, then don't worry about
                 // stalling on it.
                 if (store_it->completed()) {
