@@ -12,11 +12,11 @@ RUN_TARGETS=$(patsubst %,run-%,$(TARGET_NAMES))
 DEBUG_TARGETS=$(patsubst %,debug-%,$(TARGET_NAMES))
 MEMCHECK_TARGETS=$(patsubst %,memcheck-%,$(TARGET_NAMES))
 RECORD_TARGETS=$(patsubst %,rr-%,$(TARGET_NAMES))
-GEM5?=gem5.opt
+GEM5?=../../../build/RISCVCapstone/gem5.debug
 GEM5_FLAGS?=
-GEM5_CONFIG?=config.py
-GEM5_CONFIG_FLAGS?=
-GEM5_TEST_TIMEOUT?=20
+GEM5_CONFIG?=../../../configs/capstone/fast-forward.py
+GEM5_CONFIG_FLAGS?=--cpu=o3
+GEM5_TEST_TIMEOUT?=0
 CAPSTONE_TESTS_CFLAGS?=
 
 GCC=riscv64-unknown-linux-gnu-gcc
