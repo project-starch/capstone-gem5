@@ -1,0 +1,81 @@
+//Baseline test corresponding to the mixed load scenario
+#include "asm_insn.h"
+
+.global _start
+_start:
+
+    INIT_RWX_CAP(a6)
+    li a1, 0x30000
+    li a2, 0x10000000
+    CAPBOUND(a6, a1, a2)
+    CAPPRINT(a6)
+
+    /**
+     * store some dummy value and check if it can
+     * can be correctly loaded by the loaded capabilities
+     */
+    li a7, 0x40000
+    SCC(a6, a7)
+    li a1, 0x42
+    sd a1, 0(a7)
+
+    li a3, xx
+    li a5, 0
+    li a7, 0x50000
+    SCC(a6, a7)
+
+_loop:
+    addi a3,a3,-1
+    //-------make cap-------//
+    CAPCREATE(a4)
+    li a2, CAP_TYPE_NONLIN
+    CAPTYPE(a4, a2)
+    li a1, NODE_ID_INVALID
+    ALLOC(a2, a1)
+    CAPNODE(a4, a2)
+    li a1, CAP_PERM_RO
+    CAPPERM(a4, a1)
+    li a1, 0x40000
+    li a2, 0x50000
+    CAPBOUND(a4, a1, a2)
+    //-------end make cap-------//
+    SDS(a6, a1)
+    addi a7, a7, 0x10
+    SCC(a6, a7)
+    bne a3, a5, _loop
+
+//workaround for assert(flags.isSet(STATIC_DATA|DYNAMIC_DATA))
+//for whatever reason that error is not coming anymore
+//.rept 1000
+//nop
+//.endr
+
+//-------warmup end-------//
+M5_CHECKPOINT
+li t3, 1
+li t4, 0
+
+_end_loop:
+    addi t4, t4, 1
+    li t5, 0x50000
+    li a3, xx
+    slli t2, a3, 4
+    add t6, t2, t5
+    CAPPRINT(a3)
+    GETRAND(a7, t5, t6)
+    li a4, 0x42
+
+_loop2:
+    addi a3,a3,-1
+    ld a2, 0(a7)
+    GETRAND(a7, t5, t6)
+    ld a1, 0(a2)
+    bne a1, a4, _test_fail
+    bne a3, a5, _loop2
+    bne t4, t3, _end_loop
+    j exit
+
+_test_fail:
+    li a0, 0
+    li a7, 10
+    ecall
