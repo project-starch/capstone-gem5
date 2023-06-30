@@ -16,7 +16,7 @@ GEM5?=../../../build/RISCVCapstone/gem5.debug
 GEM5_FLAGS?=
 GEM5_CONFIG?=../../../configs/capstone/fast-forward.py
 GEM5_CONFIG_FLAGS?=--cpu=o3
-GEM5_TEST_TIMEOUT?=0
+GEM5_TEST_TIMEOUT?=20
 CAPSTONE_TESTS_CFLAGS?=
 
 GCC=riscv64-unknown-linux-gnu-gcc

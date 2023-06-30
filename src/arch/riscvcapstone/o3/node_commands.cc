@@ -25,8 +25,9 @@ create_load_node(RequestorID requestor_id, const NodeID& node_id) {
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestor_id);
     req->setPaddr(addr);
+    req->setSize(sizeof(Node));
     PacketPtr pkt = Packet::createRead(req);
-    pkt->setSize(sizeof(Node)); // FIXME: do we need to specify the size here?
+    //pkt->setSize(sizeof(Node)); // FIXME: do we need to specify the size here?
     pkt->allocate();
 
     return pkt;
@@ -39,8 +40,9 @@ create_store_node(RequestorID requestor_id, const NodeID& node_id,
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestor_id);
     req->setPaddr(addr);
+    req->setSize(sizeof(Node));
     PacketPtr pkt = Packet::createWrite(req);
-    pkt->setSize(sizeof(Node));
+    //pkt->setSize(sizeof(Node));
     pkt->allocate();
     memcpy(pkt->getPtr<void>(), &node, sizeof(Node));
 

@@ -92,6 +92,7 @@ NodeController::sendLoad(NodeControllerCommandPtr cmd, NodeID node_id, bool atom
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestorId);
     req->setPaddr(addr);
+    req->setSize(sizeof(Node));
     PacketPtr pkt = Packet::createRead(req);
     pkt->setSize(sizeof(Node)); // FIXME: do we need to specify the size here?
     pkt->allocate();
@@ -124,6 +125,7 @@ NodeController::sendStore(NodeControllerCommandPtr cmd, NodeID node_id, const No
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(requestorId);
     req->setPaddr(addr);
+    req->setSize(sizeof(Node));
     PacketPtr pkt = Packet::createWrite(req);
     pkt->setSize(sizeof(Node));
     pkt->allocate();

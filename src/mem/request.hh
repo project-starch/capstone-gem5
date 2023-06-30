@@ -599,6 +599,13 @@ class Request
         privateFlags.set(VALID_PADDR);
     }
 
+    void
+    setSize(unsigned size)
+    {
+        _size = size;
+        privateFlags.set(VALID_SIZE);
+    }
+
     /**
      * Generate two requests as if this request had been split into two
      * pieces. The original request can't have been translated already.

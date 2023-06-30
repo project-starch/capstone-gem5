@@ -174,9 +174,10 @@ MemoryTagController::getCommittedTag(const DynInstPtr& inst,
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(inst->requestorId());
     req->setPaddr(tag_addr);
+    req->setSize(1);
 
     PacketPtr pkt = Packet::createRead(req);
-    pkt->setSize(1);
+    // pkt->setSize(1);
     pkt->allocate();
     
     TagCacheRequest tcache_req = {
@@ -219,9 +220,10 @@ MemoryTagController::writebackTagOp(DynInstPtr& inst, TagOp& tag_op) {
     RequestPtr req = std::make_shared<Request>();
     req->requestorId(inst->requestorId());
     req->setPaddr(addr);
+    req->setSize(1);
 
     PacketPtr pkt = Packet::createWrite(req);
-    pkt->setSize(1);
+    // pkt->setSize(1);
     pkt->allocate();
     *(pkt->getPtr<uint8_t>()) = tag_op.tagSet ? 1 : 0;
 

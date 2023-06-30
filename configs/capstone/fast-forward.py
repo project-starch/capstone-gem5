@@ -19,6 +19,8 @@ parser.add_argument('--checkpoint-folder', type=str, default='./checkpoints', he
 parser.add_argument('--cpu', type=str, default='simple', help='CPU model (atomic, simple, o3)')
 parser.add_argument('--mocktag', action='store_true', help='use mock tag')
 parser.add_argument('--ckpt', type=str, default ='', help='restore checkpoint from here')
+parser.add_argument('--tcache-memside', type=str, default ='l2', help='tcache mem side connection')
+parser.add_argument('--ckpt-save', type=str, default ='m5out/ckp', help='checkpoint save directory')
 
 if '--' not in sys.argv:
     sys.stderr.write('Usage: fast-forward.py [flags] -- <commands>')
@@ -56,9 +58,11 @@ class L1Cache(Cache):
 
 class L1ICache(L1Cache):
     size = '16kB'
+    # prefetcher = TaggedPrefetcher(degree=1, prefetch_on_access=True)
 
 class L1DCache(L1Cache):
     size = '64kB'
+    # prefetcher = TaggedPrefetcher(degree=1, prefetch_on_access=True)
 
 class NCache(Cache):
     size = args.ncache_size
@@ -68,6 +72,7 @@ class NCache(Cache):
     response_latency = 2
     mshrs = 4
     tgts_per_mshr = 20
+    # prefetcher = TaggedPrefetcher(degree=1, prefetch_on_access=True)
 
 class TCache(Cache):
     size = args.tcache_size
@@ -77,16 +82,19 @@ class TCache(Cache):
     response_latency = 2
     mshrs = 4
     tgts_per_mshr = 20
+    prefetcher = TaggedPrefetcher(degree=1, prefetch_on_access=True)
 
 
 class L2Cache(Cache):
     size = '256kB'
+    # size = '1024kB'
     assoc = 8
     tag_latency = 20
     data_latency = 20
     response_latency = 20
     mshrs = 20
     tgts_per_mshr = 12
+    # prefetcher = TaggedPrefetcher(degree=1, prefetch_on_access=True)
 
 system = System()
 
@@ -113,7 +121,10 @@ system.cpu.dcache = L1DCache()
 if 'tcache_port' in system.cpu._ports and not args.mocktag:
     system.cpu.tcache = TCache()
     system.cpu.tcache_port = system.cpu.tcache.cpu_side
-    system.cpu.tcache.mem_side = system.l2bus.cpu_side_ports
+    if args.tcache_memside == 'l2':
+        system.cpu.tcache.mem_side = system.l2bus.cpu_side_ports
+    else:
+        system.cpu.tcache.mem_side = system.membus.cpu_side_ports
 
 system.l2bus.mem_side_ports = system.l2cache.cpu_side
 system.l2cache.mem_side = system.membus.cpu_side_ports
@@ -203,9 +214,8 @@ print('Simulation exiting @ tick {} because {}'
         .format(m5.curTick(), exit_event.getCause()))
 
 if exit_event.getCause() == 'checkpoint':
-    m5.checkpoint('m5out/ckp')
-
-if exit_event.getCause() == 'm5_exit instruction encountered':
+    m5.checkpoint(args.ckpt_save)
+while exit_event.getCause() == 'm5_exit instruction encountered':
     m5.stats.reset()
     #m5.stats.dump()
     exit_event = m5.simulate()
