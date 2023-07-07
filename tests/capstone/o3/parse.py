@@ -63,8 +63,8 @@ for filename in glob.glob("*.txt"):
     file1.close()
 
 def create_csv_sheet(data, filename):
-    rows = sorted(set(key[0] for key in data.keys()), key=len)
-    columns = sorted(set(key[1] for key in data.keys()), key=len)
+    rows = sorted(set(key[0] for key in data.keys()), key=lambda x: (len(x), x))
+    columns = sorted(set(key[1] for key in data.keys()), key=lambda x: (len(x), x))
 
     with open(filename, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)

@@ -107,11 +107,12 @@ class SimpleRenameMap
     /**
      * Tell rename map to get a new free physical register to remap
      * the specified architectural register.
+     * @param inst The DynInst object
      * @param arch_reg The architectural register to remap.
      * @return A RenameInfo pair indicating both the new and previous
      * physical registers.
      */
-    RenameInfo rename(const RegId& arch_reg);
+    RenameInfo rename(const DynInstPtr &inst, const RegId& arch_reg);
 
     /**
      * Look up the physical register mapped to an architectural register.
@@ -196,12 +197,13 @@ class UnifiedRenameMap
      * Tell rename map to get a new free physical register to remap
      * the specified architectural register. This version takes a
      * RegId and reads the  appropriate class-specific rename table.
+     * @param inst The DynInst object
      * @param arch_reg The architectural register id to remap.
      * @return A RenameInfo pair indicating both the new and previous
      * physical registers.
      */
     RenameInfo
-    rename(const RegId& arch_reg)
+    rename(const DynInstPtr &inst, const RegId& arch_reg)
     {
         if (!arch_reg.isRenameable()) {
             // misc regs aren't really renamed, just remapped
@@ -211,7 +213,7 @@ class UnifiedRenameMap
             return RenameInfo(phys_reg, phys_reg);
         }
 
-        return renameMaps[arch_reg.classValue()].rename(arch_reg);
+        return renameMaps[arch_reg.classValue()].rename(inst, arch_reg);
     }
 
     /**

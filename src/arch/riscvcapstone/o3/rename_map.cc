@@ -70,7 +70,7 @@ SimpleRenameMap::init(const RegClass &reg_class, SimpleFreeList *_freeList)
 }
 
 SimpleRenameMap::RenameInfo
-SimpleRenameMap::rename(const RegId& arch_reg)
+SimpleRenameMap::rename(const DynInstPtr &inst, const RegId& arch_reg)
 {
     PhysRegIdPtr renamed_reg;
     // Record the current physical register that is renamed to the
@@ -90,6 +90,16 @@ SimpleRenameMap::rename(const RegId& arch_reg)
         renamed_reg->decrNumPinnedWrites();
     } else {
         renamed_reg = freeList->getReg();
+        CPU* cpu = dynamic_cast<o3::CPU *>(inst->getCpuPtr());
+        TaggedRegVal tagged_reg = cpu->getWritableTaggedReg(renamed_reg);
+        if(tagged_reg.getTag()) {
+            tagged_reg.setTag(false);
+            //@todo: this node command shouldn't be associated with an inst
+            //it'll unnecessarily block the inst
+            //NodeID node_id = tagged_reg.getRegVal().capVal().nodeId();
+            //inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+            cpu->setTaggedReg(renamed_reg, tagged_reg);
+        }
         map[arch_reg.index()] = renamed_reg;
         renamed_reg->setNumPinnedWrites(arch_reg.getNumPinnedWrites());
         renamed_reg->setNumPinnedWritesToComplete(

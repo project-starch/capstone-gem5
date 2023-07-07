@@ -122,6 +122,27 @@ struct NodeQuery : NodeCommand {
     ~NodeQuery() {}
 };
 
+struct NodeQueryDbg : NodeCommand {
+    NodeID nodeId;
+    bool validityError = false;
+    
+    NodeQueryDbg() {}
+    NodeQueryDbg(NodeID node_id) : nodeId(node_id) {}
+    NodeQueryDbg(DynInstPtr inst, NodeID node_id) : 
+        NodeCommand(inst),
+        nodeId(node_id) {}
+    Type getType() const override {
+        return NodeCommand::QUERY;
+    }
+    bool beforeCommit() const override {
+        return true;
+    }
+    PacketPtr transition() override;
+    void handleResp(PacketPtr pkt) override;
+    bool error() override;
+    ~NodeQueryDbg() {}
+};
+
 
 struct NodeRevoke : NodeCommand {
     NodeID nodeId;

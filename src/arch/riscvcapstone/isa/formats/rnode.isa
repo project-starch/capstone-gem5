@@ -70,7 +70,16 @@ def template RNodeConstructor {{
     }
 }};
 
+def template RNodeMemConstructor {{
+    %(class_name)s::%(class_name)s(MachInst machInst)
+        : %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
 
+        //hasNodeOp = true;
+    }
+}};
 
 def template RNodeStoreConstructor {{
     %(class_name)s::%(class_name)s(MachInst machInst)
@@ -106,7 +115,7 @@ def format RNodeMemOp(check_code,
                         'ea_code': ea_code,
                         'memacc_code': memacc_code}, opt_flags)
     header_output = RNodeMemDeclare.subst(iop)
-    decoder_output = RNodeConstructor.subst(iop)
+    decoder_output = RNodeMemConstructor.subst(iop)
     decode_block = BasicDecode.subst(iop)
     exec_output = (RNodeMemExecute.subst(iop)
                    + RNodeMemCompleteAcc.subst(iop))

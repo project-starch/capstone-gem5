@@ -1087,7 +1087,7 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         RegId flat_dest_regid = tc->flattenRegId(dest_reg);
         flat_dest_regid.setNumPinnedWrites(dest_reg.getNumPinnedWrites());
 
-        rename_result = map->rename(flat_dest_regid);
+        rename_result = map->rename(inst, flat_dest_regid);
 
         inst->flattenedDestIdx(dest_idx, flat_dest_regid);
 

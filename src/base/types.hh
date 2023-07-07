@@ -302,7 +302,7 @@ class ConstTaggedRegVal {
 
         ConstTaggedRegVal& operator = (const RegVal& val) {
             this->val = val;
-            tag = false;
+            this->tag = tag;
             return *this;
         }
 

@@ -202,6 +202,41 @@ NodeQuery::error() {
 }
 
 PacketPtr
+NodeQueryDbg::transition() {
+    DPRINTF(NodeCmd, "NodeQuery nodeId = %u\n",
+            static_cast<unsigned int>(nodeId));
+    assert(status == NOT_STARTED);
+    status = AWAIT_CACHE;
+    return createLoadNode(nodeId);
+}
+
+void
+NodeQueryDbg::handleResp(PacketPtr pkt) {
+    status = COMPLETED;
+
+    // check validity of the node
+    Node node = pkt->getRaw<Node>();
+    validityError = !node.isValid();
+
+    DPRINTFN("Query for node validityError = %u"
+            " (node %u state = %u depth = %u prev = %u next = %u counter = %u)\n",
+            inst->seqNum, validityError,
+            static_cast<unsigned int>(nodeId),
+            static_cast<unsigned int>(node.state),
+            node.depth,
+            static_cast<unsigned int>(node.prev),
+            static_cast<unsigned int>(node.next),
+            node.counter);
+
+    delete pkt;
+}
+
+bool
+NodeQueryDbg::error() {
+    return validityError;
+}
+
+PacketPtr
 NodeRevoke::transition() {
     DPRINTF(NodeCmd, "NodeRevoke transition (state = %u)\n",
             static_cast<unsigned int>(state));
