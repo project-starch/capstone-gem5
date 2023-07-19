@@ -71,6 +71,7 @@ class NCQ {
         bool isFull(ThreadID thread_id);
 
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
+        Fault pushCommand(NodeCommandPtr cmd);
 
         void commitBefore(InstSeqNum seq_num, ThreadID thread_id);
         void writebackCommands();

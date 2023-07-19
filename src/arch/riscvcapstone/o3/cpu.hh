@@ -671,6 +671,10 @@ class CPU : public BaseCPU
         return iew.ncQueue.pushCommand(inst, cmd);
     }
 
+    Fault pushNodeCommand(NodeCommandPtr cmd) {
+        return iew.ncQueue.pushCommand(cmd);
+    }
+
     QueryResult passedQuery(const DynInstPtr& inst) const {
         return iew.ncQueue.passedQuery(inst);
     }

@@ -32,6 +32,8 @@ struct NCQEntry {
 
     bool canWB;
     int completedCommands;
+    // for insts from commit, as inst ptr is null
+    InstSeqNum seqNum;
     
     NCQEntry() {}
 
@@ -90,6 +92,7 @@ class NCQUnit {
         NCQUnit(ThreadID thread_id, int queue_size, CPU* cpu, NCQ* ncq, IEW* iew);
         //NCQUnit(const NCQUnit&) = delete;
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
+        Fault pushCommand(NodeCommandPtr cmd);
         void insertInstruction(const DynInstPtr& inst);
         // commit all instructions before specified seq number
         void commitBefore(InstSeqNum seq_num);
@@ -97,6 +100,8 @@ class NCQUnit {
         void completeCommand(NodeCommandPtr cmd_it);
         void tick();
         bool isFull();
+
+        void dumpNcQueue();
     
         bool handleCacheResp(PacketPtr pkt);
         QueryResult passedQuery(const DynInstPtr& inst) const;

@@ -564,7 +564,6 @@ decode QUADRANT default Unknown::unknown() {
                 format RNodeOp {
                     0xc: movc ({{
                         //Rd holds a cap
-                        //TODO: check tag bit
                         //RcUpdate-1 for Rd if it holds a capability
                         //Check Rs, if it's non-linear cap, RcUpdate+1
                         //otherwise do nothing
@@ -574,12 +573,12 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        const RegVal& rdv = Rd_trv.getRegVal();
+                        /*const RegVal& rdv = Rd_trv.getRegVal();
 
                         if(Rd_trv.getTag()) {
                             uint64_t node_id = rdv.capVal().nodeId();
                             dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
-                        }
+                        }*/
 
                         Rd_trv = Rs1_trv;
 
@@ -634,8 +633,8 @@ decode QUADRANT default Unknown::unknown() {
                     0xe: ldc ({{
                         assert(Rs1_trv.getTag());
 
-                        //NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
-                        //dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
                         //@todo: if Rd already holds a capability, need to reduce the refcount
                         //now being handled by rename stage
@@ -645,9 +644,9 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                     "Illegal read - out of capability bounds!", machInst);
 
-                        //Fault fault = dyn_inst->initiateGetTag(EA);
-                        //if(fault != NoFault)
-                        //    return fault;
+                        Fault fault = dyn_inst->initiateGetTag(EA);
+                        if(fault != NoFault)
+                            return fault;
 
                         //DPRINTFN("MemReads count = %d, tag query count = %d\n",
                         //        dyn_inst->memReadN, dyn_inst->tagQueryN);
@@ -662,6 +661,9 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                     }}, {{
+                        bool tag_res = dyn_inst->getTagQueryRes(0);
+                        assert(tag_res);
+
                         ConstTaggedRegVal temp_regval;
                         gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_rv.capVal();
 
@@ -674,29 +676,25 @@ decode QUADRANT default Unknown::unknown() {
 
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
-                        //bool tag_res = dyn_inst->getTagQueryRes(0);
-                        //assert(tag_res);
-
                         //if load result is a linear type
                         //  clear tag bit from EA
                         //  clear the mem location itself
                         //otherwise do RcUpdate+1 on the node
 
-                        /*if(Rd_trv.getRegVal().capVal().type() != CapType::NONLIN) {
+                        if(Mem_rv.capVal().type() != CapType::NONLIN) {
                             dyn_inst->initiateSetTag(EA, false);
                         } else {
-                            NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
+                            NodeID node_id = Mem_rv.capVal().nodeId();
                             dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
-                        }*/
+                        }
 
                         Rd_trv = temp_regval;
-                        //Rd_trv.setTag(true);
                     }});
                     0x13: lds ({{
                         assert(Rs1_trv.getTag());
 
-                        //NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
-                        //dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
@@ -729,16 +727,16 @@ decode QUADRANT default Unknown::unknown() {
                         temp_regval.setTag(false);
 
                         //in execute or completeAcc hmmm
-                        //Addr EA = Rs1_trv.getRegVal().capVal().cursor();
-                        //dyn_inst->initiateSetTag(EA, false);
+                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
+                        dyn_inst->initiateSetTag(EA, false);
 
                         Rd_trv = temp_regval;
                     }});
                     0x16: ldb ({{
                         assert(Rs1_trv.getTag());
 
-                        //NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
-                        //dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
@@ -760,7 +758,7 @@ decode QUADRANT default Unknown::unknown() {
                                     "Rs1 doesn't have the necessary perms", machInst);
                         
                         EA = EA & ~(sizeof(RegVal) - 1);
-                        //Fault fault = dyn_inst->initiateGetTag(EA);
+                        Fault fault = dyn_inst->initiateGetTag(EA);
                     }}, {{
                         ConstTaggedRegVal temp_regval;
                         gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_rv.capVal();
@@ -773,12 +771,12 @@ decode QUADRANT default Unknown::unknown() {
                         temp_regval.getRegVal() = (uint8_t)Mem_rv;
                         temp_regval.setTag(false);
 
-                        //bool tag_res = dyn_inst->getTagQueryRes(0);
-                        //if(tag_res) {
-                        //    dyn_inst->initiateSetTag(EA, false);
-                        //    NodeID nodeId =  Mem_rv.capVal().nodeId();
-                        //    dyn_inst->initiateNodeCommand(new NodeRcUpdate(nodeId, -1));
-                        //}
+                        bool tag_res = dyn_inst->getTagQueryRes(0);
+                        if(tag_res) {
+                            dyn_inst->initiateSetTag(EA, false);
+                            NodeID nodeId =  Mem_rv.capVal().nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(nodeId, -1));
+                        }
 
                         Rd_trv = temp_regval;
                         //Rd_trv.setTag(false);
@@ -786,8 +784,8 @@ decode QUADRANT default Unknown::unknown() {
                     0x17: ldd ({{
                         assert(Rs1_trv.getTag());
 
-                        //NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
-                        //dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
@@ -809,7 +807,7 @@ decode QUADRANT default Unknown::unknown() {
                                     "Rs1 doesn't have the necessary perms", machInst);
 
                         EA = EA & ~(sizeof(RegVal) - 1);
-                        //Fault fault = dyn_inst->initiateGetTag(EA);
+                        Fault fault = dyn_inst->initiateGetTag(EA);
                     }}, {{
                         ConstTaggedRegVal temp_regval;
                         gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_rv.capVal();
@@ -822,12 +820,12 @@ decode QUADRANT default Unknown::unknown() {
                         temp_regval.getRegVal() = (uint64_t)Mem_rv;
                         temp_regval.setTag(false);
 
-                        //bool tag_res = dyn_inst->getTagQueryRes(0);
-                        //if(tag_res) {
-                        //    dyn_inst->initiateSetTag(EA, false);
-                        //    NodeID nodeId =  Mem_rv.capVal().nodeId();
-                        //    dyn_inst->initiateNodeCommand(new NodeRcUpdate(nodeId, -1));
-                        //}
+                        bool tag_res = dyn_inst->getTagQueryRes(0);
+                        if(tag_res) {
+                            dyn_inst->initiateSetTag(EA, false);
+                            NodeID nodeId =  Mem_rv.capVal().nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(nodeId, -1));
+                        }
 
                         Rd_trv = temp_regval;
                         //Rd_trv.setTag(false);
@@ -835,8 +833,8 @@ decode QUADRANT default Unknown::unknown() {
                     0x18: ldh ({{
                         assert(Rs1_trv.getTag());
 
-                        //NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
-                        //dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
@@ -858,7 +856,7 @@ decode QUADRANT default Unknown::unknown() {
                                     "Rs1 doesn't have the necessary perms", machInst);
 
                         EA = EA & ~(sizeof(RegVal) - 1);
-                        //Fault fault = dyn_inst->initiateGetTag(EA);
+                        Fault fault = dyn_inst->initiateGetTag(EA);
                     }}, {{
                         ConstTaggedRegVal temp_regval;
                         gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_rv.capVal();
@@ -871,12 +869,12 @@ decode QUADRANT default Unknown::unknown() {
                         temp_regval.getRegVal() = (uint16_t)Mem_rv;
                         temp_regval.setTag(false);
 
-                        //bool tag_res = dyn_inst->getTagQueryRes(0);
-                        //if(tag_res) {
-                        //    dyn_inst->initiateSetTag(EA, false);
-                        //    NodeID nodeId =  Mem_rv.capVal().nodeId();
-                        //    dyn_inst->initiateNodeCommand(new NodeRcUpdate(nodeId, -1));
-                        //}
+                        bool tag_res = dyn_inst->getTagQueryRes(0);
+                        if(tag_res) {
+                            dyn_inst->initiateSetTag(EA, false);
+                            NodeID nodeId =  Mem_rv.capVal().nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(nodeId, -1));
+                        }
 
                         Rd_trv = temp_regval;
                         //Rd_trv.setTag(false);
@@ -884,8 +882,8 @@ decode QUADRANT default Unknown::unknown() {
                     0x19: ldw ({{
                         assert(Rs1_trv.getTag());
 
-                        //NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
-                        //dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
 
@@ -907,7 +905,7 @@ decode QUADRANT default Unknown::unknown() {
                                     "Rs1 doesn't have the necessary perms", machInst);
                         
                         EA = EA & ~(sizeof(RegVal) - 1);
-                        //Fault fault = dyn_inst->initiateGetTag(EA);
+                        Fault fault = dyn_inst->initiateGetTag(EA);
                     }}, {{
                         ConstTaggedRegVal temp_regval;
                         gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_rv.capVal();
@@ -920,12 +918,12 @@ decode QUADRANT default Unknown::unknown() {
                         temp_regval.getRegVal() = (uint32_t)Mem_rv;
                         temp_regval.setTag(false);
 
-                        //bool tag_res = dyn_inst->getTagQueryRes(0);
-                        //if(tag_res) {
-                        //    dyn_inst->initiateSetTag(EA, false);
-                        //    NodeID nodeId =  Mem_rv.capVal().nodeId();
-                        //    dyn_inst->initiateNodeCommand(new NodeRcUpdate(nodeId, -1));
-                        //}
+                        bool tag_res = dyn_inst->getTagQueryRes(0);
+                        if(tag_res) {
+                            dyn_inst->initiateSetTag(EA, false);
+                            NodeID nodeId =  Mem_rv.capVal().nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(nodeId, -1));
+                        }
 
                         Rd_trv = temp_regval;
                         //Rd_trv.setTag(false);
@@ -1371,7 +1369,7 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        NodeID node_id = Rs1_ud;
                         dyn_inst->initiateNodeCommand(new NodeQueryDbg(node_id));
                     }}, IsSerializing, IsNonSpeculative);
                 }

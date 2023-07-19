@@ -39,7 +39,7 @@ _loop:
     li a2, 0x50000
     CAPBOUND(a4, a1, a2)
     //-------end make cap-------//
-    SDS(a6, a1)
+    STD(a6, a1)
     addi a7, a7, 0x10
     SCC(a6, a7)
     bne a3, a5, _loop

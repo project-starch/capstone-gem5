@@ -1212,6 +1212,39 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         }
     }
 
+    DPRINTF(Commit, "Issuing node commands for inst PC %s [sn:%u]\n", head_inst->pcState(), head_inst->seqNum);
+    // for (unsigned i = 0; i < nodeFromRename->size; i++) {
+    //     DPRINTF(Commit, "NodeID: %u\n", nodeFromRename->cmds[i].first);
+    //     if(nodeFromRename->insts[i]->seqNum == head_inst->seqNum) {
+    //         NodeID node_id = nodeFromRename->cmds[i].first;
+    //         int delta = nodeFromRename->cmds[i].second;
+
+    //         DPRINTF(Commit, "Doing RcUpdate for NodeID: %u, delta: %d\n", node_id, delta);
+
+    //         head_inst->initiateNodeCommand(new NodeRcUpdate(node_id, delta));
+    //     }
+    // }
+    //very, very hacked together
+    if(head_inst->staticInst->opClass() != No_OpClass && head_inst->staticInst->getName() != "captype"
+            && head_inst->staticInst->getName() != "capperm" && head_inst->staticInst->getName() != "capnode") {
+        CPU* cpu = dynamic_cast<o3::CPU *>(head_inst->getCpuPtr());
+        PhysRegIdPtr prev_reg = head_inst->prevDestIdx(0);
+        if(!(prev_reg->classValue() == InvalidRegClass || prev_reg->classValue() == MiscRegClass)) {
+            TaggedRegVal tagged_reg = cpu->getWritableTaggedReg(prev_reg);
+            if(tagged_reg.getTag()) {
+                tagged_reg.setTag(false);
+                NodeID node_id = tagged_reg.getRegVal().capVal().nodeId();
+                NodeCommandPtr cmd;
+                // cmd = new NodeRcUpdate(node_id, -1);
+                // cmd->setCPU(cpu);
+                // cmd->setSeqNum(head_inst->seqNum);
+                cpu->pushNodeCommand(new NodeRcUpdate(cpu, head_inst->seqNum, node_id, -1));
+                cpu->setTaggedReg(prev_reg, tagged_reg);
+                DPRINTF(Commit, "Issued RcUpdate for nodeId = %u\n", node_id);
+            }
+        }
+    }
+
     // hardware transactional memory
     // if a fault occurred within a HTM transaction
     // ensure that the transaction aborts

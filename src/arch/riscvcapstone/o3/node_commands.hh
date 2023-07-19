@@ -38,11 +38,14 @@ struct NodeCommand {
     Status status;
 
     DynInstPtr inst;
+    InstSeqNum seqNum;
+    CPU *cpu;
     bool canWB;
     std::unique_ptr<NodeCommandCondition> condition;
     // the returned data and size
-    NodeCommand() : status(NOT_STARTED), inst(NULL), canWB(false) {}
+    NodeCommand() : status(NOT_STARTED), inst(NULL), canWB(false), cpu(NULL) {}
     NodeCommand(DynInstPtr inst) : inst(inst), canWB(false) {}
+    NodeCommand(CPU *cpu, InstSeqNum seqNum): cpu(cpu), seqNum(seqNum), status(NOT_STARTED), inst(NULL), canWB(false) {}
     virtual ~NodeCommand() {}
     virtual Type getType() const = 0;
     virtual bool beforeCommit() const = 0; // if this command can be executed before commit
@@ -53,6 +56,15 @@ struct NodeCommand {
     }
     virtual void setInst(const DynInstPtr& inst) {
         this->inst = inst;
+    }
+    virtual void setCPU(CPU *cpu) {
+        this->cpu = cpu;
+    }
+    virtual void setSeqNum(InstSeqNum seqNum) {
+        this->seqNum = seqNum;
+    }
+    virtual void dump() {
+
     }
 
     protected:
@@ -183,6 +195,9 @@ struct NodeRcUpdate : NodeCommand {
     NodeRcUpdate(DynInstPtr inst, NodeID node_id, int delta):
         NodeCommand(inst),
         nodeId(node_id), delta(delta), state(NCRcUpdate_LOAD) {}
+    NodeRcUpdate(CPU *cpu, InstSeqNum seqNum, NodeID node_id, int delta):
+                    NodeCommand(cpu, seqNum),
+                    nodeId(node_id), delta(delta), state(NCRcUpdate_LOAD) {}
     Type getType() const override {
         return NodeCommand::RC_UPDATE;
     }
@@ -191,6 +206,7 @@ struct NodeRcUpdate : NodeCommand {
     }
     PacketPtr transition() override;
     void handleResp(PacketPtr pkt) override;
+    void dump() override;
     ~NodeRcUpdate() {}
     private:
         enum {

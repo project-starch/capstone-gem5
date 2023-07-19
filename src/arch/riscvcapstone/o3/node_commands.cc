@@ -51,12 +51,16 @@ create_store_node(RequestorID requestor_id, const NodeID& node_id,
 
 PacketPtr
 NodeCommand::createStoreNode(const NodeID& node_id, const Node& node) {
-    return create_store_node(inst->requestorId(), node_id, node);
+    if(inst)
+        return create_store_node(inst->requestorId(), node_id, node);
+    return create_store_node(cpu->dataRequestorId(), node_id, node);
 }
 
 PacketPtr
 NodeCommand::createLoadNode(const NodeID& node_id) {
-    return create_load_node(inst->requestorId(), node_id);
+    if(inst)
+        return create_load_node(inst->requestorId(), node_id);
+    return create_load_node(cpu->dataRequestorId(), node_id);
 }
 
 PacketPtr
@@ -216,11 +220,10 @@ NodeQueryDbg::handleResp(PacketPtr pkt) {
 
     // check validity of the node
     Node node = pkt->getRaw<Node>();
-    validityError = !node.isValid();
 
-    DPRINTFN("Query for node validityError = %u"
-            " (node %u state = %u depth = %u prev = %u next = %u counter = %u)\n",
-            inst->seqNum, validityError,
+    DPRINTFN("[sn:%u] Query for node = %u"
+            " (state = %u, depth = %u, prev = %u, next = %u, RC = %u)\n",
+            inst->seqNum,
             static_cast<unsigned int>(nodeId),
             static_cast<unsigned int>(node.state),
             node.depth,
@@ -233,7 +236,7 @@ NodeQueryDbg::handleResp(PacketPtr pkt) {
 
 bool
 NodeQueryDbg::error() {
-    return validityError;
+    return false;
 }
 
 PacketPtr
@@ -335,7 +338,10 @@ NodeRcUpdate::handleResp(PacketPtr pkt) {
             savedNode.counter += delta;
             if(savedNode.counter == 0 && savedNode.state == 0) {
                 // add node to free list
-                inst->getNodeController().freeNode(savedNode, nodeId);
+                if(inst)
+                    inst->getNodeController().freeNode(savedNode, nodeId);
+                else
+                    cpu->nodeController.freeNode(savedNode, nodeId);
             }
 
             // note that we do not need to do anything 
@@ -375,6 +381,15 @@ NodeRcUpdate::transition() {
     return pkt;
 }
 
+void
+NodeRcUpdate::dump() {
+    if(inst)
+        DPRINTF(NodeCmd, "Inst sn = %u, command = %u, status = %u\n",
+                inst->seqNum, getType(), status);
+    else
+        DPRINTF(NodeCmd, "Inst sn = %u, command = %u, status = %u\n",
+                seqNum, getType(), status);
+}
 
 /** 
  *
