@@ -8,6 +8,7 @@
 #include "arch/riscvcapstone/o3/node.hh"
 #include "arch/riscvcapstone/insts/amo.hh"
 #include "debug/NodeCmd.hh"
+#include "arch/riscvcapstone/o3/ncq_unit.hh"
 
 namespace gem5 {
 namespace RiscvcapstoneISA {
@@ -139,7 +140,7 @@ NodeAllocate::handleResp(PacketPtr pkt) {
             savedNode.depth = parentDepth + (asChild ? 1 : 0);
             savedNode.next = nextNodeId;
             savedNode.state = Node::VALID;
-            savedNode.counter = 0; // TODO: perhaps 1
+            savedNode.counter = 1; // TODO: perhaps 1
             
             state = NCAllocate_STORE;
             status = TO_RESUME;

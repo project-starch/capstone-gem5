@@ -15,6 +15,7 @@ namespace o3 {
 
 class NodeCommandCondition;
 class NCQ;
+struct NCQEntry;
 
 /**
  * base class for all commands to node controller
@@ -40,6 +41,7 @@ struct NodeCommand {
     DynInstPtr inst;
     InstSeqNum seqNum;
     CPU *cpu;
+    NCQEntry *ncq_ptr;
     bool canWB;
     std::unique_ptr<NodeCommandCondition> condition;
     // the returned data and size

@@ -494,6 +494,29 @@ class CircularQueue
     }
 
     /**
+     * @brief Pop ith element. Guess it's not a queue anymore
+     * 
+     * @param idx index of the element to be popped
+     */
+    void
+    pop_i(size_t idx)
+    {
+        assert(!empty() && idx <= tail());
+
+        if(idx == tail()) {
+            --_size;
+            return;
+        }
+
+        for(size_t i = idx; i <= tail() - 1; i++)
+        {
+            data[i] = data[i+1];
+        }
+
+        --_size;
+    }
+
+    /**
      * Pushes an element at the end of the queue.
      *
      * @ingroup api_base_utils

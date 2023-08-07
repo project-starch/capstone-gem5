@@ -45,6 +45,7 @@ NCQUnit::tick() {
 
 void
 NCQUnit::dumpNcQueue() {
+    DPRINTF(NCQ, "Dumping the NCQ\n");
     for(size_t i = ncQueue.head(); i <= ncQueue.tail(); i++) {
         if(ncQueue[i].inst)
             DPRINTF(NCQ, "Instruction = %u\n", ncQueue[i].inst->seqNum);
@@ -65,6 +66,8 @@ NCQUnit::pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {
 
     ncq_entry.commands.push_back(cmd);
 
+    dumpNcQueue();
+
     return NoFault;
 }
 
@@ -80,8 +83,7 @@ NCQUnit::pushCommand(NodeCommandPtr cmd) {
 
     ncq_entry.commands.push_back(cmd);
     ncq_entry.seqNum = cmd->seqNum;
-
-    cmd->dump();
+    cmd->ncq_ptr = &ncq_entry;
 
     dumpNcQueue();
 
@@ -90,6 +92,7 @@ NCQUnit::pushCommand(NodeCommandPtr cmd) {
 
 bool
 NCQUnit::isFull() {
+    dumpNcQueue();
     return ncQueue.full();
 }
 
@@ -111,11 +114,20 @@ NCQUnit::commitBefore(InstSeqNum seq_num) {
 
 void
 NCQUnit::cleanupCommands(){
+    DPRINTF(NCQ, "Cleaning up commands\n");
     while(!ncQueue.empty()) {
         auto& front = ncQueue.front();
+        if(front.inst)
+            DPRINTF(NCQ, "cleanupCommands: inst %u, canWB %u, completed() %u, commands size() %u", front.inst->seqNum, front.canWB, front.completed(), front.commands.size());
+        else
+            DPRINTF(NCQ, "cleanupCommands: inst %u, canWB %u, completed() %u, commands size() %u from commit", front.seqNum, front.canWB, front.completed(), front.commands.size());
         if(front.canWB && front.completed()) {
-            if(front.inst)
+            if(front.inst) {
+                DPRINTF(NCQ, "Removing NCQEntry for instruction %u\n", front.inst->seqNum);
                 front.inst->ncqIdx = -1;
+            }
+            else
+                DPRINTF(NCQ, "Removing NCQEntry for instruction %u from commit\n", front.seqNum);
             front.clear();
             ncQueue.pop_front();
         } else{
@@ -139,7 +151,7 @@ NCQUnit::writebackCommands(){
             DPRINTF(NCQ, "Instruction %u with %u commands (completed = %u)\n", it->inst->seqNum, commands.size(), 
                     it->completedCommands);
         else
-            DPRINTF(NCQ, "Inst is null. Command from commit.\n");
+            DPRINTF(NCQ, "Instruction = %u. Command from commit.\n", it->seqNum);
         for(NodeCommandIterator nc_it = commands.begin();
                 nc_it != commands.end() && ncq->canSend();
                 ++ nc_it) {
@@ -168,6 +180,13 @@ NCQUnit::writebackCommands(){
 
             DPRINTF(NCQ, "Checking command dependencies\n");
 
+            InstSeqNum sn, sn_o;
+
+            if(it->inst)
+                sn = it->inst->seqNum;
+            else
+                sn = it->seqNum;
+
             // check for dependencies
             // the naive way. Bruteforce
             bool dep_ready = true;
@@ -180,14 +199,22 @@ NCQUnit::writebackCommands(){
                         ++ nc_it_o) {
                     NodeCommandPtr nc_ptr_o = *nc_it_o;
                     assert(nc_ptr_o);
-                    if(nc_ptr_o->status != NodeCommand::COMPLETED && 
+                    if(it_o->inst)
+                        sn_o = it_o->inst->seqNum;
+                    else
+                        sn_o = it_o->seqNum;
+                    /** compare seqNum because commands from commit may be issued
+                      * after commands from execute.
+                      * there might be a better way to do it though
+                      */
+                    if(nc_ptr_o->status != NodeCommand::COMPLETED && sn_o < sn &&
                             !ncOrder.reorderAllowed(nc_ptr_o, nc_ptr)){
                         dep_ready = false;
                         break;
                     }
                 }
-                if(it_o == it)
-                    break;
+                // if(it_o == it)
+                    // break;
             }
             
             if(!dep_ready)
@@ -196,6 +223,9 @@ NCQUnit::writebackCommands(){
             if(it->inst)
                 DPRINTF(NCQ, "Command ready to execute (instruction %u)\n",
                         it->inst->seqNum);
+            else
+                DPRINTF(NCQ, "Command ready to execute (instruction %u)\n",
+                        it->seqNum);
 
             // the command can be executed
             // one state transition in the state machine
@@ -218,7 +248,6 @@ NCQUnit::writebackCommands(){
     }
 }
 
-
 void
 NCQUnit::completeCommand(NodeCommandPtr node_command){
     DynInstPtr& inst = node_command->inst;
@@ -236,6 +265,8 @@ NCQUnit::completeCommand(NodeCommandPtr node_command){
             inst->setNodeExecuted();
             iew->instToCommitIfExeced(inst);
         }
+    } else {
+        ++node_command->ncq_ptr->completedCommands;
     }
 }
 
@@ -291,6 +322,8 @@ NCQUnit::passedQuery(const DynInstPtr& inst) const {
 void
 NCQUnit::squash(const InstSeqNum &squashed_num) {
     if(!ncQueue.empty()) {
+        DPRINTF(NCQ, "Squashing till seqNum = %u. NcQueue so far:\n", squashed_num);
+        dumpNcQueue();
         NCQIterator temp = ncQueue.end() - 1;
     // while(!ncQueue.empty()) {
     //     if(ncQueue.back().inst && ncQueue.back().inst->seqNum > squashed_num) {
@@ -302,12 +335,13 @@ NCQUnit::squash(const InstSeqNum &squashed_num) {
     //     }
     // }
         for( ;!ncQueue.empty() && temp != ncQueue.begin(); temp--) {
-            NCQEntry ncq = *temp;
+            NCQEntry &ncq = *temp;
             if(ncq.inst && ncq.inst->seqNum > squashed_num) {
+                DPRINTF(NCQ, "Squashing NCQ entry for seqNum = %u\n", ncq.inst->seqNum);
                 ncq.inst->setSquashed();
                 ncq.inst->ncqIdx = -1;
                 ncq.clear();
-                ncQueue.pop_back();
+                ncQueue.pop_i(temp.idx());
             }
         }
     }
