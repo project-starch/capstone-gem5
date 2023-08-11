@@ -52,16 +52,12 @@ create_store_node(RequestorID requestor_id, const NodeID& node_id,
 
 PacketPtr
 NodeCommand::createStoreNode(const NodeID& node_id, const Node& node) {
-    if(inst)
-        return create_store_node(inst->requestorId(), node_id, node);
-    return create_store_node(cpu->dataRequestorId(), node_id, node);
+    return create_store_node(inst->requestorId(), node_id, node);
 }
 
 PacketPtr
 NodeCommand::createLoadNode(const NodeID& node_id) {
-    if(inst)
-        return create_load_node(inst->requestorId(), node_id);
-    return create_load_node(cpu->dataRequestorId(), node_id);
+    return create_load_node(inst->requestorId(), node_id);
 }
 
 PacketPtr
@@ -337,12 +333,10 @@ NodeRcUpdate::handleResp(PacketPtr pkt) {
         case NCRcUpdate_LOAD:
             savedNode = pkt->getRaw<Node>();
             savedNode.counter += delta;
+            //do I need to make the counter check against 1 here?
             if(savedNode.counter == 0 && savedNode.state == 0) {
                 // add node to free list
-                if(inst)
-                    inst->getNodeController().freeNode(savedNode, nodeId);
-                else
-                    cpu->nodeController.freeNode(savedNode, nodeId);
+                inst->getNodeController().freeNode(savedNode, nodeId);
             }
 
             // note that we do not need to do anything 
@@ -384,12 +378,8 @@ NodeRcUpdate::transition() {
 
 void
 NodeRcUpdate::dump() {
-    if(inst)
-        DPRINTF(NodeCmd, "Inst sn = %u, command = %u, status = %u\n",
-                inst->seqNum, getType(), status);
-    else
-        DPRINTF(NodeCmd, "Inst sn = %u, command = %u, status = %u\n",
-                seqNum, getType(), status);
+    DPRINTF(NodeCmd, "Inst sn = %u, command = %u, status = %u\n",
+            inst->seqNum, getType(), status);
 }
 
 /** 

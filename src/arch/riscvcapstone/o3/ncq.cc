@@ -50,12 +50,6 @@ NCQ::pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd) {
     return threads[inst->threadNumber].pushCommand(inst, cmd);
 }
 
-Fault
-NCQ::pushCommand(NodeCommandPtr cmd) {
-    DPRINTF(NCQ, "Commit: Push command to NCQ\n");
-    return threads[0].pushCommand(cmd);
-}
-
 bool
 NCQ::isFull(ThreadID thread_id) {
     assert(thread_id >= 0 && thread_id < threadNum);

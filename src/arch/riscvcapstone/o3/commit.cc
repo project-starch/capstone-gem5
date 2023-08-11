@@ -1225,23 +1225,25 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     //     }
     // }
     //very, very hacked together
-    if(head_inst->staticInst->opClass() != No_OpClass && head_inst->staticInst->getName() != "capperm" &&
-        head_inst->staticInst->getName() != "captype" && head_inst->staticInst->getName() != "capnode" &&
-        head_inst->staticInst->getName() != "capbound" && head_inst->staticInst->getName() != "stc" &&
-        head_inst->staticInst->getName() != "std" && head_inst->staticInst->getName() != "stb" &&
-        head_inst->staticInst->getName() != "sth" && head_inst->staticInst->getName() != "stw" &&
-        head_inst->staticInst->getName() != "capcreate" && head_inst->staticInst->getName() != "capprint" &&
+    //seriously, there has to be a better way to do this.
+    //how would split change RC? need to check the spec
+    std::string mnemonic = head_inst->staticInst->getName();
+    if(head_inst->staticInst->opClass() != No_OpClass && mnemonic != "capperm" &&
+        mnemonic != "captype" && mnemonic != "capnode" &&
+        mnemonic != "capbound" && mnemonic != "stc" &&
+        mnemonic != "std" && mnemonic != "stb" &&
+        mnemonic != "sth" && mnemonic != "stw" &&
+        mnemonic != "capcreate" && mnemonic != "capprint" &&
+        mnemonic != "scc" && mnemonic != "delin" &&
+        mnemonic != "init" && mnemonic != "tighten" &&
+        mnemonic != "shrink" &&
         head_inst->numDestRegs() > 0) {
+
         if(iewStage->ncQueue.isFull(tid)) {
             DPRINTF(Commit, "[tid:%i] NCQ has become full.\n", tid);
-            //block(tid);
-            //send signals to previous stages to block
-            // toIEW->iewBlock[tid] = true;
             return false;
-            // } else if(toIEW->iewBlock[tid]) {
-            // toIEW->iewBlock[tid] = false;
-            // toIEW->iewUnblock[tid] = true;
         }
+
         CPU* cpu = dynamic_cast<o3::CPU *>(head_inst->getCpuPtr());
         PhysRegIdPtr prev_reg = head_inst->prevDestIdx(0); //FIXME: this may be 0, may not be 0
         if(!(prev_reg->classValue() == InvalidRegClass || prev_reg->classValue() == MiscRegClass)) {
@@ -1250,10 +1252,7 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
                 tagged_reg.setTag(false);
                 NodeID node_id = tagged_reg.getRegVal().capVal().nodeId();
                 NodeCommandPtr cmd;
-                // cmd = new NodeRcUpdate(node_id, -1);
-                // cmd->setCPU(cpu);
-                // cmd->setSeqNum(head_inst->seqNum);
-                cpu->pushNodeCommand(new NodeRcUpdate(cpu, head_inst->seqNum, node_id, -1));
+                cpu->pushNodeCommand(head_inst, new NodeRcUpdate(head_inst, node_id, -1));
                 cpu->setTaggedReg(prev_reg, tagged_reg);
                 DPRINTF(Commit, "Issued RcUpdate for nodeId = %u\n", node_id);
             }
