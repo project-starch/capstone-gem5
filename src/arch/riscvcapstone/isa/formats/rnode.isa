@@ -135,9 +135,9 @@ def template RNodeMemExecute {{
         %(op_decl)s;
         %(op_rd)s;
 
-        %(ea_code)s;
-
         %(check_code)s;
+
+        %(ea_code)s;
 
         initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
 
@@ -209,8 +209,8 @@ def template RNodeStoreExecute {{
         %(op_decl)s;
         %(op_rd)s;
 
-        %(ea_code)s;
         %(check_code)s;
+        %(ea_code)s;
 
         return NoFault;
     }

@@ -35,13 +35,15 @@ struct CompressedCapBound {
     uint32_t toRaw() const;
 };
 
-
 enum class CapPerm {
     NA = 0, // no access
-    RO = 1,
-    RX = 2,
-    RW = 3,
-    RWX = 4
+    XO = 1,
+    WO = 2,
+    WX = 3,
+    RO = 4,
+    RX = 5,
+    RW = 6,
+    RWX = 7
 };
 
 enum class CapType {
@@ -50,7 +52,8 @@ enum class CapType {
     REV = 2,
     UNINIT = 3,
     SEALED = 4,
-    SEALEDRET = 5
+    SEALEDRET = 5,
+    EXIT = 6
 };
 
 // TODO: refactoring needed
@@ -62,12 +65,15 @@ enum class CapType {
  * */
 class CompressedCap {
     private:
+        // bool valid: 1;
         uint64_t _cursor;
         //CompressedCapBound compressedBound;
         uint32_t _bound: 27;
         uint8_t _perm: 3;
         uint8_t _type: 3;
         NodeID _node_id: 31;
+        // uint8_t async: 2;
+        // uint8_t reg: 5;
 
     //CompressedCap& setBound(const AddrRange& addr_range) {
         //this->setBound(addr_range.start(), addr_range.end());
@@ -124,6 +130,18 @@ class CompressedCap {
         CompressedCap& setNodeId(NodeID node_id) {
             _node_id = node_id;
             return *this;
+        }
+
+        bool hasReadPerm() {
+            return (_perm >> 2) & 1;
+        }
+
+        bool hasWritePerm() {
+            return (_perm >> 1) & 1;
+        }
+
+        bool hasExecPerm() {
+            return _perm & 1;
         }
 
         operator uint128_t() const {
@@ -212,6 +230,17 @@ class UncompressedCap {
             return _node_id;
         }
 
+        bool hasReadPerm() {
+            return (_perm >> 2) & 1;
+        }
+
+        bool hasWritePerm() {
+            return (_perm >> 1) & 1;
+        }
+
+        bool hasExecPerm() {
+            return _perm & 1;
+        }
 
         operator uint256_t() const {
             uint256_t v;
@@ -244,6 +273,24 @@ capInBound(const Cap& cap) {
 inline bool
 capInBound(const Cap& cap, uint64_t addr) {
     return addr >= cap.start() && addr < cap.end();
+}
+
+inline bool
+capInBoundForMemAcc(const Cap& cap, uint64_t addr, uint64_t size) {
+    switch(cap.type()) {
+        case CapType::LIN:
+        case CapType::NONLIN:
+        case CapType::UNINIT:
+                if(addr < cap.start() || addr > cap.end() - size)
+                    return false;
+                return true;
+        case CapType::SEALEDRET:
+        case CapType::EXIT:
+                if(addr < cap.start() + 3*sizeof(Cap) || addr > cap.start() + 33*sizeof(Cap) - size)
+                    return false;
+                return true;
+        default: return false;
+    }
 }
 
 }

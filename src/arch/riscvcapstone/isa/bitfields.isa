@@ -123,3 +123,6 @@ def bitfield CIMM1 <12>;
 
 // Pseudo instructions
 def bitfield M5FUNC <31:25>;
+
+// CI Type
+def bitfield CIIMM5 <24:20>;

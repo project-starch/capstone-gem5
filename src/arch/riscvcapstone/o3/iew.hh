@@ -514,6 +514,8 @@ class IEW
     }
     
     const Cap& getPCCap(ThreadID threadID) const {
+      assert(threadID < numThreads);
+
       return pcCaps[threadID];
     }
 };
