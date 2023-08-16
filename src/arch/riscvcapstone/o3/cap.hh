@@ -56,6 +56,21 @@ enum class CapType {
     EXIT = 6
 };
 
+inline bool operator<=(CapPerm lhs, CapPerm rhs) {
+    uint8_t lhs_i = static_cast<uint8_t>(lhs);
+    uint8_t rhs_i = static_cast<uint8_t>(rhs);
+
+    while(lhs_i && rhs_i) {
+        if(!(rhs_i & 1) && (lhs_i & 1))
+            return false;
+
+        lhs_i >>= 1;
+        rhs_i >>= 1;
+    }
+
+    return true;
+}
+
 // TODO: refactoring needed
 
 /**
