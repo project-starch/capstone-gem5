@@ -185,15 +185,12 @@ using ConstTagRef = std::vector<bool>::const_reference;
 struct RegVal {
     using Cap = gem5::RiscvcapstoneISA::o3::Cap;
     union {
-        Cap cap;
+        uint128_t cap;
         uint64_t intv;
     } val;
     RegVal() { }
     RegVal(uint64_t v) {
         val.intv = v;
-    }
-    RegVal(const Cap& cap) {
-        val.cap = cap;
     }
 #ifdef CAPSTONE_USE_UNCOMPRESSED
     RegVal(uint256_t v)
@@ -213,12 +210,17 @@ struct RegVal {
         return val.intv == other.val.intv;
     }
 
-    Cap& capVal() {
+    uint128_t& rawCapVal() {
         return val.cap;
     }
 
-    const Cap& capVal() const {
+    const uint128_t& rawCapVal() const {
         return val.cap;
+    }
+
+    Cap capVal() {
+        Cap* cap = new Cap(val.cap);
+        return *cap;
     }
 
     uint64_t& intVal() {
@@ -228,7 +230,6 @@ struct RegVal {
     const uint64_t& intVal() const {
         return val.intv;
     }
-
 
     operator uint64_t&() {
         return val.intv;

@@ -423,15 +423,16 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        if(!(Rs1_trv.getRegVal().capVal().type() != CapType::UNINIT &&
-                                Rs1_trv.getRegVal().capVal().type() != CapType::SEALED)) {
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+
+                        if(!(rs1_cap.type() != CapType::UNINIT && rs1_cap.type() != CapType::SEALED)) {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
                         }
 
-                        RegVal& reg_val = Rs1_trv.getRegVal();
-                        uint64_t cursor = reg_val.capVal().cursor();
+                        uint64_t cursor = rs1_cap.cursor();
 
-                        reg_val.capVal().setCursor(cursor + Rs2_trv.getRegVal().intVal());
+                        rs1_cap.setCursor(cursor + Rs2_trv.getRegVal().intVal());
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
 
                         Rd_trv = Rs1_trv;
 
@@ -446,12 +447,14 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        if(!(Rs1_trv.getRegVal().capVal().type() != CapType::UNINIT &&
-                                Rs1_trv.getRegVal().capVal().type() != CapType::SEALED)) {
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+
+                        if(!(rs1_cap.type() != CapType::UNINIT && rs1_cap.type() != CapType::SEALED)) {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
                         }
 
-                        Rs1_trv.getRegVal().capVal().setCursor(Rs2_trv.getRegVal().intVal());
+                        rs1_cap.setCursor(Rs2_trv.getRegVal().intVal());
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
 
                         Rd_trv = Rs1_trv;
 
@@ -465,7 +468,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap& rd_cap = Rd_trv.getRegVal().capVal();
+                        Cap rd_cap = Rd_trv.getRegVal().capVal();
 
                         if(!(rd_cap.type() == CapType::LIN || rd_cap.type() == CapType::NONLIN ||
                             rd_cap.type() == CapType::UNINIT)) {
@@ -484,6 +487,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         //maybe don't update the cursor if it's already within bounds?
                         rd_cap.setBound(rs1_v, rs2_v);
+                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv;
                     }});
                     0x3: delin ({{
@@ -493,13 +497,14 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap& rd_cap = Rd_trv.getRegVal().capVal();
+                        Cap rd_cap = Rd_trv.getRegVal().capVal();
 
                         if(rd_cap.type() != CapType::LIN) {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
                         }
 
                         rd_cap.setType(CapType::NONLIN);
+                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv;
                     }});
                     0x9: init ({{
@@ -509,7 +514,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() != CapType::UNINIT) {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
@@ -522,6 +527,7 @@ decode QUADRANT default Unknown::unknown() {
                         rs1_cap.setType(CapType::LIN);
 
                         rs1_cap.setCursor(Rs2_trv.getRegVal().intVal());
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rd_trv = Rs1_trv;
 
                         Rs1_trv.setTag(false);
@@ -534,7 +540,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
                         if(rs1_cap.type() != CapType::LIN) {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
                         }
@@ -549,6 +555,8 @@ decode QUADRANT default Unknown::unknown() {
                         }
 
                         rs1_cap.setType(CapType::SEALED);
+                        rs1_cap.setAsync(CapAsync::SYNC);
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         //todo: set async to 0
                         Rd_trv = Rs1_trv;
 
@@ -573,7 +581,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         Rd_trv = Rs1_trv;
 
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(Rs1_trv.getTag()) {
                             if(rs1_cap.type() == CapType::NONLIN) {
@@ -592,7 +600,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         //Rs1 should be valid (query check)
                         if(!(rs1_cap.type() == CapType::LIN ||
@@ -625,10 +633,13 @@ decode QUADRANT default Unknown::unknown() {
                             return fault;
 
                         Rd_trv = Rs1_trv;
-                        Rd_trv.getRegVal().capVal().setBound(split_addr, end);
-                        Rd_trv.getRegVal().capVal().setNodeId(to_allocate);
+                        Cap rd_cap = Rd_trv.getRegVal().capVal();
+                        rd_cap.setBound(split_addr, end);
+                        rd_cap.setNodeId(to_allocate);
+                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
 
                         rs1_cap.setBound(start, split_addr);
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rs1_trv = Rs1_trv;
                     }});
                     0xb: drop ({{
@@ -703,7 +714,7 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() != CapType::REV) {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
@@ -721,6 +732,8 @@ decode QUADRANT default Unknown::unknown() {
 
                         rs1_cap.setType(CapType::UNINIT);
                         rs1_cap.setCursor(base);
+
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         
                         Rs1_trv = Rs1_trv;
                     }});
@@ -733,7 +746,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(!(rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN ||
                                 rs1_cap.type() == CapType::UNINIT)) {
@@ -746,14 +759,14 @@ decode QUADRANT default Unknown::unknown() {
                         if(temp > CapPerm::RWX)
                             temp = CapPerm::NA;
 
-                        //overload comparison operator to check for the partial order instead
-                        if(!(temp <= Rs1_trv.getRegVal().capVal().perm())) {
+                        if(!decreasing_perms(temp, Rs1_trv.getRegVal().capVal().perm())) {
                             return std::make_shared<IllegalInstFault>(
                                     "Illegal operand value (29)", machInst);
                         }
                         rs1_cap.setPerm(temp);
 
                         Rd_trv = Rs1_trv;
+                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
 
                         Rs1_trv.setTag(false);
                         Rs1_trv = Rs1_trv;
@@ -772,7 +785,7 @@ decode QUADRANT default Unknown::unknown() {
                         //todo: unexpected cap type check
 
                         uint64_t res;
-                        gem5::RiscvcapstoneISA::o3::Cap& cap_val = Rs1_trv.getRegVal().capVal();
+                        gem5::RiscvcapstoneISA::o3::Cap cap_val = Rs1_trv.getRegVal().capVal();
 
                         switch(CIIMM5) {
                             case 0: break; //validity field - query then result?
@@ -823,7 +836,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT ||
                                 rs1_cap.type() == CapType::SEALED ||
@@ -867,7 +880,7 @@ decode QUADRANT default Unknown::unknown() {
                         }
 
                         ConstTaggedRegVal temp_regval;
-                        gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_rv.capVal();
+                        uint128_t& cap = Mem_rv.rawCapVal();
 
                         getMemLE(pkt, cap, traceData);
 
@@ -901,7 +914,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
                         //signed imm12?
                         NPC = rs1_cap.cursor() + IMM12;
 
@@ -909,8 +922,7 @@ decode QUADRANT default Unknown::unknown() {
                         assert(dyn_inst);
 
                         //write pc to rd
-                        //this gives a reference but I need a copy
-                        Rd_trv.getRegVal().capVal() = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
 
                         dyn_inst->cpu->getIEWObject().setPCCap(rs1_cap,
                                                             dyn_inst->threadNumber);
@@ -937,7 +949,7 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        Cap& rd_cap = Rd_trv.getRegVal().capVal();
+                        Cap rd_cap = Rd_trv.getRegVal().capVal();
                         rd_cap.setCursor(rd_cap.cursor() + IMM12);
 
                         dyn_inst->cpu->getIEWObject().setPCCap(rd_cap, dyn_inst->threadNumber);
@@ -950,6 +962,8 @@ decode QUADRANT default Unknown::unknown() {
                             dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                         }
                     }
+
+                    Rd_trv = Rd_trv;
                 }}, IsCondControl);
             }
             format RNodeStoreMemOp {
@@ -959,7 +973,7 @@ decode QUADRANT default Unknown::unknown() {
                                     "Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
                             return std::make_shared<IllegalInstFault>(
@@ -1005,23 +1019,18 @@ decode QUADRANT default Unknown::unknown() {
                         NodeID node_id = rs1_cap.nodeId();
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
 
-                        Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.capVal(), EA,
+                        Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.rawCapVal(), EA,
                                           memAccessFlags, nullptr);
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ //comp_code
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        //Addr offset = IMM7 << 5 | IMM5;
-                        //Addr EA = rs1_cap.cursor();
-
-                        if(Rs2_trv.getTag()) {
-                            if(Rs2_trv.getRegVal().capVal().type() != CapType::NONLIN)
-                                Rs2_trv.setTag(false);
-                            else {
-                                NodeID node_id = Rs2_trv.getRegVal().capVal().nodeId();
-                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
-                            }
+                        if(Rs2_trv.getRegVal().capVal().type() != CapType::NONLIN)
+                            Rs2_trv.setTag(false);
+                        else {
+                            NodeID node_id = Rs2_trv.getRegVal().capVal().nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                         }
 
                         if(rs1_cap.type() == CapType::UNINIT)
@@ -1029,6 +1038,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         Rs2_trv = Rs2_trv;
                         Rs1_trv = Rs1_trv;
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                     }}, IsStore);
             }
             //Capstone Test Ops
@@ -1064,42 +1074,58 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0x6: captype ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
                         assert(Rd_trv.getTag());
-                        using CapType = gem5::RiscvcapstoneISA::o3::CapType;
+                        //using CapType = gem5::RiscvcapstoneISA::o3::CapType;
                         CapType temp = static_cast<CapType>(Rs1);
-                        assert(temp >= CapType::LIN && temp <= CapType::SEALEDRET);
-                        Rd_trv.getRegVal().val.cap.setType(temp);
+                        assert(temp >= CapType::LIN && temp <= CapType::EXIT);
+                        //Rd_trv.getRegVal().val.cap.setType(temp);
+                        Cap rd_cap = Rd_trv.getRegVal().capVal();
+                        rd_cap.setType(temp);
+                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0x7: capnode ({{
                         assert(Rd_trv.getTag());
                         using namespace gem5::RiscvcapstoneISA::o3;
-                        Rd_trv.getRegVal().val.cap.setNodeId(static_cast<NodeID>(Rs1));
+                        //Rd_trv.getRegVal().val.cap.setNodeId(static_cast<NodeID>(Rs1));
+                        Cap rd_cap = Rd_trv.getRegVal().capVal();
+                        rd_cap.setNodeId(Rs1);
+                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0x8: capperm ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
                         assert(Rd_trv.getTag());
-                        using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
+                        //using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
                         CapPerm temp = static_cast<CapPerm>(Rs1);
                         assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
-                        Rd_trv.getRegVal().val.cap.setPerm(temp);
+                        //Rd_trv.getRegVal().val.cap.setPerm(temp);
+                        Cap rd_cap = Rd_trv.getRegVal().capVal();
+                        rd_cap.setPerm(temp);
+                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0x9: capbound ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
                         assert(Rd_trv.getTag());
                         //DPRINTFN("Set capability bound to (%llx, %llx)\n", Rs1, Rs2);
-                        Rd_trv.getRegVal().val.cap.setAddresses(Rs1, Rs2, Rs1);
+                        //Rd_trv.getRegVal().val.cap.setAddresses(Rs1, Rs2, Rs1);
+                        Cap rd_cap = Rd_trv.getRegVal().capVal();
+                        rd_cap.setAddresses(Rs1, Rs2, Rs1);
+                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
                     0xa: capprint ({{
-                        const RegVal& reg_val = Rs1_trv.getRegVal();
+                        //const RegVal& reg_val = Rs1_trv.getRegVal();
+                        gem5::RiscvcapstoneISA::o3::Cap rs1_cap = Rs1_trv.getRegVal().capVal();
                         DPRINTFN("Capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
                                 Rs1_trv.getTag(),
-                                reg_val.val.cap.start(), reg_val.val.cap.end(),
-                                reg_val.val.cap.cursor(),
-                                static_cast<unsigned int>(reg_val.val.cap.perm()),
-                                static_cast<unsigned int>(reg_val.val.cap.type()),
-                                reg_val.val.cap.nodeId());
+                                rs1_cap.start(), rs1_cap.end(),
+                                rs1_cap.cursor(),
+                                static_cast<unsigned int>(rs1_cap.perm()),
+                                static_cast<unsigned int>(rs1_cap.type()),
+                                rs1_cap.nodeId());
                     }}, IsSerializing, IsNonSpeculative, IsSerializeAfter);
                     0xd: printregs ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
@@ -1152,7 +1178,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT ||
                                 rs1_cap.type() == CapType::SEALED ||
@@ -1191,7 +1217,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT ||
                                 rs1_cap.type() == CapType::SEALED ||
@@ -1230,7 +1256,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT ||
                                 rs1_cap.type() == CapType::SEALED ||
@@ -1269,7 +1295,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT ||
                                 rs1_cap.type() == CapType::SEALED ||
@@ -1308,7 +1334,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT ||
                                 rs1_cap.type() == CapType::SEALED ||
@@ -1347,7 +1373,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT ||
                                 rs1_cap.type() == CapType::SEALED ||
@@ -1386,7 +1412,7 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT ||
                                 rs1_cap.type() == CapType::SEALED ||
@@ -1630,7 +1656,7 @@ decode QUADRANT default Unknown::unknown() {
                                     "Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
                             return std::make_shared<IllegalInstFault>(
@@ -1682,11 +1708,12 @@ decode QUADRANT default Unknown::unknown() {
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ //comp_code
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT)
                             rs1_cap.setCursor(rs1_cap.cursor() + sizeof(int8_t));
 
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
                 0x1: sh ({{ //check_code
@@ -1695,7 +1722,7 @@ decode QUADRANT default Unknown::unknown() {
                                     "Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
                             return std::make_shared<IllegalInstFault>(
@@ -1747,11 +1774,12 @@ decode QUADRANT default Unknown::unknown() {
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ //comp_code
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT)
                             rs1_cap.setCursor(rs1_cap.cursor() + sizeof(int16_t));
 
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
                 0x2: sw ({{ //check_code
@@ -1760,7 +1788,7 @@ decode QUADRANT default Unknown::unknown() {
                                     "Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
                             return std::make_shared<IllegalInstFault>(
@@ -1812,11 +1840,12 @@ decode QUADRANT default Unknown::unknown() {
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ // comp_code
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT)
                             rs1_cap.setCursor(rs1_cap.cursor() + sizeof(int32_t));
 
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
                 0x3: sd ({{ //check_code
@@ -1825,7 +1854,7 @@ decode QUADRANT default Unknown::unknown() {
                                     "Unexpected operand type (24)", machInst);
                         }
 
-                        Cap &rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
                             return std::make_shared<IllegalInstFault>(
@@ -1877,11 +1906,12 @@ decode QUADRANT default Unknown::unknown() {
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ // comp_code
-                        Cap& rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         if(rs1_cap.type() == CapType::UNINIT)
                             rs1_cap.setCursor(rs1_cap.cursor() + sizeof(int64_t));
 
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
             }

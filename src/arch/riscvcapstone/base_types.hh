@@ -10,7 +10,6 @@ struct uint128_t {
     uint128_t() = default;
 };
 
-
 static_assert(sizeof(uint128_t) == 16);
 static_assert(std::is_aggregate_v<uint128_t>);
 

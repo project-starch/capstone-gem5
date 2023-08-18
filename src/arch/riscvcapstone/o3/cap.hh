@@ -56,11 +56,17 @@ enum class CapType {
     EXIT = 6
 };
 
-inline bool operator<=(CapPerm lhs, CapPerm rhs) {
+enum class CapAsync {
+    SYNC = 0,
+    EXCEPT = 1,
+    INTERRUPT = 2
+};
+
+inline bool decreasing_perms(CapPerm lhs, CapPerm rhs) {
     uint8_t lhs_i = static_cast<uint8_t>(lhs);
     uint8_t rhs_i = static_cast<uint8_t>(rhs);
 
-    while(lhs_i && rhs_i) {
+    while(lhs_i || rhs_i) {
         if(!(rhs_i & 1) && (lhs_i & 1))
             return false;
 
@@ -78,17 +84,120 @@ inline bool operator<=(CapPerm lhs, CapPerm rhs) {
  * TODO: can consider defining a separate more ergonomic representation and only
  * translate into this when storing it in memory
  * */
+
+class NewCap {
+    private:
+        uint64_t _cursor;
+        uint64_t _start, _end;
+        uint8_t _perm;
+        uint8_t _type;
+        NodeID _node_id;
+        uint8_t _async;
+        uint8_t _reg;
+
+    public:
+        NewCap() = default;
+
+        NewCap(uint128_t c);
+
+        CapPerm perm() const {
+            return static_cast<CapPerm>(_perm);
+        }
+
+        CapType type() const {
+            return static_cast<CapType>(_type);
+        }
+
+        uint64_t cursor() const {
+            return _cursor;
+        }
+
+        uint64_t start() const {
+            return _start;
+        }
+
+        uint64_t end() const {
+            return _end;
+        }
+
+        NodeID nodeId() const {
+            return _node_id;
+        }
+
+        CapAsync async() const {
+            return static_cast<CapAsync>(_async);
+        }
+
+        NewCap& setBound(uint64_t start, uint64_t end) {
+            _start = start;
+            _end = end;
+            return *this;
+        }
+
+        NewCap& setCursor(uint64_t cursor) {
+            _cursor = cursor;
+            return *this;
+        }
+
+        NewCap& setAddresses(uint64_t start, uint64_t end, uint64_t cursor) {
+            _start = start;
+            _end = end;
+            _cursor = cursor;
+            return *this;
+        }
+
+        NewCap& setPerm(CapPerm perm) {
+            _perm = static_cast<uint8_t>(perm);
+            return *this;
+        }
+
+        NewCap& setType(CapType type) {
+            _type = static_cast<uint8_t>(type);
+            return *this;
+        }
+
+        NewCap& setNodeId(NodeID node_id) {
+            _node_id = node_id;
+            return *this;
+        }
+
+        NewCap& setAsync(CapAsync async) {
+            _async = static_cast<uint8_t>(async);
+            return *this;
+        }
+
+        NewCap& setReg(uint8_t reg) {
+            _reg = reg;
+            return *this;
+        }
+
+        bool hasReadPerm() {
+            return (_perm >> 2) & 1;
+        }
+
+        bool hasWritePerm() {
+            return (_perm >> 1) & 1;
+        }
+
+        bool hasExecPerm() {
+            return _perm & 1;
+        }
+
+        operator uint128_t() const;
+        
+        void reset() {
+            setAddresses(0, 0, 0);
+        }
+};
+
 class CompressedCap {
     private:
-        // bool valid: 1;
         uint64_t _cursor;
         //CompressedCapBound compressedBound;
         uint32_t _bound: 27;
         uint8_t _perm: 3;
         uint8_t _type: 3;
         NodeID _node_id: 31;
-        // uint8_t async: 2;
-        // uint8_t reg: 5;
 
     //CompressedCap& setBound(const AddrRange& addr_range) {
         //this->setBound(addr_range.start(), addr_range.end());
@@ -272,12 +381,13 @@ static_assert(sizeof(UncompressedCap) == (CAPSTONE_UNCOMPRESSED_CAP_SIZE >> 3));
 static_assert(sizeof(CompressedCap) == (CAPSTONE_COMPRESSED_CAP_SIZE >> 3));
 
 #ifdef CAPSTONE_USE_UNCOMPRESSED
-using Cap = UncompressedCap;
+// using Cap = UncompressedCap;
 const size_t CAPSTONE_CAP_SIZE = CAPSTONE_UNCOMPRESSED_CAP_SIZE;
 #else
-using Cap = CompressedCap;
+// using Cap = CompressedCap;
 const size_t CAPSTONE_CAP_SIZE = CAPSTONE_COMPRESSED_CAP_SIZE;
 #endif
+using Cap = NewCap;
 
 inline bool
 capInBound(const Cap& cap) {

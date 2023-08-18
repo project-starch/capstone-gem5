@@ -26,7 +26,7 @@ CompressedCapBound::decode(uint64_t addr) const {
     uint8_t Lcarry;
     uint8_t Lmsb;
     
-    DPRINTF(Cap, "Addr %llx, (%llx, %llx, %llx, %llx, %llx)",
+    DPRINTX(Cap, "Addr %llx, (%llx, %llx, %llx, %llx, %llx)",
         addr, bE, b, tE, t, iE);
 
     if(iE == 0) {
@@ -106,7 +106,7 @@ CompressedCapBound::end(uint64_t addr) const {
 CompressedCapBound::
 CompressedCapBound(uint64_t base, uint64_t top, uint64_t addr) {
     assert(top >= base);
-    DPRINTF(Cap, "(%llx, %llx, %llx)",
+    DPRINTX(Cap, "(%llx, %llx, %llx)",
         base, top, addr);
     
     uint64_t len = top - base;
@@ -181,6 +181,69 @@ CompressedCap::setAddresses(uint64_t start, uint64_t end, uint64_t cursor) {
     return *this;
 }
 
+NewCap::NewCap(uint128_t c) {
+    __uint128_t v;
+    memcpy(&v, &c, sizeof(c));
+    _type = (v >> 94) & ((1 << 3) - 1);
+    _node_id = (v >> 97) & ((1 << 31) - 1);
+
+    CapType type = static_cast<CapType>(_type);
+
+    if(type == CapType::LIN || type == CapType::NONLIN || type == CapType::REV || type == CapType::UNINIT) {
+        _cursor = v & ((1 << 64) - 1);
+        uint32_t bound = (v >> 64) & ((1 << 27) - 1);
+        DPRINTX(Cap, "Decode: bound = %x\n", bound);
+        CompressedCapBound cb(bound);
+        _start = cb.start(_cursor);
+        _end = cb.end(_cursor);
+        DPRINTX(Cap, "Decode: start = %x, end = %x\n", _start, _end);
+        DPRINTX(Cap, "Decode: cursor = %x\n", _cursor);
+        _perm = (v >> 91) & ((1 << 3) - 1);
+    } else {
+        _start = v & ((1 << 64) - 1);
+
+        if(type == CapType::SEALED) {
+            _async = (v >> 92) & ((1 << 2) - 1);
+        } else {
+            uint64_t cursor_offset = (v >> 64) & ((1 << 23) - 1);
+            _cursor = _start + cursor_offset;
+
+            if(type == CapType::SEALEDRET) {
+                _reg = (v >> 87) & ((1 << 5) - 1);
+                _async = (v >> 92) & ((1 << 2) - 1);
+            }
+        }
+    }
+}
+
+NewCap::operator uint128_t() const {
+    __uint128_t v = 0;
+
+    CapType type = static_cast<CapType>(_type);
+
+    if(type == CapType::LIN || type == CapType::NONLIN || type == CapType::REV || type == CapType::UNINIT) {
+        uint32_t bound = CompressedCapBound(_start, _end, _cursor).toRaw();
+        v = __uint128_t(_cursor) | (__uint128_t(bound) << 64) | (__uint128_t(_perm) << 91) | (__uint128_t(_type) << 94) | (__uint128_t(_node_id) << 97);
+        DPRINTX(Cap, "Encode: bound = %x\n", bound);
+    } else {
+        if(type == CapType::SEALED) {
+            v = __uint128_t(_start) | (__uint128_t(_async) << 92) | (__uint128_t(_type) << 94) | (__uint128_t(_node_id) << 97);
+        } else {
+            uint64_t cursor_offset = (_cursor - _start) & ((1 << 23) - 1);
+            uint8_t reg_5bits = _reg & ((1 << 5) - 1);
+
+            if (type == CapType::SEALEDRET) {
+                v = __uint128_t(_start) | (__uint128_t(cursor_offset) << 64) | (__uint128_t(reg_5bits) << 87) | (__uint128_t(_async) << 92) | (__uint128_t(_type) << 94) | (__uint128_t(_node_id) << 97);
+            } else { //CapType::EXIT
+                v = __uint128_t(_start) | (__uint128_t(cursor_offset) << 64) | (__uint128_t(reg_5bits) << 94) | (__uint128_t(_node_id) << 97);
+            }
+        }
+    }
+
+    uint128_t* c = new uint128_t;
+    memcpy(c, &v, sizeof(v));
+    return *c;
+}
 }
 }
 }

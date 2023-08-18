@@ -256,6 +256,10 @@ class InstRecord
     {
         return;
     }
+    void setData(uint128_t& c)
+    {
+        return;
+    }
     #endif
 
     void
