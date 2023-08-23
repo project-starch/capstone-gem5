@@ -1295,7 +1295,10 @@ IEW::executeInsts()
         if(fault == NoFault) {
             DPRINTF(IEW, "Execute instruction %i -> %s\n", inst->seqNum, inst->staticInst->getName());
             fault = inst->execute();
-            inst->setExecuteCalled();
+            //only one case will not mark executecalled -> when it's a rescheduled load
+            if(!inst->isLoad() || (inst->isLoad() && inst->loadEffAddrValid()) || inst->fault != NoFault)
+                inst->setExecuteCalled();
+
             if(inst->isMemRef()) {
                 DPRINTF(IEW, "Memref fault = %d\n", fault == NoFault);
             } else {

@@ -92,7 +92,8 @@ NCQUnit::cleanupCommands(){
     DPRINTF(NCQ, "Cleaning up commands\n");
     while(!ncQueue.empty()) {
         auto& front = ncQueue.front();
-        DPRINTF(NCQ, "cleanupCommands: inst %u, canWB %u, completed() %u, commands size() %u", front.inst->seqNum, front.canWB, front.completed(), front.commands.size());
+        DPRINTF(NCQ, "cleanupCommands: inst %u, canWB %u, completedCommands %u, commands size() %u\n",
+                front.inst->seqNum, front.canWB, front.completedCommands, front.commands.size());
         if(front.canWB && front.completed()) {
             DPRINTF(NCQ, "Removing NCQEntry for instruction %u\n", front.inst->seqNum);
             front.inst->ncqIdx = -1;

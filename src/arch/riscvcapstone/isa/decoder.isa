@@ -736,6 +736,7 @@ decode QUADRANT default Unknown::unknown() {
                         assert(Rs1_trv.getTag());
 
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        if(dyn_inst->nodeQueryN == 0)
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
@@ -757,26 +758,26 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>(
                                     "Rs1 doesn't have the necessary perms", machInst);
                         
-                        EA = EA & ~(sizeof(RegVal) - 1);
-                        Fault fault = dyn_inst->initiateGetTag(EA);
+                        //EA = EA & ~(sizeof(RegVal) - 1);
+                        //Fault fault = dyn_inst->initiateGetTag(EA);
                     }}, {{
                         ConstTaggedRegVal temp_regval;
-                        gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_rv.capVal();
+                        //gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_ub.capVal();
 
-                        getMemLE(pkt, cap, traceData);
+                        getMemLE(pkt, Mem_ub, traceData);
 
-                        Addr EA = Rs1_trv.getRegVal().capVal().cursor();
-                        EA = EA & ~(sizeof(RegVal) - 1);
+                        //Addr EA = Rs1_trv.getRegVal().capVal().cursor();
+                        //EA = EA & ~(sizeof(RegVal) - 1);
 
-                        temp_regval.getRegVal() = (uint8_t)Mem_rv;
+                        temp_regval.getRegVal() = (uint8_t)Mem_ub;
                         temp_regval.setTag(false);
 
-                        bool tag_res = dyn_inst->getTagQueryRes(0);
+                        /*bool tag_res = dyn_inst->getTagQueryRes(0);
                         if(tag_res) {
                             dyn_inst->initiateSetTag(EA, false);
                             NodeID nodeId =  Mem_rv.capVal().nodeId();
                             dyn_inst->initiateNodeCommand(new NodeRcUpdate(nodeId, -1));
-                        }
+                        }*/
 
                         Rd_trv = temp_regval;
                         //Rd_trv.setTag(false);
@@ -785,6 +786,7 @@ decode QUADRANT default Unknown::unknown() {
                         assert(Rs1_trv.getTag());
 
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        if(dyn_inst->nodeQueryN == 0)
                         dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{
                         Addr EA = Rs1_trv.getRegVal().capVal().cursor();
@@ -807,7 +809,8 @@ decode QUADRANT default Unknown::unknown() {
                                     "Rs1 doesn't have the necessary perms", machInst);
 
                         EA = EA & ~(sizeof(RegVal) - 1);
-                        Fault fault = dyn_inst->initiateGetTag(EA);
+                        //if(dyn_inst->tagQueryN == 0)
+                        //    Fault fault = dyn_inst->initiateGetTag(EA);
                     }}, {{
                         ConstTaggedRegVal temp_regval;
                         gem5::RiscvcapstoneISA::o3::Cap& cap = Mem_rv.capVal();
@@ -820,12 +823,12 @@ decode QUADRANT default Unknown::unknown() {
                         temp_regval.getRegVal() = (uint64_t)Mem_rv;
                         temp_regval.setTag(false);
 
-                        bool tag_res = dyn_inst->getTagQueryRes(0);
+                        /*bool tag_res = dyn_inst->getTagQueryRes(0);
                         if(tag_res) {
                             dyn_inst->initiateSetTag(EA, false);
                             NodeID nodeId =  Mem_rv.capVal().nodeId();
                             dyn_inst->initiateNodeCommand(new NodeRcUpdate(nodeId, -1));
-                        }
+                        }*/
 
                         Rd_trv = temp_regval;
                         //Rd_trv.setTag(false);

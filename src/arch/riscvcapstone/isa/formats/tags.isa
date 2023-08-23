@@ -110,6 +110,8 @@ def template TagAccessExecute {{
 
         %(code)s;
 
+        dyn_inst->setLoadEffAddrs(EA, 1);
+
         return NoFault;
     }
 }};

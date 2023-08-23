@@ -473,7 +473,7 @@ LSQUnit::checkSnoop(PacketPtr pkt)
     LSQRequest *request = iter->request();
 
     // Check that this snoop didn't just invalidate our lock flag
-    if (ld_inst->effAddrValid() &&
+    if (ld_inst->loadEffAddrValid() &&
         request->isCacheBlockHit(invalidate_addr, cacheBlockMask)
         && ld_inst->memReqFlags & Request::LLSC) {
         ld_inst->tcBase()->getIsaPtr()->handleLockedSnoopHit(ld_inst.get());
@@ -485,7 +485,7 @@ LSQUnit::checkSnoop(PacketPtr pkt)
         ld_inst = iter->instruction();
         assert(ld_inst);
         request = iter->request();
-        if (!ld_inst->effAddrValid() || ld_inst->strictlyOrdered())
+        if (!ld_inst->loadEffAddrValid() || ld_inst->strictlyOrdered())
             continue;
 
         DPRINTF(LSQUnit, "-- inst [sn:%lli] to pktAddr:%#x\n",
@@ -1435,7 +1435,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
         // rescheduled eventually
         iewStage->rescheduleMemInst(load_inst);
         load_inst->clearIssued();
-        load_inst->effAddrValid(false);
+        load_inst->loadEffAddrValid(false);
         ++stats.rescheduledLoads;
         DPRINTF(LSQUnit, "Strictly ordered load [sn:%lli] PC %s\n",
                 load_inst->seqNum, load_inst->pcState());
@@ -1659,7 +1659,8 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // rescheduled eventually
                 iewStage->rescheduleMemInst(load_inst);
                 load_inst->clearIssued();
-                load_inst->effAddrValid(false);
+                load_inst->loadEffAddrValid(false);
+                load_inst->memReadN--;
                 ++stats.rescheduledLoads;
 
                 // Do not generate a writeback event as this instruction is not
