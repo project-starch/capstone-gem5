@@ -319,6 +319,10 @@ class CPU : public BaseCPU
      */
     RegVal readMiscReg(int misc_reg, ThreadID tid);
 
+    ConstTaggedRegVal readTaggedMiscReg(int misc_reg, ThreadID tid);
+
+    void setTaggedMiscReg(int misc_reg, ConstTaggedRegVal val, ThreadID tid);
+
     /** Sets a miscellaneous register. */
     void setMiscRegNoEffect(int misc_reg, RegVal val, ThreadID tid);
 

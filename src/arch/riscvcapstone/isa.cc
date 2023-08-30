@@ -203,8 +203,10 @@ ISA::ISA(const Params &p) : BaseISA(p)
     _regClasses.emplace_back(1, debug::IntRegs); // Not applicable to RISCV
     _regClasses.emplace_back(0, debug::IntRegs); // Not applicable to RISCV
     _regClasses.emplace_back(NUM_MISCREGS, debug::MiscRegs);
+    _regClasses.emplace_back(NUM_CAPMISCREGS, debug::MiscRegs); //maybe could add a separate debugging class
 
     miscRegFile.resize(NUM_MISCREGS);
+    capMiscRegFile.resize(NUM_CAPMISCREGS);
     clear();
 }
 
@@ -246,6 +248,8 @@ void ISA::clear()
     miscRegFile[MISCREG_TSELECT] = 1;
     // NMI is always enabled.
     miscRegFile[MISCREG_NMIE] = 1;
+
+    //probably need to set cinit here
 }
 
 bool
@@ -357,6 +361,30 @@ ISA::readMiscReg(int misc_reg)
         }
         return readMiscRegNoEffect(misc_reg);
     }
+}
+
+ConstTaggedRegVal
+ISA::readTaggedMiscReg(int misc_reg)
+{
+    if (misc_reg > NUM_CAPMISCREGS || misc_reg < 0) {
+        // Illegal CCSR
+        panic("Illegal CCSR index %#x\n", misc_reg);
+    }
+    // DPRINTF(RiscvMisc, "Reading MiscReg %s (%d).\n",
+            // capMiscRegNames[misc_reg], misc_reg);
+    return capMiscRegFile[misc_reg];
+}
+
+void
+ISA::setTaggedMiscReg(int misc_reg, ConstTaggedRegVal val)
+{
+    if (misc_reg > NUM_MISCREGS || misc_reg < 0) {
+        // Illegal CSR
+        panic("Illegal CSR index %#x\n", misc_reg);
+    }
+    // DPRINTF(RiscvMisc, "Setting MiscReg %s (%d).\n",
+            // MiscRegNames[misc_reg], misc_reg, val);
+    capMiscRegFile[misc_reg] = val;
 }
 
 void

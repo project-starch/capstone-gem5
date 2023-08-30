@@ -31,11 +31,11 @@
 //
 // Calls operation instructions : call, return, retseal
 //
-def format Calls(code, call_type, *opt_flags) {{
+def format Calls(code, comp_code, *opt_flags) {{
     regs = [] # FIXME: this is not actually used
     iop = InstObjParams(name, Name, 'CallsClass',
-           {'code': code, 'regs': ','.join(regs), 
-           'call_type': call_type },
+           {'code': code, 'comp_code': comp_code,
+           'regs': ','.join(regs)},
             opt_flags)
     header_output = CallsDeclare.subst(iop)
     decoder_output = CallsConstructor.subst(iop)
@@ -49,28 +49,9 @@ def template CallsDeclare {{
      * Static instruction class for "%(mnemonic)s".
      */
     class %(class_name)s : public %(base_class)s
-    {
-        static constexpr uint64_t CONTEXT_SIZE = NumIntArchRegs * sizeof(RegVal); // in bytes
-        static constexpr uint64_t REQUEST_N = CONTEXT_SIZE / MAX_REQUEST_SIZE;
-
-        static constexpr int RET_REG_IDX = 1 - 1;
-        static constexpr int ARG_REG_IDX = 10 - 1;
-    
+    {  
         private:
-            RegId srcRegIdxArr[NumIntArchRegs]; RegId destRegIdxArr[NumIntArchRegs];
-
-            enum CallType {
-                CALL_TYPE_CALL,
-                CALL_TYPE_RETURN,
-                CALL_TYPE_RETSEAL
-            };
-
-            const CallType callType;
-
-            struct ExecData {
-                gem5::RiscvcapstoneISA::o3::Cap rd_cap;
-                gem5::ConstTaggedRegVal rs;
-            };
+        %(reg_idx_arr_decl)s;
 
         public:
         /// Constructor.
@@ -83,8 +64,95 @@ def template CallsDeclare {{
 
 def template CallsConstructor {{
     %(class_name)s::%(class_name)s(ExtMachInst machInst):
-        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s),
-        callType(%(call_type)s)
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+
+        flags[IsInteger] = true;
+        flags[IsLoad] = true;
+        flags[IsStore] = true;
+        flags[IsCall] = true;
+        flags[IsIndirectControl] = true;
+        flags[IsUncondControl] = true;
+        flags[IsNonSpeculative] = true;
+        flags[IsSerializeAfter] = true;
+        hasNodeOp = true;
+    }
+}};
+
+def template CallsExecute {{
+    Fault
+    %(class_name)s::execute(
+        ExecContext *xc, Trace::InstRecord *traceData) const
+    {
+        %(op_decl)s;
+        %(op_rd)s;
+
+        using namespace gem5::RiscvcapstoneISA::o3;
+
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
+
+        %(code)s;
+
+        %(op_wb)s;
+    }
+}};
+
+def template CallsCompleteAcc {{
+    Fault
+    %(class_name)s::completeAcc(PacketPtr pkt, ExecContext* xc, Trace::InstRecord* traceData) const {
+        %(op_decl)s;
+        %(op_rd)s;
+
+        using namespace gem5::RiscvcapstoneISA::o3;
+
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
+        assert(dyn_inst->memReadN == 3);
+        
+        %(comp_code)s;
+
+        %(op_wb)s;
+    }
+
+}};
+
+def format Return(code, comp_code, *opt_flags) {{
+    regs = [] # FIXME: this is not actually used
+    iop = InstObjParams(name, Name, 'CallsClass',
+           {'code': code, 'comp_code': comp_code,
+           'regs': ','.join(regs)},
+            opt_flags)
+    header_output = ReturnDeclare.subst(iop)
+    decoder_output = ReturnConstructor.subst(iop)
+    decode_block = BasicDecode.subst(iop)
+    exec_output = ReturnExecute.subst(iop) + \
+        ReturnCompleteAcc.subst(iop)
+}};
+
+def template ReturnDeclare {{
+    /**
+     * Static instruction class for "%(mnemonic)s".
+     */
+    class %(class_name)s : public %(base_class)s
+    {  
+        private:
+        RegId srcRegIdxArr[NumIntArchRegs]; RegId destRegIdxArr[NumIntArchRegs];
+
+        public:
+        /// Constructor.
+        %(class_name)s(ExtMachInst machInst);
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        Fault completeAcc(PacketPtr, ExecContext*, Trace::InstRecord*) const override;
+    };
+}};
+
+def template ReturnConstructor {{
+    %(class_name)s::%(class_name)s(ExtMachInst machInst):
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s)
     {
         setRegIdxArrays(
             reinterpret_cast<RegIdArrayPtr>(
@@ -98,211 +166,52 @@ def template CallsConstructor {{
             setSrcRegIdx(_numSrcRegs++, RegId(IntRegClass, i));
             setDestRegIdx(_numDestRegs++, RegId(IntRegClass, i));
         }
-        
+
         flags[IsInteger] = true;
         flags[IsLoad] = true;
         flags[IsStore] = true;
         flags[IsCall] = true;
         flags[IsIndirectControl] = true;
         flags[IsUncondControl] = true;
+        flags[IsNonSpeculative] = true;
+        flags[IsSerializeAfter] = true;
         hasNodeOp = true;
     }
 }};
 
-def template CallsExecute {{
+def template ReturnExecute {{
     Fault
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
+        %(op_decl)s;
+        %(op_rd)s;
+
         using namespace gem5::RiscvcapstoneISA::o3;
 
-        DynInst* inst = dynamic_cast<DynInst*>(xc);
-        assert(inst);
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
 
-        ConstTaggedRegVal Rs1, Rd;
+        %(code)s;
 
-        int Rs1_src_idx = RS1 - 1;
-        int Rd_src_idx = RD - 1;
-
-        // Rs1: argument to be passed
-        if (Rs1_src_idx >= 0)
-        {
-            Rs1 = inst->getTaggedRegOperand(this, Rs1_src_idx);
-        }
-
-        // Rd: target sealed capability for the call
-        if (Rd_src_idx >= 0)
-        {
-            Rd = inst->getTaggedRegOperand(this, Rd_src_idx);
-        }
-
-        if(!Rd.getTag()) {
-            return std::make_shared<IllegalInstFault>("Operand needs to be a capability", machInst);
-        }
-        
-        const Cap& Rd_cap = Rd.getRegVal().capVal();
-        
-        static_assert(sizeof(inst->executionData) >= sizeof(ExecData));
-        *((ExecData*)inst->executionData) = ExecData {
-            .rd_cap = Rd_cap,
-            .rs = Rs1
-        };
-        
-        if(Rd_cap.type() != CapType::SEALED &&
-            Rd_cap.type() != CapType::SEALEDRET) {
-            return std::make_shared<IllegalInstFault>("Operand can only be a sealed capability", machInst);
-        }
-        
-        if(Rd_cap.perm() == CapPerm::NA) {
-            return std::make_shared<IllegalInstFault>("Operation not permitted with the given capability", machInst);
-        }
-        
-        uint64_t base_addr = Rd_cap.start();
-        uint64_t end_addr = Rd_cap.end();
-        assert(end_addr >= base_addr);
-        uint64_t len = end_addr - base_addr;
-
-        inst->setLoadEffAddrs(base_addr, CONTEXT_SIZE);
-        inst->setEffAddrs(base_addr, CONTEXT_SIZE);
-        
-        if(len < CONTEXT_SIZE) {
-            return std::make_shared<IllegalInstFault>("Memory region too small for a domain context", machInst);
-        }
-
-        Fault fault = inst->initiateNodeCommand(new NodeQuery(Rd_cap.nodeId()));
-        if(fault != NoFault) {
-            return fault;
-        }
-        
-        DPRINTFN("Call checks passed\n");
-        
-        uint64_t cur_addr = base_addr;
-        
-        // uint8_t dummy[MAX_REQUEST_SIZE];
-        RegVal dummy;
-        // for(int i = 0; i < REQUEST_N; i ++, cur_addr += MAX_REQUEST_SIZE) {
-        //     initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
-        // }
-        for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
-            initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
-        }
-        
-        for(cur_addr = base_addr; cur_addr < base_addr + CONTEXT_SIZE; cur_addr += sizeof(RegVal)) {
-            inst->initiateGetTag(cur_addr);
-        }
-        
-
-        RiscvcapstoneISAInst::PCState pc_state;
-        set(pc_state, xc->pcState());
-        uint64_t npc = pc_state.npc();
-        Cap pc_cap = inst->cpu->getIEWObject().getPCCap(inst->threadNumber);
-        pc_cap.setCursor(npc); // prepare the PC cap to save
-
-
-        if(callType == CALL_TYPE_CALL) {
-
-            DPRINTFN("Write PC cap = %llx, %llx, %llx\n", pc_cap.start(), pc_cap.end(),
-                     pc_cap.cursor());
-
-            // TODO: save context
-            // save PC cap
-            // no need to change tag as we already know it is tagged
-            // TODO: optimisation: write multiple regs at one time
-            fault = writeMemTimingLE(xc, traceData, RegVal(pc_cap), base_addr,
-                                     Request::Flags(), nullptr);
-            if (fault != NoFault)
-            {
-                return fault;
-            }
-        }
-
-        cur_addr = base_addr + sizeof(RegVal);
-
-        // TODO: this should be moved to execute
-        for(int i = 1; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
-            ConstTaggedRegVal v;
-            if(i == RS1 && v.getTag() && v.getRegVal().capVal().type() != CapType::NONLIN) {
-                // linear cap stored in rs1 needs to be cleared
-                v = 0;
-            } else {
-                v = inst->getTaggedRegOperand(this, i - 1);
-            }
-            // store value
-            DPRINTFN("Write context x%d %llx\n", i, v.getRegVal().intVal());
-            fault = writeMemTimingLE(xc, traceData, v.getRegVal(), cur_addr, 
-                Request::Flags(), nullptr);
-            if(fault != NoFault) {
-                return fault;
-            }
-            // store tag
-            DPRINTFN("Set tag %d %d\n", i, v.getTag());
-            fault = inst->initiateSetTag(cur_addr, v.getTag());
-            if(fault != NoFault) {
-                return fault;
-            }
-        }
-
-        return NoFault;
+        %(op_wb)s;
     }
 }};
 
-def template CallsCompleteAcc {{
+def template ReturnCompleteAcc {{
     Fault
     %(class_name)s::completeAcc(PacketPtr pkt, ExecContext* xc, Trace::InstRecord* traceData) const {
+        %(op_decl)s;
+        %(op_rd)s;
+
         using namespace gem5::RiscvcapstoneISA::o3;
 
-        DynInst* inst = dynamic_cast<DynInst*>(xc);
-        assert(inst);
-        assert(inst->memReadN == NumIntArchRegs);
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
         
-        RiscvcapstoneISAInst::PCState pc_state;
-        set(pc_state, xc->pcState());
-        uint64_t npc = pc_state.npc();
-        Cap pc_cap = inst->cpu->getIEWObject().getPCCap(inst->threadNumber);
-        pc_cap.setCursor(npc); // prepare the PC cap to save
-        
-        for(int reg_idx = 0; reg_idx < NumIntArchRegs; reg_idx ++) {
-            RegVal& v = *(RegVal*)(inst->getMemReadRes(reg_idx));
-            ConstTagRef tag = inst->getTagQueryRes(reg_idx);
-            DPRINTFN("Load context reg %d  = 0x%llx (tag = %d)\n",
-                reg_idx, v.intVal(), tag);
-            
-            // write back to registers
-            if(reg_idx == 0) {
-                // ret reg
-                assert(tag);
-                pc_state.npc(v.capVal().cursor());
-                inst->cpu->getIEWObject().setPCCap(v.capVal(),
-                                               inst->threadNumber);
+        %(comp_code)s;
 
-            } else if(reg_idx != ARG_REG_IDX) {
-                // ARG_REG_IDX is for receiving the argument and already set in execute()
-                ConstTaggedRegVal tagged_val(v, tag);
-                inst->setTaggedRegOperand(this, reg_idx - 1, tagged_val);
-            }
-        }
-        xc->pcState(pc_state);
-        
-        const ExecData& exec_data = *((ExecData*)inst->executionData);
-        const Cap& Rd_cap = exec_data.rd_cap;
-        const ConstTaggedRegVal& Rs = exec_data.rs;
-
-        uint64_t base_addr = Rd_cap.start();
-        
-
-        if(callType == CALL_TYPE_CALL) {
-            Cap ret_cap = Rd_cap;
-            ret_cap.setType(CapType::SEALEDRET);
-            ConstTaggedRegVal ret_cap_v(ret_cap, true);
-            inst->setTaggedRegOperand(this, RET_REG_IDX, ret_cap_v); // sealed ret capability
-
-            inst->setTaggedRegOperand(this, ARG_REG_IDX, Rs); // pass argument
-        }
-
-        // TODO: update ref counts
-        // TODO: exception handler register
-
-        return NoFault;
+        %(op_wb)s;
     }
 
 }};

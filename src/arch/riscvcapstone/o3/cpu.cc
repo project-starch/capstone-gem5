@@ -1069,6 +1069,18 @@ CPU::setMiscReg(int misc_reg, RegVal val, ThreadID tid)
     isa[tid]->setMiscReg(misc_reg, val);
 }
 
+ConstTaggedRegVal
+CPU::readTaggedMiscReg(int misc_reg, ThreadID tid)
+{
+    return isa[tid]->readTaggedMiscReg(misc_reg);
+}
+
+void
+CPU::setTaggedMiscReg(int misc_reg, ConstTaggedRegVal val, ThreadID tid)
+{
+    return isa[tid]->setTaggedMiscReg(misc_reg, val);
+}
+
 RegVal
 CPU::getReg(PhysRegIdPtr phys_reg)
 {

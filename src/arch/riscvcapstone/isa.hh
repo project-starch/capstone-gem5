@@ -69,6 +69,7 @@ class ISA : public BaseISA
 {
   protected:
     std::vector<RegVal> miscRegFile;
+    std::vector<ConstTaggedRegVal> capMiscRegFile;
 
     bool hpmCounterEnabled(int counter) const;
 
@@ -86,6 +87,8 @@ class ISA : public BaseISA
   public:
     RegVal readMiscRegNoEffect(int misc_reg) const;
     RegVal readMiscReg(int misc_reg);
+    ConstTaggedRegVal readTaggedMiscReg(int misc_reg);
+    void setTaggedMiscReg(int misc_reg, ConstTaggedRegVal val);
     void setMiscRegNoEffect(int misc_reg, RegVal val);
     void setMiscReg(int misc_reg, RegVal val);
 

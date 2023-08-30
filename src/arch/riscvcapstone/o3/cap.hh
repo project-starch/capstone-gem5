@@ -128,6 +128,10 @@ class NewCap {
             return static_cast<CapAsync>(_async);
         }
 
+        uint8_t reg() const {
+            return _reg;
+        }
+
         NewCap& setBound(uint64_t start, uint64_t end) {
             _start = start;
             _end = end;

@@ -527,3 +527,11 @@ def format CSROp(code, *opt_flags) {{
     decode_block = BasicDecode.subst(iop)
     exec_output = CSRExecute.subst(iop)
 }};
+
+def format CCSROp(code, *opt_flags) {{
+    iop = InstObjParams(name, Name, 'CSROp', code, opt_flags)
+    header_output = BasicDeclare.subst(iop)
+    decoder_output = BasicConstructor.subst(iop)
+    decode_block = BasicDecode.subst(iop)
+    exec_output = CSRExecute.subst(iop)
+}};

@@ -197,7 +197,23 @@ enum MiscRegIndex
     // non-maskable-interrupt-pending: NMI version of xIP
     MISCREG_NMIP,
 
+    //Capstone CSRs
+    MISCREG_CIS,
+    MISCREG_TVAL,
+    MISCREG_CAUSE,
+
     NUM_MISCREGS
+};
+
+enum CapMiscRegIndex
+{
+    //Capability CSRs
+    CAPMISCREG_CEH = 0,
+    CAPMISCREG_CIH,
+    CAPMISCREG_CINIT,
+    CAPMISCREG_EPC,
+
+    NUM_CAPMISCREGS
 };
 
 enum CSRIndex
@@ -364,13 +380,38 @@ enum CSRIndex
     CSR_TDATA3 = 0x7A3,
     CSR_DCSR = 0x7B0,
     CSR_DPC = 0x7B1,
-    CSR_DSCRATCH = 0x7B2
+    CSR_DSCRATCH = 0x7B2,
+
+    //Capstone CSRs
+    CSR_CIS = 0x800, //interrupt status
+    CSR_TVAL = 0x801, //exception data
+    CSR_CAUSE = 0x802 //exception cause
 };
 
+//Capability CSRs
+enum CCSRIndex {
+    CCSR_CEH = 0x000, //exception handler capability
+    CCSR_CIH = 0x001, //interrupt handler capability
+    CCSR_CINIT = 0x002, //initial capability covering entire address space
+    CCSR_EPC = 0x003 //Exception PC
+};
 struct CSRMetadata
 {
     const std::string name;
     const int physIndex;
+};
+
+struct CCSRMetadata
+{
+    const std::string name;
+    const int physIndex;
+};
+
+const std::map<int, CCSRMetadata> CCSRData = {
+    {CCSR_CEH, {"ceh", CAPMISCREG_CEH}},
+    {CCSR_CIH, {"cih", CAPMISCREG_CIH}},
+    {CCSR_CINIT, {"cinit", CAPMISCREG_CINIT}},
+    {CCSR_EPC, {"epc", CAPMISCREG_EPC}}
 };
 
 const std::map<int, CSRMetadata> CSRData = {
@@ -534,7 +575,11 @@ const std::map<int, CSRMetadata> CSRData = {
     {CSR_TDATA3, {"tdata3", MISCREG_TDATA3}},
     {CSR_DCSR, {"dcsr", MISCREG_DCSR}},
     {CSR_DPC, {"dpc", MISCREG_DPC}},
-    {CSR_DSCRATCH, {"dscratch", MISCREG_DSCRATCH}}
+    {CSR_DSCRATCH, {"dscratch", MISCREG_DSCRATCH}},
+
+    {CSR_CIS, {"cis", MISCREG_CIS}},
+    {CSR_TVAL, {"tval", MISCREG_TVAL}},
+    {CSR_CAUSE, {"cause", MISCREG_CAUSE}}
 };
 
 /**

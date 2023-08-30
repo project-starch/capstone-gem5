@@ -1368,6 +1368,19 @@ class DynInst : public ExecContext, public RefCounted
         return cpu->getTaggedReg(reg);
     }
 
+    ConstTaggedRegVal
+    readTaggedMiscReg(int misc_reg)
+    {
+        return cpu->readTaggedMiscReg(misc_reg, threadNumber);
+    }
+
+    void
+    setTaggedMiscReg(int misc_reg, ConstTaggedRegVal val)
+    {
+        cpu->setTaggedMiscReg(misc_reg, val, threadNumber);
+    }
+
+
     // Capstone-related
     InstStateMachinePtr getStateMachine() {
         auto rvStaticInst = dynamic_cast<RiscvStaticInst*>(staticInst.get());

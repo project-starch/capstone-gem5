@@ -74,6 +74,18 @@ class RevokeClass : public RiscvStaticInst
 };
 
 /**
+ * Base class for call insts
+ */
+class CallsClass : public RiscvStaticInst
+{
+  protected:
+    using RiscvStaticInst::RiscvStaticInst;
+
+    std::string generateDisassembly(
+        Addr pc, const loader::SymbolTable *symtab) const override;
+};
+
+/**
  * Base class for operations that work only on registers
  */
 class RegOp : public RiscvStaticInst

@@ -46,7 +46,6 @@ output header {{
 #include <specialize.h>
 
 #include "arch/riscvcapstone/insts/amo.hh"
-#include "arch/riscvcapstone/insts/calls.hh"
 #include "arch/riscvcapstone/insts/compressed.hh"
 #include "arch/riscvcapstone/insts/mem.hh"
 #include "arch/riscvcapstone/insts/pseudo.hh"

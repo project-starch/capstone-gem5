@@ -415,6 +415,33 @@ decode QUADRANT default Unknown::unknown() {
         0x16: decode FUNCT3 {
             0x1: decode FUNCT7 {
                 format ROp {
+                    //format CIOp {
+                    0x4: lcc ({{
+                        if(!Rs1_trv.getTag()) {
+                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
+                        }
+
+                        //todo: unexpected cap type check
+
+                        uint64_t res;
+                        gem5::RiscvcapstoneISA::o3::Cap cap_val = Rs1_trv.getRegVal().capVal();
+
+                        switch(CIIMM5) {
+                            case 0: break; //validity field - query then result?
+                            case 1: res = static_cast<uint64_t>(cap_val.type()); break;
+                            case 2: res = cap_val.cursor(); break;
+                            case 3: res = cap_val.start(); break;
+                            case 4: res = cap_val.end(); break;
+                            case 5: res = static_cast<uint64_t>(cap_val.perm()); break;
+                            case 6: break; //async
+                            case 7: break; //reg
+                            default: res = 0;
+                        }
+
+                        //maybe Rd_trv here and update the tag and Rc value???
+                        //or I think the commit stage will already handle it
+                        Rd_ud = res;
+                    }});
                     0xc: cincoffset ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
 
@@ -557,7 +584,6 @@ decode QUADRANT default Unknown::unknown() {
                         rs1_cap.setType(CapType::SEALED);
                         rs1_cap.setAsync(CapAsync::SYNC);
                         Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                        //todo: set async to 0
                         Rd_trv = Rs1_trv;
 
                         Rs1_trv.setTag(false);
@@ -772,36 +798,326 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv = Rs1_trv;
                     }});
                 }
-            }
-            //it's actually 0x2
-            0x7: decode FUNCT7 {
-                //format CIOp {
-                format ROp {
-                    0x4: lcc ({{
-                        if(!Rs1_trv.getTag()) {
+                format Calls {
+                    0x20: call ({{ //execute
+                        if(!Rs1_trv.getTag())
+                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
+
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+
+                        if(rs1_cap.type() != CapType::SEALED || rs1_cap.async() != CapAsync::SYNC)
+                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
+
+                        //check Rs1 validity
+                        dyn_inst->initiateNodeCommand(new NodeQuery(rs1_cap.nodeId()));
+
+                        Addr cur_addr = rs1_cap.start();
+
+                        RegVal dummy;
+                        for(int i = 0; i < 3; i++, cur_addr += sizeof(RegVal)) {
+                            initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
+                            dyn_inst->initiateGetTag(cur_addr);
+                        }
+                    }}, {{ //comp_code
+                        RiscvcapstoneISAInst::PCState pc_state;
+                        set(pc_state, xc->pcState());
+                        uint64_t npc = pc_state.npc();
+                        Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                        pc_cap.setCursor(npc); // prepare the PC cap to save
+
+                        ra_trv = Rs1_trv;
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+
+                        uint128_t pc_mem_load, ceh_mem_load, csp_mem_load;
+                        //need to fix rescheduled call? like a rescheduled load
+
+                        memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
+                        memcpy(&ceh_mem_load, dyn_inst->getMemReadRes(1), sizeof(ceh_mem_load));
+                        memcpy(&csp_mem_load, dyn_inst->getMemReadRes(2), sizeof(csp_mem_load));
+                        //also assert tag results maybe?
+
+                        Addr EA = rs1_cap.start();
+
+                        ConstTaggedRegVal ceh = dyn_inst->readTaggedMiscReg(CAPMISCREG_CEH);
+                        Cap ceh_cap = ceh.getRegVal().capVal();
+
+                        Fault fault = writeMemTimingLE(xc, traceData, (uint128_t)pc_cap, EA, Request::Flags(), nullptr);
+                            if (fault != NoFault)
+                                return fault;
+                        fault = writeMemTimingLE(xc, traceData, (uint128_t)ceh_cap, EA + sizeof(RegVal), Request::Flags(), nullptr);
+                            if (fault != NoFault)
+                                return fault;
+                        fault = writeMemTimingLE(xc, traceData, sp_trv.getRegVal().rawCapVal(), EA + 2*sizeof(RegVal), Request::Flags(), nullptr);
+                            if (fault != NoFault)
+                                return fault;
+
+                        Cap pc_cap_new(pc_mem_load);
+                        dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
+
+                        ceh.getRegVal().rawCapVal() = ceh_mem_load;
+                        dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
+
+                        sp_trv.getRegVal().rawCapVal() = csp_mem_load;
+                        sp_trv.setTag(true);
+                        sp_trv = sp_trv;
+
+                        rs1_cap.setType(CapType::SEALEDRET);
+                        rs1_cap.setCursor(rs1_cap.start());
+                        rs1_cap.setReg(RD);
+                        rs1_cap.setAsync(CapAsync::SYNC);
+                        ra_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                    }});
+                }
+                format Return {
+                    0x21: returni ({{ //execute
+                        //rs1 != 0 check??
+                        if(!Rs1_trv.getTag() || Rs2_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        //todo: unexpected cap type check
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        uint64_t res;
-                        gem5::RiscvcapstoneISA::o3::Cap cap_val = Rs1_trv.getRegVal().capVal();
-
-                        switch(CIIMM5) {
-                            case 0: break; //validity field - query then result?
-                            case 1: res = static_cast<uint64_t>(cap_val.type()); break;
-                            case 2: res = cap_val.cursor(); break;
-                            case 3: res = cap_val.start(); break;
-                            case 4: res = cap_val.end(); break;
-                            case 5: res = static_cast<uint64_t>(cap_val.perm()); break;
-                            case 6: break; //async
-                            case 7: break; //reg
-                            default: res = 0;
+                        if(rs1_cap.type() != CapType::SEALEDRET) {
+                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
                         }
 
-                        //maybe Rd_trv here and update the tag and Rc value???
-                        //or I think the commit stage will already handle it
-                        Rd_ud = res;
+                        dyn_inst->initiateNodeCommand(new NodeQuery(rs1_cap.nodeId()));
+
+                        if(RS1 == 0) {
+                            RiscvcapstoneISAInst::PCState pc_state;
+                            set(pc_state, xc->pcState());
+                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setCursor(Rs1_trv.getRegVal().intVal());
+
+                            ConstTaggedRegVal v;
+                            v.setTag(true);
+                            v.getRegVal().rawCapVal() = (uint128_t)pc_cap;
+
+                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, v);
+
+                            ConstTaggedRegVal epc = dyn_inst->readTaggedMiscReg(CAPMISCREG_EPC);
+                            Cap pc_cap_new = epc.getRegVal().capVal();
+
+                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
+
+                            if(pc_cap_new.type() != CapType::NONLIN) {
+                                epc.setTag(false);
+                                dyn_inst->setTaggedMiscReg(CAPMISCREG_EPC, epc);
+                            } //else rc update
+                        } else {
+                            if(rs1_cap.async() == CapAsync::SYNC) {
+                                Addr cur_addr = rs1_cap.start();
+
+                                RegVal dummy;
+                                for(int i = 0; i < 3; i++, cur_addr += sizeof(RegVal)) {
+                                    initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
+                                    dyn_inst->initiateGetTag(cur_addr);
+                                }
+
+                                //set rs1_cap.type() to SEALED and write rs1_cap to rs1_cap.reg()
+
+                            } else { //upon exception or interrupt
+                                Addr cur_addr = rs1_cap.start();
+
+                                RegVal dummy;
+                                for(int i = 0; i < 33; i++, cur_addr += sizeof(RegVal)) {
+                                    initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
+                                    dyn_inst->initiateGetTag(cur_addr);
+                                }
+                            }
+                        }
+                    }}, {{ //comp_code
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+
+                        if(rs1_cap.async() == CapAsync::SYNC) {
+                            assert(dyn_inst->memReadN == 3);
+
+                            RiscvcapstoneISAInst::PCState pc_state;
+                            set(pc_state, xc->pcState());
+                            uint64_t npc = pc_state.npc();
+                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setCursor(Rs2_trv.getRegVal().intVal()); // prepare the PC cap to save
+
+                            uint128_t pc_mem_load, ceh_mem_load, csp_mem_load;
+                            //need to fix rescheduled call? like a rescheduled load
+
+                            memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
+                            memcpy(&ceh_mem_load, dyn_inst->getMemReadRes(1), sizeof(ceh_mem_load));
+                            memcpy(&csp_mem_load, dyn_inst->getMemReadRes(2), sizeof(csp_mem_load));
+                            //also assert tag results maybe?
+
+                            Addr EA = rs1_cap.start();
+
+                            ConstTaggedRegVal ceh = dyn_inst->readTaggedMiscReg(CAPMISCREG_CEH);
+                            Cap ceh_cap = ceh.getRegVal().capVal();
+
+                            Fault fault = writeMemTimingLE(xc, traceData, (uint128_t)pc_cap, EA, Request::Flags(), nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+                            fault = writeMemTimingLE(xc, traceData, (uint128_t)ceh_cap, EA + sizeof(RegVal), Request::Flags(), nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+                            fault = writeMemTimingLE(xc, traceData, sp_trv.getRegVal().rawCapVal(), EA + 2*sizeof(RegVal), Request::Flags(), nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+
+                            Cap pc_cap_new(pc_mem_load);
+                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
+
+                            ceh.getRegVal().rawCapVal() = ceh_mem_load;
+                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
+
+                            sp_trv.getRegVal().rawCapVal() = csp_mem_load;
+                            sp_trv.setTag(true);
+                            sp_trv = sp_trv;
+
+                            RegId cap_reg(IntRegClass, rs1_cap.reg());
+                            rs1_cap.setType(CapType::SEALED);
+                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                            //might not work
+                            dyn_inst->cpu->setArchReg(cap_reg, Rs1_trv.getRegVal(), dyn_inst->threadNumber);
+                        } else if(rs1_cap.async() == CapAsync::EXCEPT) {
+                            assert(dyn_inst->memReadN == 33);
+
+                            RiscvcapstoneISAInst::PCState pc_state;
+                            set(pc_state, xc->pcState());
+                            uint64_t npc = pc_state.npc();
+                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setCursor(Rs2_trv.getRegVal().intVal()); // prepare the PC cap to save
+
+                            uint128_t pc_mem_load;
+                            //need to fix rescheduled call? like a rescheduled load
+
+                            memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
+                            //also assert tag results maybe?
+
+                            Addr cur_addr = rs1_cap.start();
+
+                            ConstTaggedRegVal ceh = dyn_inst->readTaggedMiscReg(CAPMISCREG_CEH);
+                            Cap ceh_cap = ceh.getRegVal().capVal();
+
+                            Fault fault = writeMemTimingLE(xc, traceData, (uint128_t)pc_cap, cur_addr, Request::Flags(), nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+                            fault = writeMemTimingLE(xc, traceData, (uint128_t)ceh_cap, cur_addr + sizeof(RegVal), Request::Flags(), nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+
+                            rs1_cap.setType(CapType::SEALED);
+                            rs1_cap.setAsync(CapAsync::SYNC);
+
+                            ceh.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
+
+                            Cap pc_cap_new(pc_mem_load);
+                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
+
+                            //write context
+                            for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
+                                ConstTaggedRegVal v;
+                                v = dyn_inst->getTaggedRegOperand(this, i);
+
+                                // store value
+                                // DPRINTFN("Write context x%d %llx\n", i, v.getRegVal().intVal());
+                                fault = writeMemTimingLE(xc, traceData, v.getRegVal(), cur_addr, 
+                                Request::Flags(), nullptr);
+                                if(fault != NoFault) {
+                                    return fault;
+                                }
+                                // store tag
+                                //DPRINTFN("Set tag %d %d\n", i, v.getTag());
+                                fault = dyn_inst->initiateSetTag(cur_addr, v.getTag());
+                                if(fault != NoFault) {
+                                    return fault;
+                                }
+                            }
+
+                            for(int reg_idx = 0; reg_idx < NumIntArchRegs; reg_idx ++) {
+                                RegVal& v = *(RegVal*)(dyn_inst->getMemReadRes(reg_idx + 2));
+                                ConstTagRef tag = dyn_inst->getTagQueryRes(reg_idx + 2);
+                                //DPRINTFN("Load context reg %d  = 0x%llx (tag = %d)\n",
+                                //    reg_idx, v.intVal(), tag);
+            
+                                // write back to registers
+                                ConstTaggedRegVal tagged_val(v, tag);
+                                dyn_inst->setTaggedRegOperand(this, reg_idx, tagged_val);
+                            }
+                        } else { //upon interrupt
+                            assert(dyn_inst->memReadN == 33);
+
+                            RiscvcapstoneISAInst::PCState pc_state;
+                            set(pc_state, xc->pcState());
+                            uint64_t npc = pc_state.npc();
+                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setCursor(Rs2_trv.getRegVal().intVal()); // prepare the PC cap to save
+
+                            uint128_t pc_mem_load, ceh_mem_load;
+                            //need to fix rescheduled call? like a rescheduled load
+
+                            memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
+                            memcpy(&ceh_mem_load, dyn_inst->getMemReadRes(1), sizeof(ceh_mem_load));
+                            //also assert tag results maybe?
+
+                            Addr cur_addr = rs1_cap.start();
+
+                            ConstTaggedRegVal ceh = dyn_inst->readTaggedMiscReg(CAPMISCREG_CEH);
+                            Cap ceh_cap = ceh.getRegVal().capVal();
+
+                            ConstTaggedRegVal cih = dyn_inst->readTaggedMiscReg(CAPMISCREG_CIH);
+
+                            Fault fault = writeMemTimingLE(xc, traceData, (uint128_t)pc_cap, cur_addr, Request::Flags(), nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+                            fault = writeMemTimingLE(xc, traceData, (uint128_t)ceh_cap, cur_addr + sizeof(RegVal), Request::Flags(), nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+
+                            rs1_cap.setType(CapType::SEALED);
+                            rs1_cap.setAsync(CapAsync::SYNC);
+
+                            cih.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CIH, cih);
+
+                            ceh.getRegVal().rawCapVal() = ceh_mem_load;
+                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
+
+                            Cap pc_cap_new(pc_mem_load);
+                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
+
+                            //write context
+                            for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
+                                ConstTaggedRegVal v;
+                                v = dyn_inst->getTaggedRegOperand(this, i);
+
+                                // store value
+                                // DPRINTFN("Write context x%d %llx\n", i, v.getRegVal().intVal());
+                                fault = writeMemTimingLE(xc, traceData, v.getRegVal(), cur_addr, 
+                                Request::Flags(), nullptr);
+                                if(fault != NoFault) {
+                                    return fault;
+                                }
+                                // store tag
+                                //DPRINTFN("Set tag %d %d\n", i, v.getTag());
+                                fault = dyn_inst->initiateSetTag(cur_addr, v.getTag());
+                                if(fault != NoFault) {
+                                    return fault;
+                                }
+                            }
+
+                            for(int reg_idx = 0; reg_idx < NumIntArchRegs; reg_idx ++) {
+                                RegVal& v = *(RegVal*)(dyn_inst->getMemReadRes(reg_idx + 2));
+                                ConstTagRef tag = dyn_inst->getTagQueryRes(reg_idx + 2);
+                                //DPRINTFN("Load context reg %d  = 0x%llx (tag = %d)\n",
+                                //    reg_idx, v.intVal(), tag);
+            
+                                // write back to registers
+                                ConstTaggedRegVal tagged_val(v, tag);
+                                dyn_inst->setTaggedRegOperand(this, reg_idx, tagged_val);
+                            }
+                        }
+
+                        Rs1_trv.setTag(false);
+                        Rs1_trv = Rs1_trv;
                     }});
                 }
             }
@@ -1040,6 +1356,63 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv = Rs1_trv;
                         Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                     }}, IsStore);
+            }
+            format CCSROp {
+                0x7: ccsrrw ({{
+                    using namespace gem5::RiscvcapstoneISA::o3;
+                    DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                    assert(dyn_inst);
+
+                    if(!Rs1_trv.getTag())
+                        return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
+
+                    switch(FUNCT12) {
+                        case CCSR_CEH: case CCSR_EPC:
+                        {
+                            ConstTaggedRegVal reg_val = dyn_inst->readTaggedMiscReg(FUNCT12);
+                            Rd_trv = reg_val;
+                            dyn_inst->setTaggedMiscReg(FUNCT12, Rs1_trv);
+                            if(Rs1_trv.getRegVal().capVal().type() != CapType::NONLIN)
+                                Rs1_trv.setTag(false);
+                            else {
+                                NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                            }
+                            Rs1_trv = Rs1_trv;
+                            break;
+                        }
+                        case CCSR_CINIT:
+                        {
+                            ConstTaggedRegVal reg_val = dyn_inst->readTaggedMiscReg(FUNCT12);
+                            if(!reg_val.getTag());
+                            else {
+                                Rd_trv = reg_val;
+                                reg_val.setTag(false);
+                                dyn_inst->setTaggedMiscReg(FUNCT12, reg_val);
+                            }
+                            break;
+                        }
+                        case CCSR_CIH:
+                        {
+                            ConstTaggedRegVal reg_val = dyn_inst->readTaggedMiscReg(FUNCT12);
+                            if(!reg_val.getTag()) {
+                                reg_val = Rs1_trv;
+                                if(Rs1_trv.getRegVal().capVal().type() != CapType::NONLIN)
+                                    Rs1_trv.setTag(false);
+                                else {
+                                    NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                                    dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                                }
+                                Rs1_trv = Rs1_trv;
+                            }
+                            break;
+                        }
+                        default:
+                            return std::make_shared<IllegalInstFault>("Illegal operand value (29)", machInst);
+                    }
+
+                    return NoFault;
+                }}, IsNonSpeculative, IsSerializeAfter);
             }
             //Capstone Test Ops
             0x0: decode FUNCT7 {
