@@ -198,9 +198,9 @@ enum MiscRegIndex
     MISCREG_NMIP,
 
     //Capstone CSRs
-    MISCREG_CIS,
     MISCREG_TVAL,
     MISCREG_CAUSE,
+    MISCREG_EMODE,
 
     NUM_MISCREGS
 };
@@ -209,9 +209,9 @@ enum CapMiscRegIndex
 {
     //Capability CSRs
     CAPMISCREG_CEH = 0,
-    CAPMISCREG_CIH,
     CAPMISCREG_CINIT,
     CAPMISCREG_EPC,
+    CAPMISCREG_SWITCH_CAP,
 
     NUM_CAPMISCREGS
 };
@@ -383,17 +383,17 @@ enum CSRIndex
     CSR_DSCRATCH = 0x7B2,
 
     //Capstone CSRs
-    CSR_CIS = 0x800, //interrupt status
     CSR_TVAL = 0x801, //exception data
-    CSR_CAUSE = 0x802 //exception cause
+    CSR_CAUSE = 0x802, //exception cause
+    CSR_EMODE = 0x804 //encoding mode
 };
 
 //Capability CSRs
 enum CCSRIndex {
     CCSR_CEH = 0x000, //exception handler capability
-    CCSR_CIH = 0x001, //interrupt handler capability
     CCSR_CINIT = 0x002, //initial capability covering entire address space
-    CCSR_EPC = 0x003 //Exception PC
+    CCSR_EPC = 0x003, //Exception PC
+    CCSR_SWITCH_CAP = 0x004 //capability to store contexts on async world switch
 };
 struct CSRMetadata
 {
@@ -409,9 +409,9 @@ struct CCSRMetadata
 
 const std::map<int, CCSRMetadata> CCSRData = {
     {CCSR_CEH, {"ceh", CAPMISCREG_CEH}},
-    {CCSR_CIH, {"cih", CAPMISCREG_CIH}},
     {CCSR_CINIT, {"cinit", CAPMISCREG_CINIT}},
-    {CCSR_EPC, {"epc", CAPMISCREG_EPC}}
+    {CCSR_EPC, {"epc", CAPMISCREG_EPC}},
+    {CCSR_SWITCH_CAP, {"switch_cap", CAPMISCREG_SWITCH_CAP}}
 };
 
 const std::map<int, CSRMetadata> CSRData = {
@@ -577,9 +577,9 @@ const std::map<int, CSRMetadata> CSRData = {
     {CSR_DPC, {"dpc", MISCREG_DPC}},
     {CSR_DSCRATCH, {"dscratch", MISCREG_DSCRATCH}},
 
-    {CSR_CIS, {"cis", MISCREG_CIS}},
     {CSR_TVAL, {"tval", MISCREG_TVAL}},
-    {CSR_CAUSE, {"cause", MISCREG_CAUSE}}
+    {CSR_CAUSE, {"cause", MISCREG_CAUSE}},
+    {CSR_EMODE, {"emode", MISCREG_EMODE}}
 };
 
 /**
