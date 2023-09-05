@@ -250,6 +250,8 @@ void ISA::clear()
     miscRegFile[MISCREG_NMIE] = 1;
 
     //probably need to set cinit here
+    //don't. do it in CPU instead
+    //else include hell awaits
 }
 
 bool
@@ -402,6 +404,7 @@ ISA::setMiscRegNoEffect(int misc_reg, RegVal val)
 void
 ISA::setMiscReg(int misc_reg, RegVal val)
 {
+    //maybe set this to update only when correct cwrld
     if (misc_reg >= MISCREG_CYCLE && misc_reg <= MISCREG_HPMCOUNTER31) {
         // Ignore writes to HPM counters for now
         warn("Ignoring write to %s.\n", CSRData.at(misc_reg).name);
@@ -417,12 +420,44 @@ ISA::setMiscReg(int misc_reg, RegVal val)
           case MISCREG_PMPCFG0:
           case MISCREG_PMPCFG2:
             {
-                panic("pmp unsupported.");
+                // PMP registers should only be modified in M mode
+                assert(readMiscRegNoEffect(MISCREG_PRV).intVal() == PRV_M);
+
+                // Specs do not seem to mention what should be
+                // configured first, cfg or address regs!
+                // qemu seems to update the tables when
+                // pmp addr regs are written (with the assumption
+                // that cfg regs are already written)
+
+                for (int i=0; i < sizeof(val); i++) {
+
+                    uint8_t cfg_val = (val >> (8*i)) & 0xff;
+                    auto mmu = dynamic_cast<RiscvcapstoneISA::MMU *>
+                                (tc->getMMUPtr());
+
+                    // Form pmp_index using the index i and
+                    // PMPCFG register number
+                    // Note: MISCREG_PMPCFG2 - MISCREG_PMPCFG0 = 1
+                    // 8*(misc_reg-MISCREG_PMPCFG0) will be useful
+                    // if a system contains more than 16 PMP entries
+                    uint32_t pmp_index = i+(8*(misc_reg-MISCREG_PMPCFG0));
+                    mmu->getPMP()->pmpUpdateCfg(pmp_index,cfg_val);
+                }
+
+                setMiscRegNoEffect(misc_reg, val);
             }
             break;
           case MISCREG_PMPADDR00 ... MISCREG_PMPADDR15:
             {
-                panic("pmp unsupported.");
+                // PMP registers should only be modified in M mode
+                assert(readMiscRegNoEffect(MISCREG_PRV).intVal() == PRV_M);
+
+                auto mmu = dynamic_cast<RiscvcapstoneISA::MMU *>
+                              (tc->getMMUPtr());
+                uint32_t pmp_index = misc_reg-MISCREG_PMPADDR00;
+                mmu->getPMP()->pmpUpdateAddr(pmp_index, val);
+
+                setMiscRegNoEffect(misc_reg, val);
             }
             break;
 

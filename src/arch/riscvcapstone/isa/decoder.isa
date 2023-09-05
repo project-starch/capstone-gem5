@@ -1063,8 +1063,6 @@ decode QUADRANT default Unknown::unknown() {
                             ConstTaggedRegVal ceh = dyn_inst->readTaggedMiscReg(CAPMISCREG_CEH);
                             Cap ceh_cap = ceh.getRegVal().capVal();
 
-                            ConstTaggedRegVal cih = dyn_inst->readTaggedMiscReg(CAPMISCREG_CIH);
-
                             Fault fault = writeMemTimingLE(xc, traceData, (uint128_t)pc_cap, cur_addr, Request::Flags(), nullptr);
                                 if (fault != NoFault)
                                     return fault;
@@ -1074,9 +1072,6 @@ decode QUADRANT default Unknown::unknown() {
 
                             rs1_cap.setType(CapType::SEALED);
                             rs1_cap.setAsync(CapAsync::SYNC);
-
-                            cih.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CIH, cih);
 
                             ceh.getRegVal().rawCapVal() = ceh_mem_load;
                             dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
@@ -1389,21 +1384,6 @@ decode QUADRANT default Unknown::unknown() {
                                 Rd_trv = reg_val;
                                 reg_val.setTag(false);
                                 dyn_inst->setTaggedMiscReg(FUNCT12, reg_val);
-                            }
-                            break;
-                        }
-                        case CCSR_CIH:
-                        {
-                            ConstTaggedRegVal reg_val = dyn_inst->readTaggedMiscReg(FUNCT12);
-                            if(!reg_val.getTag()) {
-                                reg_val = Rs1_trv;
-                                if(Rs1_trv.getRegVal().capVal().type() != CapType::NONLIN)
-                                    Rs1_trv.setTag(false);
-                                else {
-                                    NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
-                                    dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
-                                }
-                                Rs1_trv = Rs1_trv;
                             }
                             break;
                         }

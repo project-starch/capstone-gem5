@@ -690,6 +690,16 @@ class CPU : public BaseCPU
     IEW& getIEWObject() {
         return iew;
     }
+
+    uint64_t cwrld[MaxThreads]; //secure world or normal world
+    uint64_t normal_pc[MaxThreads];
+    ConstTaggedRegVal normal_sp[MaxThreads];
+    uint64_t switch_reg[MaxThreads];
+    uint64_t exit_reg[MaxThreads];
+
+    Addr secure_base;
+    Addr secure_end;
+
 };
 
 } // namespace RiscvcapstoneISA::o3

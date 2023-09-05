@@ -1,0 +1,1 @@
+--debug-flags=ExecAll,O3CPUAll,Branch,Activity,CapstoneAlloc,CapstoneCapTrack,CapstoneMem,CapstoneNCache,CapstoneNodeOps,CapstoneNodeOpsAtomic,NodeController,NodeCmd,TagController,Event,CacheAll,NCQ,Scoreboard

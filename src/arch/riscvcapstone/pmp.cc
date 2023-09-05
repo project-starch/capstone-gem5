@@ -247,7 +247,9 @@ PMP::shouldCheckPMP(RiscvcapstoneISA::PrivilegeMode pmode,
     bool cond3 = (mode != BaseMMU::Execute && (status.mprv)
     && (status.mpp != RiscvcapstoneISA::PrivilegeMode::PRV_M));
 
-    return (cond1 || cond2 || cond3);
+    bool secure_world = tc->cwrld();
+
+    return ((cond1 || cond2 || cond3) && !secure_world);
 }
 
 AddrRange

@@ -114,6 +114,8 @@ CPU::CPU(const CapstoneBaseO3CPUParams &params)
       globalSeqNum(1),
       system(params.system),
       lastRunningCycle(curCycle()),
+      secure_base(params.secure_base),
+      secure_end(params.secure_end),
       cpuStats(this)
 {
     fatal_if(FullSystem && params.numThreads > 1,
@@ -303,7 +305,7 @@ CPU::CPU(const CapstoneBaseO3CPUParams &params)
     if (!params.switched_out && interrupts.empty()) {
         fatal("O3CPU %s has no interrupt controller.\n"
               "Ensure createInterruptController() is called.\n", name());
-    }
+    }    
 }
 
 void
@@ -555,6 +557,18 @@ CPU::startup()
     iew.startupStage();
     rename.startupStage();
     commit.startupStage();
+
+    Cap *cap = new Cap;
+    cap->setPerm(CapPerm::RWX);
+    cap->setType(CapType::LIN);
+    cap->setBound(secure_base, secure_end);
+    cap->setNodeId(0);
+    //WIP: new function for pushing this nodeid straightaway
+
+    ConstTaggedRegVal ctrv;
+    ctrv.setTag(true);
+    ctrv.getRegVal().rawCapVal() = (uint128_t)*cap;
+    isa[0]->setTaggedMiscReg(1, ctrv); //capmiscreg_cinit
 }
 
 void

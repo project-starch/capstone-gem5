@@ -283,6 +283,10 @@ class ThreadContext : public PCEventScope
 
     virtual RegVal readMiscReg(RegIndex misc_reg) = 0;
 
+    #ifdef TARGET_RISCVCapstone
+    virtual bool cwrld() = 0;
+    #endif
+
     virtual void setMiscRegNoEffect(RegIndex misc_reg, RegVal val) = 0;
 
     virtual void setMiscReg(RegIndex misc_reg, RegVal val) = 0;
