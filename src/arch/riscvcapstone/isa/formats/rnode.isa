@@ -318,6 +318,9 @@ def template RNodeStoreExecute {{
                 return std::make_shared<IllegalInstFault>(
                         "Capability out of bound (28)", machInst);
             }
+
+            NodeID node_id = rs1_cap.nodeId();
+            dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
         } else {
             EA = Rs1.getRegVal().intVal() + offset;
 
@@ -331,10 +334,13 @@ def template RNodeStoreExecute {{
             return std::make_shared<IllegalInstFault>(
                     "Store address misaligned (6)", machInst);
 
-        if(cwrld || (!cwrld && emode)) {
-            NodeID node_id = rs1_cap.nodeId();
-                dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-        }
+        Addr clen_aligned = EA & (sizeof(RegVal) - 1);
+        dyn_inst->initiateGetTag(clen_aligned);
+        RegVal dummy;
+        initiateMemRead(xc, traceData, clen_aligned, dummy, memAccessFlags);
+
+        //probably need to move this to comp_code if it breaks things
+        dyn_inst->initiateSetTag(clen_aligned, Rs2.getTag());
 
         %(memacc_code)s;
 
@@ -353,6 +359,24 @@ def template RNodeStoreMemCompleteAcc {{
         assert(dyn_inst);
         %(op_decl)s;
         %(op_rd)s;
+
+        uint128_t cap_load;
+
+        if(dyn_inst->getTagQueryRes(0)) {
+            memcpy(&cap_load, dyn_inst->getMemReadRes(0), sizeof(cap_load));
+            Cap* cap = new Cap(cap_load);
+            NodeID node_id = cap->nodeId();
+            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+        }
+
+        if(Rs1.getTag()) {
+            Cap rs1_cap = Rs1.getRegVal().capVal();
+
+            if(rs1_cap.type() == CapType::UNINIT)
+                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem));
+
+            Rs1.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+        }
 
         %(comp_code)s;
 

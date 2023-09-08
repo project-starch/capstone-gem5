@@ -1272,27 +1272,14 @@ decode QUADRANT default Unknown::unknown() {
                                 "Unexpected operand type (24)", machInst);
                         }
                     }}, {{ //memacc_code
-                        static_assert(sizeof(RegVal) == 16);
-
                         Mem_rv = Rs2_trv.getRegVal();
-
-                        //Fault fault = dyn_inst->initiateGetTag(EA);
-                        //if(fault != NoFault)
-                        //    return fault;
 
                         Fault fault = writeMemTimingLE(xc, traceData, Mem.rawCapVal(), EA,
                                         memAccessFlags, nullptr);
                         if (fault != NoFault)
                             return fault;
                     }}, {{ //comp_code
-                        if(Rs1_trv.getTag()) {
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                            if(rs1_cap.type() == CapType::UNINIT)
-                                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(RegVal));
-
-                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                        }
+                        //todo: optimization: update loaded cap refcount only if nodeid != Rs2.nodeid
 
                         if(Rs2_trv.getRegVal().capVal().type() != CapType::NONLIN)
                             Rs2_trv.setTag(false);
@@ -1745,28 +1732,13 @@ decode QUADRANT default Unknown::unknown() {
                                     "Unexpected operand type (24)", machInst);
                         }
                     }}, {{ //memacc_code
-                        Addr cap_aligned = EA & ~(sizeof(RegVal) - 1);
-                        dyn_inst->initiateSetTag(cap_aligned, false);
-
                         Mem_sb = Rs2_trv.getRegVal().intVal();
-
-                        //Fault fault = dyn_inst->initiateGetTag(EA);
-                        //if(fault != NoFault)
-                        //    return fault;
 
                         Fault fault = writeMemTimingLE(xc, traceData, Mem_sb, EA,
                                           memAccessFlags, nullptr);
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ // comp_code
-                        if(Rs1_trv.getTag()) {
-                            Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                            if(rs1_cap.type() == CapType::UNINIT)
-                                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem_sb));
-
-                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                        }
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
                 0x1: sh ({{ //check_code
@@ -1775,28 +1747,13 @@ decode QUADRANT default Unknown::unknown() {
                                     "Unexpected operand type (24)", machInst);
                         }
                     }}, {{ //memacc_code
-                        Addr cap_aligned = EA & ~(sizeof(RegVal) - 1);
-                        dyn_inst->initiateSetTag(cap_aligned, false);
-
                         Mem_sh = Rs2_trv.getRegVal().intVal();
-
-                        //Fault fault = dyn_inst->initiateGetTag(EA);
-                        //if(fault != NoFault)
-                        //    return fault;
 
                         Fault fault = writeMemTimingLE(xc, traceData, Mem_sh, EA,
                                           memAccessFlags, nullptr);
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ // comp_code
-                        if(Rs1_trv.getTag()) {
-                            Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                            if(rs1_cap.type() == CapType::UNINIT)
-                                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem_sh));
-
-                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                        }
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
                 0x2: sw ({{ //check_code
@@ -1805,28 +1762,13 @@ decode QUADRANT default Unknown::unknown() {
                                     "Unexpected operand type (24)", machInst);
                         }
                     }}, {{ //memacc_code
-                        Addr cap_aligned = EA & ~(sizeof(RegVal) - 1);
-                        dyn_inst->initiateSetTag(cap_aligned, false);
-
                         Mem_sw = Rs2_trv.getRegVal().intVal();
-
-                        //Fault fault = dyn_inst->initiateGetTag(EA);
-                        //if(fault != NoFault)
-                        //    return fault;
 
                         Fault fault = writeMemTimingLE(xc, traceData, Mem_sw, EA,
                                           memAccessFlags, nullptr);
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ // comp_code
-                        if(Rs1_trv.getTag()) {
-                            Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                            if(rs1_cap.type() == CapType::UNINIT)
-                                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem_sw));
-
-                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                        }
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
                 0x3: sd ({{ //check_code
@@ -1835,28 +1777,13 @@ decode QUADRANT default Unknown::unknown() {
                                     "Unexpected operand type (24)", machInst);
                         }
                     }}, {{ //memacc_code
-                        Addr cap_aligned = EA & ~(sizeof(RegVal) - 1);
-                        dyn_inst->initiateSetTag(cap_aligned, false);
-
                         Mem_sd = Rs2_trv.getRegVal().intVal();
-
-                        //Fault fault = dyn_inst->initiateGetTag(EA);
-                        //if(fault != NoFault)
-                        //    return fault;
 
                         Fault fault = writeMemTimingLE(xc, traceData, Mem_sd, EA,
                                           memAccessFlags, nullptr);
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ // comp_code
-                        if(Rs1_trv.getTag()) {
-                            Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                            if(rs1_cap.type() == CapType::UNINIT)
-                                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem_sd));
-
-                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                        }
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
             }
