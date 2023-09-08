@@ -217,6 +217,12 @@ def template RNodeMemCompleteAcc {{
         %(op_decl)s;
         %(op_rd)s;
 
+        if(Rd.getTag()) {
+            Cap rd_cap = Rd.getRegVal().capVal();
+            NodeID node_id = rd_cap.nodeId();
+            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
+        }
+
         %(memacc_code)s;
         %(op_wb)s;
         return NoFault;

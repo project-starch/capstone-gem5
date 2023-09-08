@@ -1472,7 +1472,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_sb, traceData);
 
-                        Rd_sb = Mem_sb;
+                        Rd_trv.getRegVal().intVal() = Mem_sb;
                     }});
                 0x1: lh ({{ //ea_code
                         
@@ -1480,7 +1480,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_sh, traceData);
 
-                        Rd_sh = Mem_sh;
+                        Rd_trv.getRegVal().intVal() = Mem_sh;
                     }});
                 0x2: lw ({{ //ea_code
                         
@@ -1488,7 +1488,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_sw, traceData);
 
-                        Rd_sw = Mem_sw;
+                        Rd_trv.getRegVal().intVal() = Mem_sw;
                     }});
                 0x3: ld ({{ //ea_code
                         
@@ -1496,7 +1496,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_sd, traceData);
 
-                        Rd_sd = Mem_sd;
+                        Rd_trv.getRegVal().intVal() = Mem_sd;
                     }});
                 0x4: lbu ({{ //ea_code
                         
@@ -1504,7 +1504,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_ub, traceData);
 
-                        Rd_ub = Mem_ub;
+                        Rd_trv.getRegVal().intVal() = Mem_ub;
                     }});
                 0x5: lhu ({{ //ea_code
                         
@@ -1512,7 +1512,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_uh, traceData);
 
-                        Rd_uh = Mem_uh;
+                        Rd_trv.getRegVal().intVal() = Mem_uh;
                     }});
                 0x6: lwu ({{ //ea_code
                         
@@ -1520,7 +1520,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_uw, traceData);
 
-                        Rd_uw = Mem_uw;
+                        Rd_trv.getRegVal().intVal() = Mem_uw;
                     }});
             }
         }
