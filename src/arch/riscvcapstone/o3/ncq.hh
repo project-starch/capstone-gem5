@@ -99,6 +99,8 @@ class NCQ {
         void squash(const InstSeqNum& squashed_num, ThreadID thread_id);
 
         Fault postExecCheck(const DynInstPtr& inst);
+
+        void allocateInit(ThreadID thread_id);
 };
 
 }

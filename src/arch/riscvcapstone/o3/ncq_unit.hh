@@ -109,6 +109,9 @@ class NCQUnit {
         Fault postExecCheck(const DynInstPtr& inst) {
             return NoFault;
         }
+
+        // allocate the node for cinit, assumed 0
+        void allocateInit();
 };
 
 }

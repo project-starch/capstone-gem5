@@ -164,6 +164,11 @@ NCQ::squash(const InstSeqNum& squashed_num, ThreadID thread_id) {
     threads[thread_id].squash(squashed_num);
 }
 
+void NCQ::allocateInit(ThreadID thread_id) {
+    assert(thread_id >= 0 && thread_id < threadNum);
+    threads[thread_id].allocateInit();
+}
+
 }
 }
 }

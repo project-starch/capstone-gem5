@@ -14,6 +14,12 @@ namespace o3 {
 
 class CPU;
 
+const Addr NODE_MEM_BASE_ADDR = 0x7d0000000ULL;
+
+inline Addr node_addr(NodeID node_id) {
+    return (Addr)(NODE_MEM_BASE_ADDR + ((Addr)node_id * (sizeof(Node))));
+}
+
 NCQUnit::NCQUnit(ThreadID thread_id, int queue_size,
         CPU* cpu, NCQ* ncq, IEW* iew) :
     threadId(thread_id),
@@ -270,6 +276,32 @@ NCQUnit::squash(const InstSeqNum &squashed_num) {
             back.inst->ncqIdx = -1;
             back.clear();
             ncQueue.pop_back();
+    }
+}
+
+void
+NCQUnit::allocateInit() {
+    Node init_node;
+    init_node.counter = 1;
+    init_node.depth = 0;
+    init_node.state = Node::VALID;
+    init_node.prev = NODE_ID_INVALID;
+    init_node.next = NODE_ID_INVALID;
+
+    Addr addr = node_addr(0);
+    RequestPtr req = std::make_shared<Request>();
+    req->requestorId(cpu->dataRequestorId());
+    req->setPaddr(addr);
+    req->setSize(sizeof(Node));
+    PacketPtr pkt = Packet::createWrite(req);
+    //pkt->setSize(sizeof(Node));
+    pkt->allocate();
+    memcpy(pkt->getPtr<void>(), &init_node, sizeof(Node));
+
+    cpu->nodeController.setRoot(0);
+
+    if(pkt) {
+        ncq->trySendPacket(pkt, threadId);
     }
 }
 

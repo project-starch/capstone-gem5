@@ -558,17 +558,20 @@ CPU::startup()
     rename.startupStage();
     commit.startupStage();
 
-    Cap *cap = new Cap;
-    cap->setPerm(CapPerm::RWX);
-    cap->setType(CapType::LIN);
-    cap->setBound(secure_base, secure_end);
-    cap->setNodeId(0);
-    //WIP: new function for pushing this nodeid straightaway
+    //we don't actually support multithreading yet
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        Cap *cap = new Cap;
+        cap->setPerm(CapPerm::RWX);
+        cap->setType(CapType::LIN);
+        cap->setBound(secure_base, secure_end);
+        cap->setNodeId(0);
+        iew.ncQueue.allocateInit(tid);
 
-    ConstTaggedRegVal ctrv;
-    ctrv.setTag(true);
-    ctrv.getRegVal().rawCapVal() = (uint128_t)*cap;
-    isa[0]->setTaggedMiscReg(1, ctrv); //capmiscreg_cinit
+        ConstTaggedRegVal ctrv;
+        ctrv.setTag(true);
+        ctrv.getRegVal().rawCapVal() = (uint128_t)*cap;
+        isa[tid]->setTaggedMiscReg(1, ctrv); //capmiscreg_cinit
+    }
 }
 
 void
