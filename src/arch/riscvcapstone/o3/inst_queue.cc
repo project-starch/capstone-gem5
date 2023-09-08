@@ -1097,7 +1097,6 @@ InstructionQueue::rescheduleMemInst(const DynInstPtr &resched_inst)
     resched_inst->translationCompleted(false);
 
     resched_inst->clearCanIssue();
-    //resched_inst->clearExecuteCalled();
     memDepUnit[resched_inst->threadNumber].reschedule(resched_inst);
 }
 
