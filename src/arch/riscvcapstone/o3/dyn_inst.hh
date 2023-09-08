@@ -1403,6 +1403,14 @@ class DynInst : public ExecContext, public RefCounted
     void completeMemRead(int idx, PacketPtr pkt);
 
     void checkQueryCompleted();
+
+    bool addrInSecRegion(Addr addr, uint64_t size) {
+        return (addr >= cpu->secure_base - size && addr < cpu->secure_end);
+    }
+
+    bool isSecureWorld() {
+        return cpu->cwrld[threadNumber];
+    }
 };
 
 } // namespace RiscvcapstoneISA::o3

@@ -108,11 +108,9 @@ def template RNodeExecute {{
     }
 }};
 
-def format RNodeMemOp(check_code,
-                        ea_code, memacc_code, *opt_flags) {{
+def format RNodeMemOp(ea_code, memacc_code, *opt_flags) {{
     iop = InstObjParams(name, Name, 'RegNodeOp',
-                        {'check_code': check_code,
-                        'ea_code': ea_code,
+                        {'ea_code': ea_code,
                         'memacc_code': memacc_code}, opt_flags)
     header_output = RNodeMemDeclare.subst(iop)
     decoder_output = RNodeMemConstructor.subst(iop)
@@ -135,11 +133,72 @@ def template RNodeMemExecute {{
         %(op_decl)s;
         %(op_rd)s;
 
-        %(check_code)s;
+        CPU *o3cpu = dynamic_cast<o3::CPU *>(dyn_inst->getCpuPtr());
+        assert(o3cpu);
+
+        bool cwrld = o3cpu->cwrld[dyn_inst->threadNumber];
+        uint64_t emode = o3cpu->readMiscReg(CSR_EMODE, dyn_inst->threadNumber);
+        if(cwrld || (!cwrld && emode)) {
+            if(!Rs1.getTag()) {
+                return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
+            }
+
+            Cap rs1_cap = Rs1.getRegVal().capVal();
+
+            if(rs1_cap.type() == CapType::UNINIT ||
+                rs1_cap.type() == CapType::SEALED ||
+                rs1_cap.type() == CapType::REV) { //todo: or sealedret and async != 0
+                return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
+            }
+
+            if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
+                !rs1_cap.hasReadPerm()) {
+                return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
+            }
+
+            //check if Rs1.type == SEALEDRET and Rs1.async == 0
+        } else { //integer encoding mode
+            if(Rs1.getTag()) {
+                return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
+            }
+        }
+
+        Addr EA;
+
+        if(cwrld || (!cwrld && emode)) {
+            Cap rs1_cap = Rs1.getRegVal().capVal();
+            EA = rs1_cap.cursor() + IMM12;
+
+            if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(Mem))) {
+                return std::make_shared<IllegalInstFault>(
+                "Capability out of bound (28)", machInst);
+            }
+
+            //DPRINTFN("MemReads count = %d, tag query count = %d\n",
+            //dyn_inst->memReadN, dyn_inst->tagQueryN);
+
+            NodeID node_id = rs1_cap.nodeId();
+            dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+        } else {
+            EA = Rs1.getRegVal().intVal() + IMM12;
+
+            if(dyn_inst->addrInSecRegion(EA, sizeof(Mem))) {
+                return std::make_shared<IllegalInstFault>(
+                "Load access fault (5)", machInst);
+            }
+        }
+
+        if ((EA & (sizeof(Mem) - 1)) != 0) {
+            return std::make_shared<IllegalInstFault>(
+            "Load address misaligned (4)", machInst);
+        }
 
         %(ea_code)s;
 
         initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
+
+        //for integer loads, if Rd already contains a cap
+        //clear it and update refcount
 
         return NoFault;
     }
@@ -183,10 +242,10 @@ def template RNodeMemDeclare {{
 }};
 
 def format RNodeStoreMemOp(check_code,
-                        ea_code, comp_code, *opt_flags) {{
+                        memacc_code, comp_code, *opt_flags) {{
     iop = InstObjParams(name, Name, 'RegNodeOp', 
                         {'check_code': check_code, 
-                        'ea_code': ea_code,
+                        'memacc_code': memacc_code,
                         'comp_code': comp_code},
                          opt_flags)
     header_output = RNodeStoreMemDeclare.subst(iop)
@@ -209,8 +268,75 @@ def template RNodeStoreExecute {{
         %(op_decl)s;
         %(op_rd)s;
 
+        CPU *o3cpu = dynamic_cast<o3::CPU *>(dyn_inst->getCpuPtr());
+        assert(o3cpu);
+
+        bool cwrld = o3cpu->cwrld[dyn_inst->threadNumber];
+        uint64_t emode = o3cpu->readMiscReg(CSR_EMODE, dyn_inst->threadNumber);
+        if(cwrld || (!cwrld && emode)) {
+            if(!Rs1.getTag()) {
+                return std::make_shared<IllegalInstFault>(
+                    "Unexpected operand type (24)", machInst);
+            }
+
+            Cap rs1_cap = Rs1.getRegVal().capVal();
+
+            if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
+                return std::make_shared<IllegalInstFault>(
+                        "Unexpected capability type (26)", machInst);
+            }
+
+            if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
+                !rs1_cap.hasWritePerm()) {
+                return std::make_shared<IllegalInstFault>(
+                    "Insufficient capability permissions (27)", machInst);
+            }
+
+            //Rs1 == sealedret and Rs1.async != 0
+        } else { //integer encoding mode
+            if(Rs1.getTag()) {
+                return std::make_shared<IllegalInstFault>(
+                    "Unexpected operand type (24)", machInst);
+            }
+        }
+
         %(check_code)s;
-        %(ea_code)s;
+
+        //@todo: load the value from aligned mem addr and update cap refcount if any
+        Addr EA;
+        Addr offset = IMM7 << 5 | IMM5;
+        if(cwrld || (!cwrld && emode)) {
+            Cap rs1_cap = Rs1.getRegVal().capVal();
+            EA = rs1_cap.cursor() + offset;
+
+            if(rs1_cap.type() == CapType::UNINIT && offset) {
+                return std::make_shared<IllegalInstFault>(
+                        "Illegal operand value (29)", machInst);
+            }
+
+            if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(Mem))) {
+                return std::make_shared<IllegalInstFault>(
+                        "Capability out of bound (28)", machInst);
+            }
+        } else {
+            EA = Rs1.getRegVal().intVal() + offset;
+
+            if(dyn_inst->addrInSecRegion(EA, sizeof(Mem))) {
+                return std::make_shared<IllegalInstFault>(
+                        "Store/AMO access fault (7)", machInst);
+            }
+        }
+                        
+        if(EA & (sizeof(Mem) - 1))
+            return std::make_shared<IllegalInstFault>(
+                    "Store address misaligned (6)", machInst);
+
+        if(cwrld || (!cwrld && emode)) {
+            NodeID node_id = rs1_cap.nodeId();
+                dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+        }
+
+        %(memacc_code)s;
 
         return NoFault;
     }

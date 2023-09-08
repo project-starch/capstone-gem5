@@ -800,6 +800,10 @@ decode QUADRANT default Unknown::unknown() {
                 }
                 format Calls {
                     0x20: call ({{ //execute
+                        if(dyn_inst->isSecureWorld()) {
+                            return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
+                        }
+
                         if(!Rs1_trv.getTag())
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
 
@@ -870,6 +874,10 @@ decode QUADRANT default Unknown::unknown() {
                 }
                 format Return {
                     0x21: returni ({{ //execute
+                        if(dyn_inst->isSecureWorld()) {
+                            return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
+                        }
+
                         //rs1 != 0 check??
                         if(!Rs1_trv.getTag() || Rs2_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
@@ -1142,52 +1150,22 @@ decode QUADRANT default Unknown::unknown() {
                 }});
             }
             format RNodeMemOp {
-                0x3: ldc ({{ //check_code
-                        if(!Rs1_trv.getTag()) {
-                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-                        }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::UNINIT ||
-                                rs1_cap.type() == CapType::SEALED ||
-                                rs1_cap.type() == CapType::REV) { //todo: or sealedret and async != 0
-                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasReadPerm()) {
-                            return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //check if Rs1.type == SEALEDRET and Rs1.async == 0
-                    }}, {{ //ea_code
-                        Addr EA = rs1_cap.cursor() + IMM12;
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(RegVal))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-
-                        if ((EA & (sizeof(RegVal) - 1)) != 0) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Load address misaligned (4)", machInst);
-                        }
-
-                        //DPRINTFN("MemReads count = %d, tag query count = %d\n",
-                        //        dyn_inst->memReadN, dyn_inst->tagQueryN);
-                        
+                0x3: ldc ({{ //ea_code
                         Fault fault = dyn_inst->initiateGetTag(EA);
                         if(fault != NoFault)
                             return fault;
-
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                     }}, {{ //comp_code
                         bool tag_res = dyn_inst->getTagQueryRes(0);
                         if(!tag_res) {
                             return std::make_shared<IllegalInstFault>(
                                     "Load access fault (5)", machInst);
+                        }
+
+                        Addr EA;
+                        if(Rs1_trv.getTag()) {
+                            EA = Rs1_trv.getRegVal().capVal().cursor() + IMM12;
+                        } else {
+                            EA = Rs1_trv.getRegVal().intVal() + IMM12;
                         }
 
                         ConstTaggedRegVal temp_regval;
@@ -1199,8 +1177,6 @@ decode QUADRANT default Unknown::unknown() {
                         temp_regval.setTag(true);
 
                         using namespace gem5::RiscvcapstoneISA::o3;
-
-                        Addr EA = Rs1_trv.getRegVal().capVal().cursor() + IMM12;
 
                         if(Mem_rv.capVal().type() != CapType::NONLIN) {
                             dyn_inst->initiateSetTag(EA, false);
@@ -1221,6 +1197,13 @@ decode QUADRANT default Unknown::unknown() {
 
                         using namespace gem5::RiscvcapstoneISA::o3;
 
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        if(dyn_inst->isSecureWorld()) {
+                            return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
+                        }
+
                         if(!Rs1_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
@@ -1229,37 +1212,42 @@ decode QUADRANT default Unknown::unknown() {
                         //signed imm12?
                         NPC = rs1_cap.cursor() + IMM12;
 
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-
                         //write pc to rd
+                        //todo: actually pc + 4
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
 
                         dyn_inst->cpu->getIEWObject().setPCCap(rs1_cap,
                                                             dyn_inst->threadNumber);
 
                         //write cnull to rs1
-                        if(rs1_cap.type() != CapType::NONLIN) {
-                            Rs1_trv.setTag(false);
-                        } else {
-                            NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
-                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                        if(RS1 != RD) {
+                            if(rs1_cap.type() != CapType::NONLIN) {
+                                Rs1_trv.setTag(false);
+                            } else {
+                                NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                            }
                         }
 
                         Rs1_trv = Rs1_trv;
                         Rd_trv = Rd_trv;
                 }}, IsUncondControl);
                 0x6: cbnz ({{
+                    using namespace gem5::RiscvcapstoneISA::o3;
+
+                    DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                    assert(dyn_inst);
+
+                    if(dyn_inst->isSecureWorld()) {
+                            return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
+                    }
+
                     if(!(Rd_trv.getTag() && !Rs1_trv.getTag())) {
                         return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                     }
 
+                    //should I set PC or NPC hmmm
                     if(Rs1_trv.getRegVal().intVal() != 0) {
-                        using namespace gem5::RiscvcapstoneISA::o3;
-
-                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                        assert(dyn_inst);
-
                         Cap rd_cap = Rd_trv.getRegVal().capVal();
                         rd_cap.setCursor(rd_cap.cursor() + IMM12);
 
@@ -1279,46 +1267,11 @@ decode QUADRANT default Unknown::unknown() {
             }
             format RNodeStoreMemOp {
                 0x4: stc ({{ //check_code
-                        if(!Rs1_trv.getTag() || !Rs2_trv.getTag()) {
+                        if(!Rs2_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>(
-                                    "Unexpected operand type (24)", machInst);
+                                "Unexpected operand type (24)", machInst);
                         }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasWritePerm()) {
-                            return std::make_shared<IllegalInstFault>(
-                                "Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //Rs1 == sealedret and Rs1.async != 0
-                    }}, {{ //ea_code
-                        //@todo: load the value from aligned mem addr and update cap refcount if any
-                        Addr offset = IMM7 << 5 | IMM5;
-                        Addr EA = rs1_cap.cursor() + offset;
-
-                        if(rs1_cap.type() == CapType::UNINIT &&
-                            offset) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Illegal operand value (29)", machInst);
-                        }
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(RegVal))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-                        
-                        if(EA & (sizeof(RegVal) - 1))
-                            return std::make_shared<IllegalInstFault>(
-                                    "Store address misaligned (6)", machInst);
-                        
-                        static_assert(sizeof(RegVal) == 16);
+                    }}, {{ //memacc_code
                         static_assert(sizeof(RegVal) == 16);
 
                         Mem_rv = Rs2_trv.getRegVal();
@@ -1327,15 +1280,19 @@ decode QUADRANT default Unknown::unknown() {
                         //if(fault != NoFault)
                         //    return fault;
 
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-
-                        Fault fault = writeMemTimingLE(xc, traceData, Mem_rv.rawCapVal(), EA,
-                                          memAccessFlags, nullptr);
-                            if (fault != NoFault)
-                                return fault;
+                        Fault fault = writeMemTimingLE(xc, traceData, Mem.rawCapVal(), EA,
+                                        memAccessFlags, nullptr);
+                        if (fault != NoFault)
+                            return fault;
                     }}, {{ //comp_code
+                        if(Rs1_trv.getTag()) {
                         Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+
+                            if(rs1_cap.type() == CapType::UNINIT)
+                                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(RegVal));
+
+                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                        }
 
                         if(Rs2_trv.getRegVal().capVal().type() != CapType::NONLIN)
                             Rs2_trv.setTag(false);
@@ -1344,12 +1301,8 @@ decode QUADRANT default Unknown::unknown() {
                             dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                         }
 
-                        if(rs1_cap.type() == CapType::UNINIT)
-                            rs1_cap.setCursor(rs1_cap.cursor() + sizeof(RegVal));
-
                         Rs2_trv = Rs2_trv;
                         Rs1_trv = Rs1_trv;
-                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                     }}, IsStore);
             }
             format CCSROp {
@@ -1526,275 +1479,58 @@ decode QUADRANT default Unknown::unknown() {
         //End Capstone Ops
         0x00: decode FUNCT3 {
             format RNodeMemOp {
-                0x0: lb ({{ //check_code
-                        if(!Rs1_trv.getTag()) {
-                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-                        }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::UNINIT ||
-                                rs1_cap.type() == CapType::SEALED ||
-                                rs1_cap.type() == CapType::REV) { //todo: or sealedret and async != 0
-                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasReadPerm()) {
-                            return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //check if Rs1.type == SEALEDRET and Rs1.async == 0
-                    }}, {{ //ea_code
-                        Addr EA = rs1_cap.cursor() + IMM12;
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(int8_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-
-                        if ((EA & (sizeof(int8_t) - 1)) != 0) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Load address misaligned (4)", machInst);
-                        }
-
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                0x0: lb ({{ //ea_code
+                        
                     }}, {{ //comp_code
+                        Rs1_trv;
                         getMemLE(pkt, Mem_sb, traceData);
 
                         Rd_sb = Mem_sb;
                     }});
-                0x1: lh ({{ //check_code
-                        if(!Rs1_trv.getTag()) {
-                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-                        }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::UNINIT ||
-                                rs1_cap.type() == CapType::SEALED ||
-                                rs1_cap.type() == CapType::REV) { //todo: or sealedret and async != 0
-                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasReadPerm()) {
-                            return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //check if Rs1.type == SEALEDRET and Rs1.async == 0
-                    }}, {{ //ea_code
-                        Addr EA = rs1_cap.cursor() + IMM12;
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(int16_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-
-                        if ((EA & (sizeof(int16_t) - 1)) != 0) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Load address misaligned (4)", machInst);
-                        }
-
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                0x1: lh ({{ //ea_code
+                        
                     }}, {{ //comp_code
+                        Rs1_trv;
                         getMemLE(pkt, Mem_sh, traceData);
 
                         Rd_sh = Mem_sh;
                     }});
-                0x2: lw ({{ //check_code
-                        if(!Rs1_trv.getTag()) {
-                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-                        }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::UNINIT ||
-                                rs1_cap.type() == CapType::SEALED ||
-                                rs1_cap.type() == CapType::REV) { //todo: or sealedret and async != 0
-                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasReadPerm()) {
-                            return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //check if Rs1.type == SEALEDRET and Rs1.async == 0
-                    }}, {{ //ea_code
-                        Addr EA = rs1_cap.cursor() + IMM12;
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(int32_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-
-                        if ((EA & (sizeof(int32_t) - 1)) != 0) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Load address misaligned (4)", machInst);
-                        }
-
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                0x2: lw ({{ //ea_code
+                        
                     }}, {{ //comp_code
+                        Rs1_trv;
                         getMemLE(pkt, Mem_sw, traceData);
 
                         Rd_sw = Mem_sw;
                     }});
-                0x3: ld ({{ //check_code
-                        if(!Rs1_trv.getTag()) {
-                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-                        }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::UNINIT ||
-                                rs1_cap.type() == CapType::SEALED ||
-                                rs1_cap.type() == CapType::REV) { //todo: or sealedret and async != 0
-                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasReadPerm()) {
-                            return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //check if Rs1.type == SEALEDRET and Rs1.async == 0
-                    }}, {{ //ea_code
-                        Addr EA = rs1_cap.cursor() + IMM12;
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(int64_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-
-                        if ((EA & (sizeof(int64_t) - 1)) != 0) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Load address misaligned (4)", machInst);
-                        }
-
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                0x3: ld ({{ //ea_code
+                        
                     }}, {{ //comp_code
+                        Rs1_trv;
                         getMemLE(pkt, Mem_sd, traceData);
 
                         Rd_sd = Mem_sd;
                     }});
-                0x4: lbu ({{ //check_code
-                        if(!Rs1_trv.getTag()) {
-                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-                        }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::UNINIT ||
-                                rs1_cap.type() == CapType::SEALED ||
-                                rs1_cap.type() == CapType::REV) { //todo: or sealedret and async != 0
-                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasReadPerm()) {
-                            return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //check if Rs1.type == SEALEDRET and Rs1.async == 0
-                    }}, {{ //ea_code
-                        Addr EA = rs1_cap.cursor() + IMM12;
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(uint8_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-
-                        if ((EA & (sizeof(uint8_t) - 1)) != 0) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Load address misaligned (4)", machInst);
-                        }
-
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                0x4: lbu ({{ //ea_code
+                        
                     }}, {{ //comp_code
+                        Rs1_trv;
                         getMemLE(pkt, Mem_ub, traceData);
 
                         Rd_ub = Mem_ub;
                     }});
-                0x5: lhu ({{ //check_code
-                        if(!Rs1_trv.getTag()) {
-                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-                        }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::UNINIT ||
-                                rs1_cap.type() == CapType::SEALED ||
-                                rs1_cap.type() == CapType::REV) { //todo: or sealedret and async != 0
-                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasReadPerm()) {
-                            return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //check if Rs1.type == SEALEDRET and Rs1.async == 0
-                    }}, {{ //ea_code
-                        Addr EA = rs1_cap.cursor() + IMM12;
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(uint16_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-
-                        if ((EA & (sizeof(uint16_t) - 1)) != 0) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Load address misaligned (4)", machInst);
-                        }
-
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                0x5: lhu ({{ //ea_code
+                        
                     }}, {{ //comp_code
+                        Rs1_trv;
                         getMemLE(pkt, Mem_uh, traceData);
 
                         Rd_uh = Mem_uh;
                     }});
-                0x6: lwu ({{ //check_code
-                        if(!Rs1_trv.getTag()) {
-                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-                        }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::UNINIT ||
-                                rs1_cap.type() == CapType::SEALED ||
-                                rs1_cap.type() == CapType::REV) { //todo: or sealedret and async != 0
-                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasReadPerm()) {
-                            return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //check if Rs1.type == SEALEDRET and Rs1.async == 0
-                    }}, {{ //ea_code
-                        Addr EA = rs1_cap.cursor() + IMM12;
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(uint32_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-
-                        if ((EA & (sizeof(uint32_t) - 1)) != 0) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Load address misaligned (4)", machInst);
-                        }
-
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                0x6: lwu ({{ //ea_code
+                        
                     }}, {{ //comp_code
+                        Rs1_trv;
                         getMemLE(pkt, Mem_uw, traceData);
 
                         Rd_uw = Mem_uw;
@@ -2004,46 +1740,11 @@ decode QUADRANT default Unknown::unknown() {
         0x08: decode FUNCT3 {
             format RNodeStoreMemOp {
                 0x0: sb ({{ //check_code
-                        if(!Rs1_trv.getTag() || Rs2_trv.getTag()) {
+                        if(Rs2_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>(
                                     "Unexpected operand type (24)", machInst);
                         }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasWritePerm()) {
-                            return std::make_shared<IllegalInstFault>(
-                                "Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //Rs1 == sealedret and Rs1.async != 0
-                    }}, {{ //ea_code
-                        //@todo: load the value from aligned mem addr and update cap refcount if any
-                        Addr offset = IMM7 << 5 | IMM5;
-                        Addr EA = rs1_cap.cursor() + offset;
-
-                        if(rs1_cap.type() == CapType::UNINIT &&
-                            offset) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Illegal operand value (29)", machInst);
-                        }
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(int8_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-                        
-                        if(EA & (sizeof(int8_t) - 1)) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Store address misaligned (6)", machInst);
-                        }
-
+                    }}, {{ //memacc_code
                         Addr cap_aligned = EA & ~(sizeof(RegVal) - 1);
                         dyn_inst->initiateSetTag(cap_aligned, false);
 
@@ -2053,63 +1754,27 @@ decode QUADRANT default Unknown::unknown() {
                         //if(fault != NoFault)
                         //    return fault;
 
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-
                         Fault fault = writeMemTimingLE(xc, traceData, Mem_sb, EA,
                                           memAccessFlags, nullptr);
                             if (fault != NoFault)
                                 return fault;
-                    }}, {{ //comp_code
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+                    }}, {{ // comp_code
+                        if(Rs1_trv.getTag()) {
+                            Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        if(rs1_cap.type() == CapType::UNINIT)
-                            rs1_cap.setCursor(rs1_cap.cursor() + sizeof(int8_t));
+                            if(rs1_cap.type() == CapType::UNINIT)
+                                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem_sb));
 
-                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                        }
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
                 0x1: sh ({{ //check_code
-                        if(!Rs1_trv.getTag() || Rs2_trv.getTag()) {
+                        if(Rs2_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>(
                                     "Unexpected operand type (24)", machInst);
                         }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasWritePerm()) {
-                            return std::make_shared<IllegalInstFault>(
-                                "Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //Rs1 == sealedret and Rs1.async != 0
-                    }}, {{ //ea_code
-                        //@todo: load the value from aligned mem addr and update cap refcount if any
-                        Addr offset = IMM7 << 5 | IMM5;
-                        Addr EA = rs1_cap.cursor() + offset;
-
-                        if(rs1_cap.type() == CapType::UNINIT &&
-                            offset) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Illegal operand value (29)", machInst);
-                        }
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(int16_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-                        
-                        if(EA & (sizeof(int16_t) - 1)) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Store address misaligned (6)", machInst);
-                        }
-
+                    }}, {{ //memacc_code
                         Addr cap_aligned = EA & ~(sizeof(RegVal) - 1);
                         dyn_inst->initiateSetTag(cap_aligned, false);
 
@@ -2119,63 +1784,27 @@ decode QUADRANT default Unknown::unknown() {
                         //if(fault != NoFault)
                         //    return fault;
 
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-
                         Fault fault = writeMemTimingLE(xc, traceData, Mem_sh, EA,
                                           memAccessFlags, nullptr);
                             if (fault != NoFault)
                                 return fault;
-                    }}, {{ //comp_code
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+                    }}, {{ // comp_code
+                        if(Rs1_trv.getTag()) {
+                            Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        if(rs1_cap.type() == CapType::UNINIT)
-                            rs1_cap.setCursor(rs1_cap.cursor() + sizeof(int16_t));
+                            if(rs1_cap.type() == CapType::UNINIT)
+                                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem_sh));
 
-                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                        }
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
                 0x2: sw ({{ //check_code
-                        if(!Rs1_trv.getTag() || Rs2_trv.getTag()) {
+                        if(Rs2_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>(
                                     "Unexpected operand type (24)", machInst);
                         }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasWritePerm()) {
-                            return std::make_shared<IllegalInstFault>(
-                                "Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //Rs1 == sealedret and Rs1.async != 0
-                    }}, {{ //ea_code
-                        //@todo: load the value from aligned mem addr and update cap refcount if any
-                        Addr offset = IMM7 << 5 | IMM5;
-                        Addr EA = rs1_cap.cursor() + offset;
-
-                        if(rs1_cap.type() == CapType::UNINIT &&
-                            offset) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Illegal operand value (29)", machInst);
-                        }
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(int32_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-                        
-                        if(EA & (sizeof(int32_t) - 1)) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Store address misaligned (6)", machInst);
-                        }
-
+                    }}, {{ //memacc_code
                         Addr cap_aligned = EA & ~(sizeof(RegVal) - 1);
                         dyn_inst->initiateSetTag(cap_aligned, false);
 
@@ -2185,63 +1814,27 @@ decode QUADRANT default Unknown::unknown() {
                         //if(fault != NoFault)
                         //    return fault;
 
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-
                         Fault fault = writeMemTimingLE(xc, traceData, Mem_sw, EA,
                                           memAccessFlags, nullptr);
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ // comp_code
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+                        if(Rs1_trv.getTag()) {
+                            Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        if(rs1_cap.type() == CapType::UNINIT)
-                            rs1_cap.setCursor(rs1_cap.cursor() + sizeof(int32_t));
+                            if(rs1_cap.type() == CapType::UNINIT)
+                                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem_sw));
 
-                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                        }
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
                 0x3: sd ({{ //check_code
-                        if(!Rs1_trv.getTag() || Rs2_trv.getTag()) {
+                        if(Rs2_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>(
                                     "Unexpected operand type (24)", machInst);
                         }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Unexpected capability type (26)", machInst);
-                        }
-
-                        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                            !rs1_cap.hasWritePerm()) {
-                            return std::make_shared<IllegalInstFault>(
-                                "Insufficient capability permissions (27)", machInst);
-                        }
-
-                        //Rs1 == sealedret and Rs1.async != 0
-                    }}, {{ //ea_code
-                        //@todo: load the value from aligned mem addr and update cap refcount if any
-                        Addr offset = IMM7 << 5 | IMM5;
-                        Addr EA = rs1_cap.cursor() + offset;
-
-                        if(rs1_cap.type() == CapType::UNINIT &&
-                            offset) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Illegal operand value (29)", machInst);
-                        }
-
-                        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(int64_t))) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Capability out of bound (28)", machInst);
-                        }
-                        
-                        if(EA & (sizeof(int64_t) - 1)) {
-                            return std::make_shared<IllegalInstFault>(
-                                    "Store address misaligned (6)", machInst);
-                        }
-
+                    }}, {{ //memacc_code
                         Addr cap_aligned = EA & ~(sizeof(RegVal) - 1);
                         dyn_inst->initiateSetTag(cap_aligned, false);
 
@@ -2251,20 +1844,19 @@ decode QUADRANT default Unknown::unknown() {
                         //if(fault != NoFault)
                         //    return fault;
 
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-
                         Fault fault = writeMemTimingLE(xc, traceData, Mem_sd, EA,
                                           memAccessFlags, nullptr);
                             if (fault != NoFault)
                                 return fault;
                     }}, {{ // comp_code
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+                        if(Rs1_trv.getTag()) {
+                            Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        if(rs1_cap.type() == CapType::UNINIT)
-                            rs1_cap.setCursor(rs1_cap.cursor() + sizeof(int64_t));
+                            if(rs1_cap.type() == CapType::UNINIT)
+                                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem_sd));
 
-                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                        }
                         Rs1_trv = Rs1_trv;
                     }}, IsStore);
             }
