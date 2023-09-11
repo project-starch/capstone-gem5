@@ -147,7 +147,8 @@ def template RNodeMemExecute {{
 
             if(rs1_cap.type() == CapType::UNINIT ||
                 rs1_cap.type() == CapType::SEALED ||
-                rs1_cap.type() == CapType::REV) { //todo: or sealedret and async != 0
+                rs1_cap.type() == CapType::REV ||
+                (rs1_cap.type() == CapType::SEALEDRET && rs1_cap.async() != CapAsync::SYNC)) {
                 return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
             }
 
@@ -155,8 +156,6 @@ def template RNodeMemExecute {{
                 !rs1_cap.hasReadPerm()) {
                 return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
             }
-
-            //check if Rs1.type == SEALEDRET and Rs1.async == 0
         } else { //integer encoding mode
             if(Rs1.getTag()) {
                 return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
@@ -287,7 +286,8 @@ def template RNodeStoreExecute {{
 
             Cap rs1_cap = Rs1.getRegVal().capVal();
 
-            if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV) {
+            if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV ||
+                (rs1_cap.type() == CapType::SEALEDRET && rs1_cap.async() != CapAsync::SYNC)) {
                 return std::make_shared<IllegalInstFault>(
                         "Unexpected capability type (26)", machInst);
             }
@@ -297,8 +297,6 @@ def template RNodeStoreExecute {{
                 return std::make_shared<IllegalInstFault>(
                     "Insufficient capability permissions (27)", machInst);
             }
-
-            //Rs1 == sealedret and Rs1.async != 0
         } else { //integer encoding mode
             if(Rs1.getTag()) {
                 return std::make_shared<IllegalInstFault>(
@@ -308,7 +306,6 @@ def template RNodeStoreExecute {{
 
         %(check_code)s;
 
-        //@todo: load the value from aligned mem addr and update cap refcount if any
         Addr EA;
         Addr offset = IMM7 << 5 | IMM5;
         if(cwrld || (!cwrld && emode)) {

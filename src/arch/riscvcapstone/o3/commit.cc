@@ -1208,7 +1208,7 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         else if (query_result == QueryResult::FAILED)
         {
             inst_fault = std::make_shared<IllegalInstFault>(
-                "Capability provided is not valid", head_inst);
+                "Invalid capability (25)", head_inst);
         }
     }
 

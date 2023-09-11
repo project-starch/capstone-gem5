@@ -417,29 +417,53 @@ decode QUADRANT default Unknown::unknown() {
                 format ROp {
                     //format CIOp {
                     0x4: lcc ({{
+                        using namespace gem5::RiscvcapstoneISA::o3;
                         if(!Rs1_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        //todo: unexpected cap type check
+                        //todo: there probably be a cleaner way of doing this
 
-                        uint64_t res;
-                        gem5::RiscvcapstoneISA::o3::Cap cap_val = Rs1_trv.getRegVal().capVal();
+                        uint64_t res; bool unexpect = false;
+                        Cap cap_val = Rs1_trv.getRegVal().capVal();
+                        CapType t = cap_val.type();
 
                         switch(CIIMM5) {
                             case 0: break; //validity field - query then result?
                             case 1: res = static_cast<uint64_t>(cap_val.type()); break;
-                            case 2: res = cap_val.cursor(); break;
+                            case 2: if(t == CapType::SEALED) {
+                                        unexpect = true;
+                                        break;
+                                    }
+                                    res = cap_val.cursor(); break;
                             case 3: res = cap_val.start(); break;
-                            case 4: res = cap_val.end(); break;
-                            case 5: res = static_cast<uint64_t>(cap_val.perm()); break;
-                            case 6: break; //async
-                            case 7: break; //reg
+                            case 4: if(t == CapType::SEALED || t == CapType::SEALEDRET || t == CapType::EXIT) {
+                                        unexpect = true;
+                                        break;
+                                    }
+                                    res = cap_val.end(); break;
+                            case 5: if(t == CapType::SEALED || t == CapType::SEALEDRET || t == CapType::EXIT) {
+                                        unexpect = true;
+                                        break;
+                                    }
+                                    res = static_cast<uint64_t>(cap_val.perm()); break;
+                            case 6: if(!(t == CapType::SEALED || t == CapType::SEALEDRET)) {
+                                        unexpect = true;
+                                        break;
+                                    }
+                                    res = static_cast<uint64_t>(cap_val.async()); break;
+                            case 7: if(t != CapType::SEALEDRET) {
+                                        unexpect = true;
+                                        break;
+                                    }
+                                    res = static_cast<uint64_t>(cap_val.reg()); break;
                             default: res = 0;
                         }
 
-                        //maybe Rd_trv here and update the tag and Rc value???
-                        //or I think the commit stage will already handle it
+                        if(unexpect)
+                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
+
+                        //Rd_trv or Rd_ud doesn't matter. Commit will handle Rc update
                         Rd_ud = res;
                     }});
                     0xc: cincoffset ({{
@@ -518,6 +542,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rd_trv;
                     }});
                     0x3: delin ({{
+                        //todo: update captype also in node
                         using namespace gem5::RiscvcapstoneISA::o3;
 
                         if(!Rd_trv.getTag()) {
@@ -553,7 +578,8 @@ decode QUADRANT default Unknown::unknown() {
 
                         rs1_cap.setType(CapType::LIN);
 
-                        rs1_cap.setCursor(Rs2_trv.getRegVal().intVal());
+                        //why not set desired value straight away with Rs2?
+                        rs1_cap.setCursor(rs1_cap.start() + Rs2_trv.getRegVal().intVal());
                         Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rd_trv = Rs1_trv;
 
@@ -596,28 +622,28 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        //todo: add check if Rs1 and Rd are same regs
-                        //or do I need to do nothing?
-                        //write cnull to Rs1
+                        //todo: write cnull to Rs1
 
                         using namespace gem5::RiscvcapstoneISA::o3;
 
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        Rd_trv = Rs1_trv;
+                        if(RS1 != RD) {
+                            Rd_trv = Rs1_trv;
 
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+                            Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        if(Rs1_trv.getTag()) {
-                            if(rs1_cap.type() == CapType::NONLIN) {
-                                uint64_t node_id = rs1_cap.nodeId();
-                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
-                            } else {
-                                Rs1_trv.setTag(false);
+                            if(Rs1_trv.getTag()) {
+                                if(rs1_cap.type() == CapType::NONLIN) {
+                                    uint64_t node_id = rs1_cap.nodeId();
+                                    dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                                } else {
+                                    Rs1_trv.setTag(false);
+                                }
                             }
+                            Rs1_trv = Rs1_trv;
                         }
-                        Rs1_trv = Rs1_trv;
                     }});
                     0x6: csplit ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
@@ -628,7 +654,6 @@ decode QUADRANT default Unknown::unknown() {
 
                         Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        //Rs1 should be valid (query check)
                         if(!(rs1_cap.type() == CapType::LIN ||
                                 rs1_cap.type() == CapType::NONLIN)) {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
@@ -699,8 +724,6 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
                         }
 
-                        //check Rs1.valid == 1 by querying
-
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
@@ -728,7 +751,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv = Rs1_trv;
                     }});
                     0x0: revoke ({{
-                        //todo: traverse rev tree subtree to see
+                        //todo: check linearity field in node to see
                         //if this becomes uninit or lin
 
                         using namespace gem5::RiscvcapstoneISA::o3;
@@ -800,7 +823,7 @@ decode QUADRANT default Unknown::unknown() {
                 }
                 format Calls {
                     0x20: call ({{ //execute
-                        if(dyn_inst->isSecureWorld()) {
+                        if(!dyn_inst->isSecureWorld()) {
                             return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
                         }
 
@@ -809,7 +832,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        if(rs1_cap.type() != CapType::SEALED || rs1_cap.async() != CapAsync::SYNC)
+                        if(rs1_cap.type() != CapType::SEALED && rs1_cap.async() != CapAsync::SYNC)
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
 
                         //check Rs1 validity
@@ -874,7 +897,7 @@ decode QUADRANT default Unknown::unknown() {
                 }
                 format Return {
                     0x21: returni ({{ //execute
-                        if(dyn_inst->isSecureWorld()) {
+                        if(!dyn_inst->isSecureWorld()) {
                             return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
                         }
 
@@ -885,7 +908,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        if(rs1_cap.type() != CapType::SEALEDRET) {
+                        if(rs1_cap.type() != CapType::SEALEDRET && rs1_cap.async() == CapAsync::INTERRUPT) {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
                         }
 
@@ -923,8 +946,7 @@ decode QUADRANT default Unknown::unknown() {
                                 }
 
                                 //set rs1_cap.type() to SEALED and write rs1_cap to rs1_cap.reg()
-
-                            } else { //upon exception or interrupt
+                            } else { //upon exception
                                 Addr cur_addr = rs1_cap.start();
 
                                 RegVal dummy;
@@ -1200,7 +1222,7 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        if(dyn_inst->isSecureWorld()) {
+                        if(!dyn_inst->isSecureWorld()) {
                             return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
                         }
 
@@ -1238,7 +1260,7 @@ decode QUADRANT default Unknown::unknown() {
                     DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                     assert(dyn_inst);
 
-                    if(dyn_inst->isSecureWorld()) {
+                    if(!dyn_inst->isSecureWorld()) {
                             return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
                     }
 
