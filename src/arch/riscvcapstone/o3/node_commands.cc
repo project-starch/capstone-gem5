@@ -544,7 +544,7 @@ NodeDrop::handleResp(PacketPtr pkt) {
                 inst->getNodeController().setRoot(NODE_ID_INVALID);
                 status = COMPLETED;
             } else if(prevNodeId == NODE_ID_INVALID) {
-                inst->getNodeController().setRoot(nodeId);
+                inst->getNodeController().setRoot(nodeId); //shouldn't this be nextNodeId?
                 state = NCDrop_LOAD_RIGHT;
                 status = TO_RESUME;
             } else {

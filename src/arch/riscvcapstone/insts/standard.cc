@@ -51,6 +51,26 @@ namespace RiscvcapstoneISA
 {
 
 std::string
+CapExitClass::generateDisassembly(Addr pc,
+                            const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << mnemonic << ' ' << registerName(srcRegIdx(0)) << ", " <<
+        registerName(srcRegIdx(1));
+    return ss.str();
+}
+
+std::string
+CapEnterClass::generateDisassembly(Addr pc,
+                            const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << mnemonic << ' ' << registerName(srcRegIdx(0)) << ", " <<
+        registerName(srcRegIdx(1));
+    return ss.str();
+}
+
+std::string
 CallsClass::generateDisassembly(Addr pc,
                             const loader::SymbolTable *symtab) const
 {
