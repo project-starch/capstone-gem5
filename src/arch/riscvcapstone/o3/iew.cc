@@ -1041,10 +1041,7 @@ IEW::dispatchInsts(ThreadID tid)
 
         // Otherwise issue the instruction just fine.
 
-
-        if(inst->hasNodeOp()) {
-            ncQueue.insertInstruction(inst);
-        }
+        ncQueue.insertInstruction(inst);
 
         tagController.insertInstruction(inst);
 
