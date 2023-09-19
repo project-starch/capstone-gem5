@@ -913,6 +913,8 @@ decode QUADRANT default Unknown::unknown() {
                         Cap pc_cap_new(pc_mem_load);
                         dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
 
+                        NPC = pc_cap_new.cursor();
+
                         ceh.getRegVal().rawCapVal() = ceh_mem_load;
                         dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
 
@@ -940,7 +942,8 @@ decode QUADRANT default Unknown::unknown() {
 
                         Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                        if(rs1_cap.type() != CapType::SEALEDRET && rs1_cap.async() == CapAsync::INTERRUPT) {
+                        if(rs1_cap.type() != CapType::SEALEDRET ||
+                            (rs1_cap.type() == CapType::SEALEDRET && rs1_cap.async() == CapAsync::INTERRUPT)) {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
                         }
 
@@ -950,7 +953,7 @@ decode QUADRANT default Unknown::unknown() {
                             RiscvcapstoneISAInst::PCState pc_state;
                             set(pc_state, xc->pcState());
                             Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                            pc_cap.setCursor(Rs1_trv.getRegVal().intVal());
+                            pc_cap.setCursor(Rs2_trv.getRegVal().intVal());
 
                             ConstTaggedRegVal v;
                             v.setTag(true);
@@ -962,6 +965,8 @@ decode QUADRANT default Unknown::unknown() {
                             Cap pc_cap_new = epc.getRegVal().capVal();
 
                             dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
+
+                            NPC = pc_cap_new.cursor();
 
                             if(pc_cap_new.type() != CapType::NONLIN) {
                                 epc.setTag(false);
@@ -1026,6 +1031,8 @@ decode QUADRANT default Unknown::unknown() {
                             Cap pc_cap_new(pc_mem_load);
                             dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
 
+                            NPC = pc_cap_new.cursor();
+
                             ceh.getRegVal().rawCapVal() = ceh_mem_load;
                             dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
 
@@ -1037,6 +1044,7 @@ decode QUADRANT default Unknown::unknown() {
                             rs1_cap.setType(CapType::SEALED);
                             Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                             //might not work
+                            //todo: need to set tag true
                             dyn_inst->cpu->setArchReg(cap_reg, Rs1_trv.getRegVal(), dyn_inst->threadNumber);
                         } else if(rs1_cap.async() == CapAsync::EXCEPT) {
                             assert(dyn_inst->memReadN == 33);
@@ -1053,7 +1061,7 @@ decode QUADRANT default Unknown::unknown() {
                             memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
                             //also assert tag results maybe?
 
-                            Addr cur_addr = rs1_cap.start();
+                            Addr cur_addr = rs1_cap.start() + 2 * sizeof(RegVal);
 
                             ConstTaggedRegVal ceh = dyn_inst->readTaggedMiscReg(CAPMISCREG_CEH);
                             Cap ceh_cap = ceh.getRegVal().capVal();
@@ -1074,72 +1082,7 @@ decode QUADRANT default Unknown::unknown() {
                             Cap pc_cap_new(pc_mem_load);
                             dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
 
-                            //write context
-                            for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
-                                ConstTaggedRegVal v;
-                                v = dyn_inst->getTaggedRegOperand(this, i);
-
-                                // store value
-                                // DPRINTFN("Write context x%d %llx\n", i, v.getRegVal().intVal());
-                                fault = writeMemTimingLE(xc, traceData, v.getRegVal(), cur_addr, 
-                                Request::Flags(), nullptr);
-                                if(fault != NoFault) {
-                                    return fault;
-                                }
-                                // store tag
-                                //DPRINTFN("Set tag %d %d\n", i, v.getTag());
-                                fault = dyn_inst->initiateSetTag(cur_addr, v.getTag());
-                                if(fault != NoFault) {
-                                    return fault;
-                                }
-                            }
-
-                            for(int reg_idx = 0; reg_idx < NumIntArchRegs; reg_idx ++) {
-                                RegVal& v = *(RegVal*)(dyn_inst->getMemReadRes(reg_idx + 2));
-                                ConstTagRef tag = dyn_inst->getTagQueryRes(reg_idx + 2);
-                                //DPRINTFN("Load context reg %d  = 0x%llx (tag = %d)\n",
-                                //    reg_idx, v.intVal(), tag);
-            
-                                // write back to registers
-                                ConstTaggedRegVal tagged_val(v, tag);
-                                dyn_inst->setTaggedRegOperand(this, reg_idx, tagged_val);
-                            }
-                        } else { //upon interrupt
-                            assert(dyn_inst->memReadN == 33);
-
-                            RiscvcapstoneISAInst::PCState pc_state;
-                            set(pc_state, xc->pcState());
-                            uint64_t npc = pc_state.npc();
-                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                            pc_cap.setCursor(Rs2_trv.getRegVal().intVal()); // prepare the PC cap to save
-
-                            uint128_t pc_mem_load, ceh_mem_load;
-                            //need to fix rescheduled call? like a rescheduled load
-
-                            memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
-                            memcpy(&ceh_mem_load, dyn_inst->getMemReadRes(1), sizeof(ceh_mem_load));
-                            //also assert tag results maybe?
-
-                            Addr cur_addr = rs1_cap.start();
-
-                            ConstTaggedRegVal ceh = dyn_inst->readTaggedMiscReg(CAPMISCREG_CEH);
-                            Cap ceh_cap = ceh.getRegVal().capVal();
-
-                            Fault fault = writeMemTimingLE(xc, traceData, (uint128_t)pc_cap, cur_addr, Request::Flags(), nullptr);
-                                if (fault != NoFault)
-                                    return fault;
-                            fault = writeMemTimingLE(xc, traceData, (uint128_t)ceh_cap, cur_addr + sizeof(RegVal), Request::Flags(), nullptr);
-                                if (fault != NoFault)
-                                    return fault;
-
-                            rs1_cap.setType(CapType::SEALED);
-                            rs1_cap.setAsync(CapAsync::SYNC);
-
-                            ceh.getRegVal().rawCapVal() = ceh_mem_load;
-                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
-
-                            Cap pc_cap_new(pc_mem_load);
-                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
+                            NPC = pc_cap_new.cursor();
 
                             //write context
                             for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
@@ -1221,7 +1164,7 @@ decode QUADRANT default Unknown::unknown() {
                             Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
                             uint64_t pc = pc_cap.cursor();
 
-                            cpu->normal_pc[dyn_inst->threadNumber] = pc;
+                            cpu->normal_pc[dyn_inst->threadNumber] = PC;
                             cpu->normal_sp[dyn_inst->threadNumber] = sp_trv;
 
                             uint128_t pc_mem_load, ceh_mem_load, csp_mem_load;
@@ -1235,6 +1178,8 @@ decode QUADRANT default Unknown::unknown() {
 
                             Cap pc_cap_new(pc_mem_load);
                             dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
+
+                            NPC = pc_cap_new.cursor();
 
                             ConstTaggedRegVal ceh;
                             ceh.setTag(true);
@@ -1258,7 +1203,7 @@ decode QUADRANT default Unknown::unknown() {
                             Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
                             uint64_t pc = pc_cap.cursor();
 
-                            cpu->normal_pc[dyn_inst->threadNumber] = pc;
+                            cpu->normal_pc[dyn_inst->threadNumber] = PC;
                             cpu->normal_sp[dyn_inst->threadNumber] = sp_trv;
 
                             uint128_t pc_mem_load, ceh_mem_load;
@@ -1271,6 +1216,8 @@ decode QUADRANT default Unknown::unknown() {
 
                             Cap pc_cap_new(pc_mem_load);
                             dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
+
+                            NPC = pc_cap_new.cursor();
 
                             ConstTaggedRegVal ceh;
                             ceh.setTag(true);
@@ -1345,8 +1292,8 @@ decode QUADRANT default Unknown::unknown() {
                             if (fault != NoFault)
                                 return fault;
 
-                        //todo: update PC
                         sp_trv = cpu->normal_sp[dyn_inst->threadNumber];
+                        NPC = cpu->normal_pc[dyn_inst->threadNumber] + 4;
 
                         rs1_cap.setType(CapType::SEALED);
                         rs1_cap.setAsync(CapAsync::SYNC);
@@ -1506,6 +1453,8 @@ decode QUADRANT default Unknown::unknown() {
                         rd_cap.setCursor(rd_cap.cursor() + IMM12);
 
                         dyn_inst->cpu->getIEWObject().setPCCap(rd_cap, dyn_inst->threadNumber);
+
+                        NPC = rd_cap.cursor();
 
                         //write cnull to rd
                         if(rd_cap.type() != CapType::NONLIN) {
@@ -3182,6 +3131,11 @@ decode QUADRANT default Unknown::unknown() {
             format BOp {
                 0x0: beq({{
                     if (Rs1 == Rs2) {
+                        if(dyn_inst->isSecureWorld()) {
+                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setCursor(PC + imm);
+                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
+                        }
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3189,6 +3143,11 @@ decode QUADRANT default Unknown::unknown() {
                 }}, IsDirectControl, IsCondControl);
                 0x1: bne({{
                     if (Rs1 != Rs2) {
+                        if(dyn_inst->isSecureWorld()) {
+                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setCursor(PC + imm);
+                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
+                        }
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3196,6 +3155,11 @@ decode QUADRANT default Unknown::unknown() {
                 }}, IsDirectControl, IsCondControl);
                 0x4: blt({{
                     if (Rs1_sd < Rs2_sd) {
+                        if(dyn_inst->isSecureWorld()) {
+                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setCursor(PC + imm);
+                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
+                        }
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3203,6 +3167,11 @@ decode QUADRANT default Unknown::unknown() {
                 }}, IsDirectControl, IsCondControl);
                 0x5: bge({{
                     if (Rs1_sd >= Rs2_sd) {
+                        if(dyn_inst->isSecureWorld()) {
+                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setCursor(PC + imm);
+                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
+                        }
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3210,6 +3179,11 @@ decode QUADRANT default Unknown::unknown() {
                 }}, IsDirectControl, IsCondControl);
                 0x6: bltu({{
                     if (Rs1 < Rs2) {
+                        if(dyn_inst->isSecureWorld()) {
+                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setCursor(PC + imm);
+                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
+                        }
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3217,6 +3191,11 @@ decode QUADRANT default Unknown::unknown() {
                 }}, IsDirectControl, IsCondControl);
                 0x7: bgeu({{
                     if (Rs1 >= Rs2) {
+                        if(dyn_inst->isSecureWorld()) {
+                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setCursor(PC + imm);
+                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
+                        }
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3227,14 +3206,53 @@ decode QUADRANT default Unknown::unknown() {
 
         0x19: decode FUNCT3 {
             0x0: Jump::jalr({{
-                Rd = NPC;
+                using namespace gem5::RiscvcapstoneISA::o3;
+
+                DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                assert(dyn_inst);
+
+                Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                ConstTaggedRegVal temp_regval;
+
+                if(dyn_inst->isSecureWorld()) {
+                    pc_cap.setCursor(NPC);
+                    temp_regval.setTag(true);
+                    temp_regval.getRegVal().rawCapVal() = (uint128_t)pc_cap;
+                } else {
+                    temp_regval.setTag(false);
+                    temp_regval.getRegVal().intVal() = NPC;
+                }
+
                 NPC = (imm + Rs1) & (~0x1);
+                Rd_trv = temp_regval;
+
+                if(dyn_inst->isSecureWorld()) {
+                    pc_cap.setCursor(NPC);
+                    dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
+                }
             }}, IsIndirectControl, IsUncondControl);
         }
 
         0x1b: JOp::jal({{
-            Rd = NPC;
-            NPC = PC + imm;
+                Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                ConstTaggedRegVal temp_regval;
+
+                if(dyn_inst->isSecureWorld()) {
+                    pc_cap.setCursor(NPC);
+                    temp_regval.setTag(true);
+                    temp_regval.getRegVal().rawCapVal() = (uint128_t)pc_cap;
+                } else {
+                    temp_regval.setTag(false);
+                    temp_regval.getRegVal().intVal() = NPC;
+                }
+
+                NPC = PC + imm;
+                Rd_trv = temp_regval;
+
+                if(dyn_inst->isSecureWorld()) {
+                    pc_cap.setCursor(NPC);
+                    dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
+                }
         }}, IsDirectControl, IsUncondControl);
 
         0x1c: decode FUNCT3 {

@@ -189,6 +189,10 @@ def template BranchExecute {{
     %(class_name)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
+        using namespace gem5::RiscvcapstoneISA::o3;
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
+
         %(op_decl)s;
         %(op_rd)s;
         %(code)s;
