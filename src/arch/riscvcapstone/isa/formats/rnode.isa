@@ -133,6 +133,8 @@ def template RNodeMemExecute {{
         %(op_decl)s;
         %(op_rd)s;
 
+        int64_t imm = sext<12>(IMM12);
+
         CPU *o3cpu = dynamic_cast<o3::CPU *>(dyn_inst->getCpuPtr());
         assert(o3cpu);
 
@@ -166,7 +168,7 @@ def template RNodeMemExecute {{
 
         if(cwrld || (!cwrld && emode)) {
             Cap rs1_cap = Rs1.getRegVal().capVal();
-            EA = rs1_cap.cursor() + IMM12;
+            EA = rs1_cap.cursor() + imm;
 
             if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(Mem))) {
                 return std::make_shared<IllegalInstFault>(
@@ -179,7 +181,7 @@ def template RNodeMemExecute {{
             NodeID node_id = rs1_cap.nodeId();
             dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
         } else {
-            EA = Rs1.getRegVal().intVal() + IMM12;
+            EA = Rs1.getRegVal().intVal() + imm;
 
             if(dyn_inst->addrInSecRegion(EA, sizeof(Mem))) {
                 return std::make_shared<IllegalInstFault>(
@@ -195,9 +197,6 @@ def template RNodeMemExecute {{
         %(ea_code)s;
 
         initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
-
-        //for integer loads, if Rd already contains a cap
-        //clear it and update refcount
 
         return NoFault;
     }
@@ -307,7 +306,7 @@ def template RNodeStoreExecute {{
         %(check_code)s;
 
         Addr EA;
-        Addr offset = IMM7 << 5 | IMM5;
+        int64_t offset = sext<12>(IMM7 << 5 | IMM5);
         if(cwrld || (!cwrld && emode)) {
             Cap rs1_cap = Rs1.getRegVal().capVal();
             EA = rs1_cap.cursor() + offset;

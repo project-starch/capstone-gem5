@@ -1331,7 +1331,9 @@ decode QUADRANT default Unknown::unknown() {
                         return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
                     }
 
-                    rs1_cap.setCursor(rs1_cap.cursor() + IMM12);
+                    int64_t imm = sext<12>(IMM12);
+
+                    rs1_cap.setCursor(rs1_cap.cursor() + imm);
 
                     ConstTaggedRegVal temp;
                     temp.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
@@ -1363,10 +1365,12 @@ decode QUADRANT default Unknown::unknown() {
                         }
 
                         Addr EA;
+                        int64_t imm = sext<12>(IMM12);
+
                         if(Rs1_trv.getTag()) {
-                            EA = Rs1_trv.getRegVal().capVal().cursor() + IMM12;
+                            EA = Rs1_trv.getRegVal().capVal().cursor() + imm;
                         } else {
-                            EA = Rs1_trv.getRegVal().intVal() + IMM12;
+                            EA = Rs1_trv.getRegVal().intVal() + imm;
                         }
 
                         ConstTaggedRegVal temp_regval;
@@ -1410,8 +1414,8 @@ decode QUADRANT default Unknown::unknown() {
                         }
 
                         Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-                        //signed imm12?
-                        NPC = rs1_cap.cursor() + IMM12;
+                        int64_t imm = sext<12>(IMM12);
+                        NPC = rs1_cap.cursor() + imm;
 
                         //write pc to rd
                         //todo: actually pc + 4
@@ -1450,7 +1454,8 @@ decode QUADRANT default Unknown::unknown() {
                     //should I set PC or NPC hmmm
                     if(Rs1_trv.getRegVal().intVal() != 0) {
                         Cap rd_cap = Rd_trv.getRegVal().capVal();
-                        rd_cap.setCursor(rd_cap.cursor() + IMM12);
+                        int64_t imm = sext<12>(IMM12);
+                        rd_cap.setCursor(rd_cap.cursor() + imm);
 
                         dyn_inst->cpu->getIEWObject().setPCCap(rd_cap, dyn_inst->threadNumber);
 
