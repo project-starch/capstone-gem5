@@ -339,10 +339,15 @@ TLB::translate(const RequestPtr &req, ThreadContext *tc,
 {
     delayed = false;
 
+    if(tc->cwrld() == 1) {
+        req->setPaddr(req->getVaddr());
+        return NoFault;
+    }
+
     if (FullSystem) {
         PrivilegeMode pmode = getMemPriv(tc, mode);
         SATP satp = tc->readMiscReg(MISCREG_SATP).intVal();
-        if (pmode == PrivilegeMode::PRV_M || satp.mode == AddrXlateMode::BARE || tc->cwrld() == 1)
+        if (pmode == PrivilegeMode::PRV_M || satp.mode == AddrXlateMode::BARE)
             req->setFlags(Request::PHYSICAL);
 
         Fault fault;

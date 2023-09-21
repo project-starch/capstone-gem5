@@ -572,7 +572,7 @@ CPU::startup()
         ctrv.getRegVal().rawCapVal() = (uint128_t)*cap;
         isa[tid]->setTaggedMiscReg(1, ctrv); //capmiscreg_cinit
 
-        cwrld[tid] = 0;
+        cwrld[tid] = 1;
     }
 }
 

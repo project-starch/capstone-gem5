@@ -227,6 +227,12 @@ NCQUnit::handleCacheResp(PacketPtr pkt) {
     assert(it != packetIssuers.end());
     PacketRecord& packet_record = it->second;
     NodeCommandPtr node_cmd = packet_record.cmd;
+    //check if it was a command issued by cpu and not an inst
+    if(!packet_record.inst && node_cmd == nullptr) {
+        packetIssuers.erase(it);
+        delete pkt;
+        return true;
+    }
     DPRINTF(NCQ, "Node cache response received for instruction %u, cmd beforeCommit = %u\n",
                     packet_record.inst->seqNum, node_cmd->beforeCommit());
 
@@ -301,6 +307,10 @@ NCQUnit::allocateInit() {
     cpu->nodeController.setRoot(0);
 
     if(pkt) {
+        packetIssuers[pkt->id] = PacketRecord {
+            .inst = nullptr,
+            .cmd = nullptr
+        };
         ncq->trySendPacket(pkt, threadId);
     }
 }

@@ -848,42 +848,44 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     request->initiateTranslation();
 
     /* This is the place were instructions get the effAddr. */
-    if (request->isMemAccessRequired()) {
-        if(isLoad) {
-            if (!inst->loadEffAddrValid()) {
-                inst->setLoadEffAddrs(request->getVaddr(), size);
+    if (request->isTranslationComplete()) {
+        if (request->isMemAccessRequired()) {
+            if(isLoad) {
+                if (!inst->loadEffAddrValid()) {
+                    inst->setLoadEffAddrs(request->getVaddr(), size);
+                }
+                // otherwise, assume that the instruction has set the addresses in advance
+            } else {
+                // store
+                if (!inst->effAddrValid())
+                {
+                    inst->setEffAddrs(request->getVaddr(), size);
+                }
             }
-            // otherwise, assume that the instruction has set the addresses in advance
-        } else {
-            // store
-            if (!inst->effAddrValid())
-            {
-                inst->setEffAddrs(request->getVaddr(), size);
-            }
-        }
 
-        if (cpu->checker) {
-            inst->reqToVerify = std::make_shared<Request>(*request->req());
-            inst->reqIdxToVerify = request->reqIdx;
+            if (cpu->checker) {
+                inst->reqToVerify = std::make_shared<Request>(*request->req());
+                inst->reqIdxToVerify = request->reqIdx;
+            }
+            Fault fault;
+            if (isLoad)
+                fault = read(request, inst->lqIdx);
+            else {
+                ++ inst->memWriteN;
+                fault = write(request, data, inst->sqIdx);
+            }
+            // inst->getFault() may have the first-fault of a
+            // multi-access split request at this point.
+            // Overwrite that only if we got another type of fault
+            // (e.g. re-exec).
+            if (fault != NoFault)
+                inst->getFault() = fault;
+        } else if (isLoad) {
+            inst->setMemAccPredicate(false);
+            // Commit will have to clean up whatever happened.  Set this
+            // instruction as executed.
+            inst->setExecuted();
         }
-        Fault fault;
-        if (isLoad)
-            fault = read(request, inst->lqIdx);
-        else {
-            ++ inst->memWriteN;
-            fault = write(request, data, inst->sqIdx);
-        }
-        // inst->getFault() may have the first-fault of a
-        // multi-access split request at this point.
-        // Overwrite that only if we got another type of fault
-        // (e.g. re-exec).
-        if (fault != NoFault)
-            inst->getFault() = fault;
-    } else if (isLoad) {
-        inst->setMemAccPredicate(false);
-        // Commit will have to clean up whatever happened.  Set this
-        // instruction as executed.
-        inst->setExecuted();
     }
 
     if (inst->traceData)
