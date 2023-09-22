@@ -1228,7 +1228,7 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     //seriously, there has to be a better way to do this.
     //how would split change RC? need to check the spec
     std::string mnemonic = head_inst->staticInst->getName();
-    if(head_inst->fault != NoFault && head_inst->staticInst->opClass() != No_OpClass && mnemonic != "capperm" &&
+    if(head_inst->fault == NoFault && head_inst->staticInst->opClass() != No_OpClass && mnemonic != "capperm" &&
         mnemonic != "captype" && mnemonic != "capnode" &&
         mnemonic != "capbound" && mnemonic != "stc" &&
         mnemonic != "std" && mnemonic != "stb" &&
