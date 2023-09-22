@@ -305,7 +305,7 @@ CPU::CPU(const CapstoneBaseO3CPUParams &params)
     if (!params.switched_out && interrupts.empty()) {
         fatal("O3CPU %s has no interrupt controller.\n"
               "Ensure createInterruptController() is called.\n", name());
-    }    
+    }
 }
 
 void

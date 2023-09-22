@@ -46,6 +46,9 @@
 
 #include "params/RiscvMMU.hh"
 
+#include "base/trace.hh"
+#include "debug/CapstoneMem.hh"
+
 namespace gem5
 {
 
@@ -81,8 +84,31 @@ class MMU : public BaseMMU
     }
 
     Fault translateAtomic(const RequestPtr& req, ThreadContext* tc, Mode mode) override {
-        //DPRINTF(CapstoneMem, "translate (atomic) %llx\n", req->getVaddr());
+        DPRINTF(CapstoneMem, "translate (atomic) %llx\n", req->getVaddr());
         req->setPaddr(req->getVaddr()); // simply pass through
+        return NoFault;
+    }
+
+    void translateTiming(const RequestPtr& req, ThreadContext* tc,
+            Translation* translation, Mode mode) override {
+        if(tc->cwrld() == 1) {
+            DPRINTF(CapstoneMem, "translate %llx\n", req->getVaddr());
+            req->setPaddr(req->getVaddr()); // simply pass through
+            translation->finish(NoFault, req, tc, mode);
+        } else {
+            return getTlb(mode)->translateTiming(req, tc, translation, mode);
+        }
+    }
+
+    Fault translateFunctional(const RequestPtr& req, ThreadContext* tc, Mode mode) override {
+        req->setPaddr(req->getVaddr()); // simply pass through
+
+        return NoFault;
+    }
+
+    void flushAll() override {} 
+
+    Fault finalizePhysical(const RequestPtr &req, ThreadContext *tc, Mode mode) const override {
         return NoFault;
     }
 
