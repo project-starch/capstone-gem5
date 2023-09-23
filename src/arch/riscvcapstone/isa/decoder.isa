@@ -1550,31 +1550,31 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                 }
                 format DropTest {
-                    0x1: dropt ({{
+                    0x10: dropt ({{
                         Rs1; Rs2; Rd;
                     }});
                 }
                 format RcUpdateTest {
-                    0x2: rcup ({{
+                    0x1: rcup ({{
                         Rs1; Rs2; Rd;
                     }});
                 }
                 format AllocTest {
-                    0x3: alloc ({{
+                    0x2: alloc ({{
                         Rs1; Rs2; Rd;
                     }});
                 }
                 format RevokeTest {
-                    0x4: revoket ({{
+                    0x3: revoket ({{
                         Rs1; Rs2; Rd;
                     }});
                 }
                 format ROp {
-                    0x5: capcreate ({{
+                    0x4: capcreate ({{
                         Rd_trv.setTag(true);
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
-                    0x6: captype ({{
+                    0x5: captype ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         assert(Rd_trv.getTag());
                         //using CapType = gem5::RiscvcapstoneISA::o3::CapType;
@@ -1586,7 +1586,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
-                    0x7: capnode ({{
+                    0x6: capnode ({{
                         assert(Rd_trv.getTag());
                         using namespace gem5::RiscvcapstoneISA::o3;
                         //Rd_trv.getRegVal().val.cap.setNodeId(static_cast<NodeID>(Rs1));
@@ -1595,7 +1595,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
-                    0x8: capperm ({{
+                    0x7: capperm ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         assert(Rd_trv.getTag());
                         //using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
@@ -1607,7 +1607,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
-                    0x9: capbound ({{
+                    0x8: capbound ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         assert(Rd_trv.getTag());
                         //DPRINTFN("Set capability bound to (%llx, %llx)\n", Rs1, Rs2);
@@ -1617,7 +1617,7 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv; // just to make the dumb parser happy
                     }});
-                    0xa: capprint ({{
+                    0x9: capprint ({{
                         //const RegVal& reg_val = Rs1_trv.getRegVal();
                         gem5::RiscvcapstoneISA::o3::Cap rs1_cap = Rs1_trv.getRegVal().capVal();
                         DPRINTFN("Capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
@@ -1640,14 +1640,14 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                 }
                 format TagAccessStore {
-                    0xb: tagset ({{
+                    0xa: tagset ({{
                         EA = Rs1_ud;
 
                         dyn_inst->initiateSetTag(EA, Rs2_ud ? true : false);
                     }});
                 }
                 format TagAccess {
-                    0xc: tagget ({{
+                    0xb: tagget ({{
                         EA = Rs1_ud;
                         uint64_t _dd = Rs2;
 
@@ -1657,8 +1657,16 @@ decode QUADRANT default Unknown::unknown() {
                                     dyn_inst->getTagQueryRes(0));
                     }});
                 }
+                format ROp {
+                    0xc: cssetworld ({{
+                        Rs1_ud;
+                        //0xd: csonpartition
+                        //0xe: csseteh
+                        //0xf: csonnormaleh
+                    }});
+                }
                 format RNodeOp {
-                    0xf: printnode ({{
+                    0x11: printnode ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
 
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);

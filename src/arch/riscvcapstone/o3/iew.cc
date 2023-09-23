@@ -124,7 +124,7 @@ IEW::IEW(CPU *_cpu, const CapstoneBaseO3CPUParams &params)
     }
     
     assert(numThreads == 1); // FIXME: only supports a single thread for now
-    pcCaps[0].setAddresses(0, 0x1000000ULL, 0); // TODO: load this from the workload
+    pcCaps[0].setAddresses(0, 0xFFFFFFFFFULL, 0); // TODO: load this from the workload
     pcCaps[0].setPerm(CapPerm::RX);
     pcCaps[0].setType(CapType::LIN);
 
