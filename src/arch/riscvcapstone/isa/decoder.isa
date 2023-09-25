@@ -1628,7 +1628,7 @@ decode QUADRANT default Unknown::unknown() {
                                 static_cast<unsigned int>(rs1_cap.type()),
                                 rs1_cap.nodeId());
                     }}, IsSerializing, IsNonSpeculative, IsSerializeAfter);
-                    0xd: printregs ({{
+                    0x12: printregs ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         DynInst *dyn_inst = dynamic_cast<DynInst *>(xc);
                         assert(dyn_inst);
@@ -1660,9 +1660,11 @@ decode QUADRANT default Unknown::unknown() {
                 format ROp {
                     0xc: cssetworld ({{
                         Rs1_ud;
-                        //0xd: csonpartition
                         //0xe: csseteh
                         //0xf: csonnormaleh
+                    }});
+                    0xd: csonpartition ({{
+                        Rs1_ud;
                     }});
                 }
                 format RNodeOp {
@@ -1688,7 +1690,11 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_sb, traceData);
 
-                        Rd_trv.getRegVal().intVal() = Mem_sb;
+                        ConstTaggedRegVal temp_regval;
+                        temp_regval.setTag(false);
+                        temp_regval.getRegVal().intVal() = Mem_sb;
+
+                        Rd_trv = temp_regval;
                     }});
                 0x1: lh ({{ //ea_code
                         
@@ -1696,7 +1702,11 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_sh, traceData);
 
-                        Rd_trv.getRegVal().intVal() = Mem_sh;
+                        ConstTaggedRegVal temp_regval;
+                        temp_regval.setTag(false);
+                        temp_regval.getRegVal().intVal() = Mem_sh;
+
+                        Rd_trv = temp_regval;
                     }});
                 0x2: lw ({{ //ea_code
                         
@@ -1704,7 +1714,11 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_sw, traceData);
 
-                        Rd_trv.getRegVal().intVal() = Mem_sw;
+                        ConstTaggedRegVal temp_regval;
+                        temp_regval.setTag(false);
+                        temp_regval.getRegVal().intVal() = Mem_sw;
+
+                        Rd_trv = temp_regval;
                     }});
                 0x3: ld ({{ //ea_code
                         
@@ -1712,7 +1726,11 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_sd, traceData);
 
-                        Rd_trv.getRegVal().intVal() = Mem_sd;
+                        ConstTaggedRegVal temp_regval;
+                        temp_regval.setTag(false);
+                        temp_regval.getRegVal().intVal() = Mem_sd;
+
+                        Rd_trv = temp_regval;
                     }});
                 0x4: lbu ({{ //ea_code
                         
@@ -1720,7 +1738,11 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_ub, traceData);
 
-                        Rd_trv.getRegVal().intVal() = Mem_ub;
+                        ConstTaggedRegVal temp_regval;
+                        temp_regval.setTag(false);
+                        temp_regval.getRegVal().intVal() = Mem_ub;
+
+                        Rd_trv = temp_regval;
                     }});
                 0x5: lhu ({{ //ea_code
                         
@@ -1728,7 +1750,11 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_uh, traceData);
 
-                        Rd_trv.getRegVal().intVal() = Mem_uh;
+                        ConstTaggedRegVal temp_regval;
+                        temp_regval.setTag(false);
+                        temp_regval.getRegVal().intVal() = Mem_uh;
+
+                        Rd_trv = temp_regval;
                     }});
                 0x6: lwu ({{ //ea_code
                         
@@ -1736,7 +1762,11 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv;
                         getMemLE(pkt, Mem_uw, traceData);
 
-                        Rd_trv.getRegVal().intVal() = Mem_uw;
+                        ConstTaggedRegVal temp_regval;
+                        temp_regval.setTag(false);
+                        temp_regval.getRegVal().intVal() = Mem_uw;
+
+                        Rd_trv = temp_regval;
                     }});
             }
         }

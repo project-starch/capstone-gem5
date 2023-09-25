@@ -90,7 +90,7 @@ def template RNodeStoreConstructor {{
 
         hasNodeOp = true;
         flags[IsStore] = true;
-        flags[IsLoad] = false;
+        flags[IsLoad] = true;
     }
 }};
 
@@ -139,7 +139,7 @@ def template RNodeMemExecute {{
         assert(o3cpu);
 
         bool cwrld = o3cpu->cwrld[dyn_inst->threadNumber];
-        uint64_t emode = o3cpu->readMiscReg(CSR_EMODE, dyn_inst->threadNumber);
+        uint64_t emode = o3cpu->readMiscReg(MISCREG_EMODE, dyn_inst->threadNumber);
         if(cwrld || (!cwrld && emode)) {
             if(!Rs1.getTag()) {
                 return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
@@ -276,7 +276,7 @@ def template RNodeStoreExecute {{
         assert(o3cpu);
 
         bool cwrld = o3cpu->cwrld[dyn_inst->threadNumber];
-        uint64_t emode = o3cpu->readMiscReg(CSR_EMODE, dyn_inst->threadNumber);
+        uint64_t emode = o3cpu->readMiscReg(MISCREG_EMODE, dyn_inst->threadNumber);
         if(cwrld || (!cwrld && emode)) {
             if(!Rs1.getTag()) {
                 return std::make_shared<IllegalInstFault>(
@@ -336,7 +336,7 @@ def template RNodeStoreExecute {{
             return std::make_shared<IllegalInstFault>(
                     "Store address misaligned (6)", machInst);
 
-        Addr clen_aligned = EA & (sizeof(RegVal) - 1);
+        Addr clen_aligned = EA & ~(sizeof(RegVal) - 1);
         dyn_inst->initiateGetTag(clen_aligned);
         RegVal dummy;
         initiateMemRead(xc, traceData, clen_aligned, dummy, memAccessFlags);
