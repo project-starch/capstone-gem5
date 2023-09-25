@@ -91,7 +91,8 @@ class MMU : public BaseMMU
 
     void translateTiming(const RequestPtr& req, ThreadContext* tc,
             Translation* translation, Mode mode) override {
-        if(tc->cwrld() == 1) {
+        //if(tc->cwrld() == 1) {
+        if(1) {
             DPRINTF(CapstoneMem, "translate %llx\n", req->getVaddr());
             req->setPaddr(req->getVaddr()); // simply pass through
             translation->finish(NoFault, req, tc, mode);

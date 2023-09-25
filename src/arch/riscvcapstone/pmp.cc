@@ -249,7 +249,7 @@ PMP::shouldCheckPMP(RiscvcapstoneISA::PrivilegeMode pmode,
 
     bool secure_world = tc->cwrld();
 
-    return ((cond1 || cond2 || cond3) && !secure_world);
+    return ((cond1 || cond2 || cond3) && /*!secure_world*/ 0);
 }
 
 AddrRange

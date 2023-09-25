@@ -385,7 +385,7 @@ enum CSRIndex
     //Capstone CSRs
     CSR_TVAL = 0x801, //exception data
     CSR_CAUSE = 0x802, //exception cause
-    CSR_EMODE = 0x804 //encoding mode
+    CSR_EMODE = 0x803 //encoding mode
 };
 
 //Capability CSRs
