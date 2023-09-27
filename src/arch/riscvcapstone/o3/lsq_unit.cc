@@ -1557,8 +1557,11 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
             if (coverage == AddrRangeCoverage::FullAddrRangeCoverage) {
                 DPRINTF(LSQUnit, "read: FullAddrRangeCoverage sn:%d\n", load_inst->seqNum);
                 // Get shift amount for offset into the store's data.
+                // Will only work for insts with a single store
                 int shift_amt = request->mainReq()->getVaddr() -
                     store_it->instruction()->effAddr;
+
+                const LSQRequest* store_req = store_it->request();
 
                 // Allocate memory if this is the first time a load is issued.
                 if (!mem_data) {
@@ -1570,7 +1573,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                             request->mainReq()->getSize());
                 else
                     memcpy(mem_data,
-                        store_it->data(request->reqIdx) + shift_amt,
+                        store_it->data(store_req->reqIdx) + shift_amt,
                         request->mainReq()->getSize());
 
                 DPRINTF(LSQUnit, "Forwarding from store idx %i to load to "
