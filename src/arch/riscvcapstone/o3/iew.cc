@@ -1294,6 +1294,11 @@ IEW::executeInsts()
         if(fault == NoFault) {
             DPRINTF(IEW, "Execute instruction %i -> %s\n", inst->seqNum, inst->staticInst->getName());
             fault = inst->execute();
+            // #ifdef DEBUG
+            // if(fault != NoFault) {
+            //     panic("Instruction [sn:%llu] PC: %s execute() faulted!", inst->seqNum, inst->pcState());
+            // }
+            // #endif
             //only one case will not mark executecalled -> when it's a rescheduled load
             if(!inst->isLoad() || (inst->isLoad() && inst->loadEffAddrValid()) || inst->fault != NoFault)
                 inst->setExecuteCalled();

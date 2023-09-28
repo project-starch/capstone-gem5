@@ -521,17 +521,21 @@ decode QUADRANT default Unknown::unknown() {
                         temp.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         temp.setTag(true);
 
-                        Rd_trv = temp;
-
-                        //movc semantics
-                        //rs1 still retains the original cap
-                        if(rs1_cap.type() != CapType::NONLIN)
-                            Rs1_trv.setTag(false);
-                        else {
-                            uint64_t node_id = rs1_cap.nodeId();
-                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                        if(RS1 != RD) {
+                            //movc semantics
+                            //rs1 still retains the original cap
+                            if(rs1_cap.type() != CapType::NONLIN)
+                                Rs1_trv.setTag(false);
+                            else {
+                                uint64_t node_id = rs1_cap.nodeId();
+                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                            }
+                            Rs1_trv = Rs1_trv;
+                        } else {
+                            Rs1_trv = temp;
                         }
-                        Rs1_trv = Rs1_trv;
+
+                        Rd_trv = temp;
                     }});
                     0x1: shrink ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
@@ -604,7 +608,9 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rd_trv = Rs1_trv;
 
-                        Rs1_trv.setTag(false);
+                        if(RS1 != RD) {
+                            Rs1_trv.setTag(false);
+                        }
                         Rs1_trv = Rs1_trv;
                     }});
                     0x7: seal ({{
@@ -763,12 +769,20 @@ decode QUADRANT default Unknown::unknown() {
                         if(fault != NoFault)
                             return fault;
 
-                        Rd_trv = Rs1_trv;
-                        Rd_trv.getRegVal().capVal().setNodeId(node_id);
-                        Rd_trv.getRegVal().capVal().setType(CapType::REV);
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+                        Cap rd_cap = rs1_cap;
+                        rd_cap.setNodeId(node_id);
+                        rd_cap.setType(CapType::REV);
 
-                        Rs1_trv.getRegVal().capVal().setNodeId(to_allocate);
+                        rs1_cap.setNodeId(to_allocate);
 
+                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+
+                        ConstTaggedRegVal temp_regval;
+                        temp_regval.setTag(true);
+                        temp_regval.getRegVal().rawCapVal() = (uint128_t)rd_cap;
+
+                        Rd_trv = temp_regval;
                         Rs1_trv = Rs1_trv;
                     }});
                     0x0: revoke ({{
@@ -1415,14 +1429,17 @@ decode QUADRANT default Unknown::unknown() {
 
                         Cap rs1_cap = Rs1_trv.getRegVal().capVal();
                         int64_t imm = sext<12>(IMM12);
-                        NPC = rs1_cap.cursor() + imm;
 
-                        //write pc to rd
-                        //todo: actually pc + 4
-                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                        Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                        pc_cap.setCursor(NPC);
+
+                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)pc_cap;
+                        Rd_trv.setTag(true);
 
                         dyn_inst->cpu->getIEWObject().setPCCap(rs1_cap,
                                                             dyn_inst->threadNumber);
+
+                        NPC = rs1_cap.cursor() + imm;
 
                         //write cnull to rs1
                         if(RS1 != RD) {
@@ -1554,9 +1571,16 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1; Rs2; Rd;
                     }});
                 }
-                format RcUpdateTest {
+                format ROp {
                     0x1: rcup ({{
-                        Rs1; Rs2; Rd;
+                        using namespace gem5::RiscvcapstoneISA::o3;
+
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
+
+                        NodeID node_id = Rd_ud;
+                        int delta = Rs1_sd;
+                        return dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, delta));
                     }});
                 }
                 format AllocTest {
