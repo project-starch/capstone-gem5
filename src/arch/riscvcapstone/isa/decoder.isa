@@ -1368,9 +1368,11 @@ decode QUADRANT default Unknown::unknown() {
             }
             format RNodeMemOp {
                 0x3: ldc ({{ //ea_code
-                        Fault fault = dyn_inst->initiateGetTag(EA);
-                        if(fault != NoFault)
-                            return fault;
+                        if(dyn_inst->tagQueryN == 0) {
+                            Fault fault = dyn_inst->initiateGetTag(EA);
+                            if(fault != NoFault)
+                                return fault;
+                        }
                     }}, {{ //comp_code
                         bool tag_res = dyn_inst->getTagQueryRes(0);
                         if(!tag_res) {

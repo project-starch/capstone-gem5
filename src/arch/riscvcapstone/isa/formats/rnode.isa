@@ -179,7 +179,8 @@ def template RNodeMemExecute {{
             //dyn_inst->memReadN, dyn_inst->tagQueryN);
 
             NodeID node_id = rs1_cap.nodeId();
-            dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+            if(dyn_inst->nodeQueryN == 0)
+                dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
         } else {
             EA = Rs1.getRegVal().intVal() + imm;
 
