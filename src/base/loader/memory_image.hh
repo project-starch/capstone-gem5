@@ -101,6 +101,12 @@ class MemoryImage
     bool writeSegment(const Segment &seg, const PortProxy &proxy) const;
 
   public:
+    void printSegments() {
+        for(auto &i : _segments) {
+            std::cout << i.name << ' ' << i.base << ' ' << i.size << '\n';
+        }
+    }
+
     const std::vector<Segment> &
     segments() const
     {

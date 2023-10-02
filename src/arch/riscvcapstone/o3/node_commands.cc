@@ -334,9 +334,9 @@ NodeRcUpdate::handleResp(PacketPtr pkt) {
             savedNode = pkt->getRaw<Node>();
             savedNode.counter += delta;
             //do I need to make the counter check against 1 here?
-            if(savedNode.counter == 0) {
+            if(savedNode.counter == 0 && savedNode.state == 0) {
                 // add node to free list
-                savedNode.state = Node::INVALID;
+                // savedNode.state = Node::INVALID;
                 inst->getNodeController().freeNode(savedNode, nodeId);
             }
 

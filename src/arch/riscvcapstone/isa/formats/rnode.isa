@@ -286,6 +286,15 @@ def template RNodeStoreExecute {{
 
             Cap rs1_cap = Rs1.getRegVal().capVal();
 
+            DPRINTFN("store: x%u capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
+                                RS1,
+                                Rs1.getTag(),
+                                rs1_cap.start(), rs1_cap.end(),
+                                rs1_cap.cursor(),
+                                static_cast<unsigned int>(rs1_cap.perm()),
+                                static_cast<unsigned int>(rs1_cap.type()),
+                                rs1_cap.nodeId());
+
             if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV ||
                 (rs1_cap.type() == CapType::SEALEDRET && rs1_cap.async() != CapAsync::SYNC)) {
                 return std::make_shared<IllegalInstFault>(
@@ -307,7 +316,8 @@ def template RNodeStoreExecute {{
         %(check_code)s;
 
         Addr EA;
-        int64_t offset = sext<12>(IMM7 << 5 | IMM5);
+        int64_t offset = sext<12>(IMM5 | (IMM7 << 5));
+        DPRINTFN("offset = %lld\n", offset);
         if(cwrld || (!cwrld && emode)) {
             Cap rs1_cap = Rs1.getRegVal().capVal();
             EA = rs1_cap.cursor() + offset;

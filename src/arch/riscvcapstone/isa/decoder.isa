@@ -1353,17 +1353,21 @@ decode QUADRANT default Unknown::unknown() {
                     temp.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                     temp.setTag(true);
 
-                    Rd_trv = temp;
-
-                    //movc semantics
-                    //rs1 still retains the original cap
-                    if(rs1_cap.type() != CapType::NONLIN)
-                        Rs1_trv.setTag(false);
-                    else {
-                        uint64_t node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                    if(RS1 != RD) {
+                        //movc semantics
+                        //rs1 still retains the original cap
+                        if(rs1_cap.type() != CapType::NONLIN)
+                            Rs1_trv.setTag(false);
+                        else {
+                            uint64_t node_id = rs1_cap.nodeId();
+                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                        }
+                        Rs1_trv = Rs1_trv;
+                    } else {
+                        Rs1_trv = temp;
                     }
-                    Rs1_trv = Rs1_trv;
+
+                    Rd_trv = temp;
                 }});
             }
             format RNodeMemOp {
@@ -1646,7 +1650,8 @@ decode QUADRANT default Unknown::unknown() {
                     0x9: capprint ({{
                         //const RegVal& reg_val = Rs1_trv.getRegVal();
                         gem5::RiscvcapstoneISA::o3::Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-                        DPRINTFN("Capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
+                        DPRINTFN("x%u capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
+                                RS1,
                                 Rs1_trv.getTag(),
                                 rs1_cap.start(), rs1_cap.end(),
                                 rs1_cap.cursor(),

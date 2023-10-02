@@ -178,6 +178,12 @@ class SymbolTable
     /** Clears the table. */
     void clear();
 
+    void print() {
+        for(auto &i : symbols) {
+            std::cout << i.name << ' ' << i.address << '\n';
+        }
+    }
+
     /**
      * Insert a new symbol in the table if it does not already exist. The
      * symbol must have a defined name.

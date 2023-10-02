@@ -159,8 +159,12 @@ Process::Process(const ProcessParams &params, EmulationPageTable *pTable,
 
     image = objFile->buildImage();
 
+    image.printSegments();
+
     if (loader::debugSymbolTable.empty())
         loader::debugSymbolTable = objFile->symtab();
+
+    loader::debugSymbolTable.print();
 }
 
 void
