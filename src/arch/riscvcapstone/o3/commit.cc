@@ -1239,10 +1239,10 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         mnemonic != "shrink" &&
         head_inst->numDestRegs() > 0) {
 
-        if(iewStage->ncQueue.isFull(tid)) {
-            DPRINTF(Commit, "[tid:%i] NCQ has become full.\n", tid);
-            return false;
-        }
+        // if(iewStage->ncQueue.isFull(tid)) {
+        //     DPRINTF(Commit, "[tid:%i] NCQ has become full.\n", tid);
+        //     return false;
+        // }
 
         CPU* cpu = dynamic_cast<o3::CPU *>(head_inst->getCpuPtr());
         PhysRegIdPtr prev_reg = head_inst->prevDestIdx(0); //FIXME: this may be 0, may not be 0

@@ -1009,7 +1009,7 @@ IEW::dispatchInsts(ThreadID tid)
         }
 
         // Check NSQ
-        if(inst->hasNodeOp() && ncQueue.isFull(tid)) {
+        if(ncQueue.isFull(tid)) {
             DPRINTF(IEW, "[tid:%i] Issue: NCQ has become full.\n", tid);
             DPRINTF(NCQ, "[tid:%i] NCQ has become full.\n", tid);
             block(tid);
