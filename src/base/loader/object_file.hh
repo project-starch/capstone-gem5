@@ -130,6 +130,10 @@ class ObjectFile : public ImageFile
 
     const SymbolTable &symtab() const { return _symtab; }
 
+    virtual void printSections() { std::cout << "In ObjectFile\n"; }
+
+    virtual std::pair<uint64_t, uint64_t> getSec(std::string sName) { return std::make_pair<uint64_t, uint64_t>(0, 0); }
+
   protected:
     Addr entry = 0;
 

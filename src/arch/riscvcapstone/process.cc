@@ -84,6 +84,16 @@ RiscvProcess64::RiscvProcess64(const ProcessParams &params,
     const Addr mmap_end = 0x400000000ULL;
     memState = std::make_shared<MemState>(this, brk_point, stack_base,
             max_stack_size, next_thread_stack_base, mmap_end);
+
+    // objFile->printSections();
+
+    std::pair<uint64_t, uint64_t> cap_relocs, cap_table;
+    cap_relocs = objFile->getSec("__cap_relocs");
+    cap_table = objFile->getSec(".captable");
+
+    cap_relocs_base = cap_relocs.first;
+    cap_relocs_count = cap_relocs.second / 40; //sizeof(cap_reloc_struct)
+    cap_table_size = cap_table.second;
 }
 
 RiscvProcess32::RiscvProcess32(const ProcessParams &params,
@@ -105,8 +115,12 @@ RiscvProcess64::initState()
     Process::initState();
 
     argsInit<uint64_t>(PageBytes);
-    for (ContextID ctx: contextIds)
+    for (ContextID ctx: contextIds) {
         system->threads[ctx]->setMiscRegNoEffect(MISCREG_PRV, PRV_U);
+        system->threads[ctx]->setRegFlat(RegId(IntRegClass, 12), cap_relocs_base);
+        system->threads[ctx]->setRegFlat(RegId(IntRegClass, 13), cap_relocs_count);
+        system->threads[ctx]->setRegFlat(RegId(IntRegClass, 14), cap_table_size);
+    }
 }
 
 void

@@ -73,7 +73,7 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
 #ifndef NDEBUG
     ++cpu->instcount;
 
-    if (cpu->instcount > 1500) {
+    if (0 && cpu->instcount > 1500) {
 #ifdef DEBUG
         cpu->dumpInsts();
         dumpSNList();

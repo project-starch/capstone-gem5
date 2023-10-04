@@ -66,6 +66,11 @@ class RiscvProcess64 : public RiscvProcess
 
   protected:
     void initState() override;
+
+  private:
+    uint64_t cap_relocs_base;
+    uint64_t cap_relocs_count;
+    uint64_t cap_table_size;
 };
 
 class RiscvProcess32 : public RiscvProcess

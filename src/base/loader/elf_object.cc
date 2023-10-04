@@ -413,7 +413,9 @@ ElfObject::getSections()
     while (section) {
         GElf_Shdr shdr;
         gelf_getshdr(section, &shdr);
-        sectionNames.insert(elf_strptr(elf, ehdr.e_shstrndx, shdr.sh_name));
+        std::string sName(elf_strptr(elf, ehdr.e_shstrndx, shdr.sh_name));
+        sectionNames.insert(sName);
+        sectionMap[sName] = std::make_pair<uint64_t, uint64_t>((uint64_t)shdr.sh_addr, (uint64_t)shdr.sh_size);
         section = elf_getscn(elf, ++sec_idx);
     } // while sections
 
@@ -441,6 +443,19 @@ ElfObject::updateBias(Addr bias_addr)
 
     // Patch segments with the bias_addr.
     image.offset(bias_addr);
+}
+
+void
+ElfObject::printSections()
+{
+    if (!sectionNames.size())
+        getSections();
+
+    // std::cout << sectionNames.size() << '\n';
+
+    for(auto &i : sectionMap) {
+        std::cout << i.first << ": " << i.second.first << ", " << i.second.second << "\n";
+    }
 }
 
 } // namespace loader

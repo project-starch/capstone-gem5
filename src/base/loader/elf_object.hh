@@ -78,6 +78,7 @@ class ElfObject : public ObjectFile
     uint16_t _programHeaderSize = 0;
     uint16_t _programHeaderCount = 0;
     std::set<std::string> sectionNames;
+    std::map<std::string, std::pair<uint64_t, uint64_t>> sectionMap;
 
     ElfObject *interpreter = nullptr;
 
@@ -125,6 +126,15 @@ class ElfObject : public ObjectFile
     Addr programHeaderTable() {return _programHeaderTable;}
     uint16_t programHeaderSize() {return _programHeaderSize;}
     uint16_t programHeaderCount() {return _programHeaderCount;}
+
+    void printSections() override;
+
+    std::pair<uint64_t, uint64_t> getSec(std::string sName) override
+    {
+      if (!sectionNames.size())
+        getSections();
+      return sectionMap[sName]; 
+    }
 };
 
 /**
