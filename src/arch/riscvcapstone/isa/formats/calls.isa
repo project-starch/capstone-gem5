@@ -97,6 +97,8 @@ def template CallsExecute {{
         %(code)s;
 
         %(op_wb)s;
+
+        return NoFault;
     }
 }};
 
@@ -115,6 +117,8 @@ def template CallsCompleteAcc {{
         %(comp_code)s;
 
         %(op_wb)s;
+
+        return NoFault;
     }
 
 }};
@@ -184,34 +188,67 @@ def template ReturnExecute {{
     %(class_name)s::execute(
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
-        %(op_decl)s;
-        %(op_rd)s;
+        ConstTaggedRegVal Rs1, Rs2;
+        uint64_t NPC = 0;
+        RiscvcapstoneISAInst::PCState __parserAutoPCState;
+        set(__parserAutoPCState, xc->pcState());
 
         using namespace gem5::RiscvcapstoneISA::o3;
 
         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
         assert(dyn_inst);
 
+        int Rs1_src_idx = RS1 - 1;
+        int Rs2_src_idx = RS2 - 1;
+
+        if(Rs1_src_idx >= 0) {
+            Rs1 = dyn_inst->getTaggedRegOperand(this, Rs1_src_idx);
+        }
+
+        if(Rs2_src_idx >= 0) {
+            Rs2 = dyn_inst->getTaggedRegOperand(this, Rs2_src_idx);
+        }
+
         %(code)s;
 
-        %(op_wb)s;
+        return NoFault;
     }
 }};
 
 def template ReturnCompleteAcc {{
     Fault
     %(class_name)s::completeAcc(PacketPtr pkt, ExecContext* xc, Trace::InstRecord* traceData) const {
-        %(op_decl)s;
-        %(op_rd)s;
+        ConstTaggedRegVal Rs1, Rs2;
+        ConstTaggedRegVal sp;
+        uint64_t NPC = 0;
+        RiscvcapstoneISAInst::PCState __parserAutoPCState;
+        set(__parserAutoPCState, xc->pcState());
 
         using namespace gem5::RiscvcapstoneISA::o3;
 
         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
         assert(dyn_inst);
+
+        int Rs1_src_idx = RS1 - 1;
+        int Rs2_src_idx = RS2 - 1;
+        int sp_src_idx = 1;
+
+        if(Rs1_src_idx >= 0) {
+            Rs1 = dyn_inst->getTaggedRegOperand(this, Rs1_src_idx);
+        }
+
+        if(Rs2_src_idx >= 0) {
+            Rs2 = dyn_inst->getTaggedRegOperand(this, Rs2_src_idx);
+        }
+
+        sp = dyn_inst->getTaggedRegOperand(this, sp_src_idx);
         
         %(comp_code)s;
 
-        %(op_wb)s;
+        __parserAutoPCState.npc(NPC);
+        xc->pcState(__parserAutoPCState);
+
+        return NoFault;
     }
 
 }};

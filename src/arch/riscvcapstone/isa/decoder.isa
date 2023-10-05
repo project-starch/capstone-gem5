@@ -630,7 +630,7 @@ decode QUADRANT default Unknown::unknown() {
                         }
 
                         uint64_t size = rs1_cap.end() - rs1_cap.start();
-                        if(size < sizeof(RegVal) * 33 || !(rs1_cap.start() & (sizeof(RegVal) - 1))) {
+                        if(size < sizeof(RegVal) * 33 || (rs1_cap.start() & (sizeof(RegVal) - 1))) {
                             return std::make_shared<IllegalInstFault>("Illegal operand value (29)", machInst);
                         }
 
@@ -639,7 +639,8 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rd_trv = Rs1_trv;
 
-                        Rs1_trv.setTag(false);
+                        if(RS1 != RD)
+                            Rs1_trv.setTag(false);
                         Rs1_trv = Rs1_trv;
                     }});
                 }
@@ -981,6 +982,8 @@ decode QUADRANT default Unknown::unknown() {
                             dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
 
                             NPC = pc_cap_new.cursor();
+                            __parserAutoPCState.npc(NPC);
+                            xc->pcState(__parserAutoPCState);
 
                             if(pc_cap_new.type() != CapType::NONLIN) {
                                 epc.setTag(false);
@@ -1017,6 +1020,7 @@ decode QUADRANT default Unknown::unknown() {
                             set(pc_state, xc->pcState());
                             uint64_t npc = pc_state.npc();
                             Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                            pc_cap.setType(CapType::NONLIN);
                             pc_cap.setCursor(Rs2_trv.getRegVal().intVal()); // prepare the PC cap to save
 
                             uint128_t pc_mem_load, ceh_mem_load, csp_mem_load;
@@ -1052,14 +1056,15 @@ decode QUADRANT default Unknown::unknown() {
 
                             sp_trv.getRegVal().rawCapVal() = csp_mem_load;
                             sp_trv.setTag(true);
-                            sp_trv = sp_trv;
 
-                            RegId cap_reg(IntRegClass, rs1_cap.reg());
+                            int reg_idx = rs1_cap.reg();
                             rs1_cap.setType(CapType::SEALED);
                             Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                            //might not work
-                            //todo: need to set tag true
-                            dyn_inst->cpu->setArchReg(cap_reg, Rs1_trv.getRegVal(), dyn_inst->threadNumber);
+                            
+                            ConstTaggedRegVal tagged_val(Rs1_trv.getRegVal(), true);
+                            dyn_inst->setTaggedRegOperand(this, (reg_idx - 1), tagged_val);
+
+                            dyn_inst->setTaggedRegOperand(this, 1, sp_trv);
                         } else if(rs1_cap.async() == CapAsync::EXCEPT) {
                             assert(dyn_inst->memReadN == 33);
 
@@ -1665,7 +1670,7 @@ decode QUADRANT default Unknown::unknown() {
                         assert(dyn_inst);
                         dyn_inst->printRegs();
                     }}, IsSerializing, IsNonSpeculative, IsSerializeAfter);
-                    0xe: getrand ({{
+                    0x1e: getrand ({{
                         srand(time(NULL));
                         Rd = (rand() % (Rs2 - Rs1) + Rs1) & 0xFFFFFFFFFFFFFFF0;
                     }});
