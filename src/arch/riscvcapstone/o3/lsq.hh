@@ -353,6 +353,7 @@ class LSQ
         const RequestPtr req(int idx = 0) const { return _reqs.at(idx); }
 
         Addr getVaddr(int idx = 0) const { return req(idx)->getVaddr(); }
+        Addr getPaddr(int idx = 0) const { return req(idx)->getPaddr(); }
         virtual void initiateTranslation() = 0;
 
         PacketPtr packet(int idx = 0) { return _packets.at(idx); }
