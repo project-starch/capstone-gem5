@@ -1302,6 +1302,15 @@ class DynInst : public ExecContext, public RefCounted
     // storage (which is pretty hard to imagine they would have reason
     // to do).
 
+    void
+    updateMemReadRecord(Addr paddr) {
+        memReads[memReadN] = MemReadRecord {
+            .addr = paddr
+        };
+        memReadCompleted[memReadN] = false;
+        ++ memReadN;
+    }
+
     RegVal
     getRegOperand(const StaticInst *si, int idx) override
     {
