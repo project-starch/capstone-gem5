@@ -242,10 +242,34 @@ serialize(const ThreadContext &tc, CheckpointOut &cp)
     SERIALIZE_CONTAINER(vecPredRegs);
 
     const size_t numInts = regClasses.at(IntRegClass).numRegs();
+
+#ifdef TARGET_RISCVCapstone
+    uint64_t intRegValLo[numInts];
+    uint64_t intRegValHi[numInts];
+    bool intRegsTag[numInts];
+    ConstTaggedRegVal temp;
+    uint128_t cap;
+    for (int i = 0; i < numInts; ++i)
+    {
+        temp = tc.getTaggedRegFlat(RegId(IntRegClass, i));
+        intRegsTag[i] = temp.getTag();
+        if(intRegsTag[i]) {
+            cap = temp.getRegVal().rawCapVal();
+            memcpy(&intRegValLo[i], &cap.lo, sizeof(cap.lo));
+            memcpy(&intRegValHi[i], &cap.hi, sizeof(cap.hi));
+        } else {
+            intRegValLo[i] = temp.getRegVal().intVal();
+        }
+    }
+    SERIALIZE_ARRAY(intRegValLo, numInts);
+    SERIALIZE_ARRAY(intRegValHi, numInts);
+    SERIALIZE_ARRAY(intRegsTag, numInts);
+#else
     RegVal intRegs[numInts];
     for (int i = 0; i < numInts; ++i)
         intRegs[i] = tc.readIntRegFlat(i);
     SERIALIZE_ARRAY(intRegs, numInts);
+#endif
 
     const size_t numCcs = regClasses.at(CCRegClass).numRegs();
     if (numCcs) {
@@ -288,10 +312,34 @@ unserialize(ThreadContext &tc, CheckpointIn &cp)
     }
 
     const size_t numInts = regClasses.at(IntRegClass).numRegs();
+
+#ifdef TARGET_RISCVCapstone
+    uint64_t intRegValLo[numInts];
+    uint64_t intRegValHi[numInts];
+    bool intRegsTag[numInts];
+    ConstTaggedRegVal temp;
+    uint128_t cap;
+    UNSERIALIZE_ARRAY(intRegValLo, numInts);
+    UNSERIALIZE_ARRAY(intRegValHi, numInts);
+    UNSERIALIZE_ARRAY(intRegsTag, numInts);
+    for (int i = 0; i < numInts; ++i) {
+        temp.setTag(intRegsTag[i]);
+        if(intRegsTag[i]) {
+            memcpy(&cap.lo, &intRegValLo[i], sizeof(intRegValLo[i]));
+            memcpy(&cap.hi, &intRegValHi[i], sizeof(intRegValHi[i]));
+            memcpy(&temp.getRegVal().rawCapVal(), &cap, sizeof(cap));
+        } else {
+            temp.getRegVal().intVal() = intRegValLo[i];
+        }
+        tc.setTaggedRegFlat(i, temp);
+    }
+    // tc.printRegs();
+#else
     RegVal intRegs[numInts];
     UNSERIALIZE_ARRAY(intRegs, numInts);
     for (int i = 0; i < numInts; ++i)
         tc.setIntRegFlat(i, intRegs[i]);
+#endif
 
     const size_t numCcs = regClasses.at(CCRegClass).numRegs();
     if (numCcs) {

@@ -249,6 +249,10 @@ class ThreadContext : public gem5::ThreadContext
     void getRegFlat(const RegId &reg, void *val) const override;
     void *getWritableRegFlat(const RegId &reg) override;
 
+    ConstTaggedRegVal getTaggedRegFlat(const RegId &reg) const override;
+    void setTaggedRegFlat(int i, ConstTaggedRegVal v) override;
+    void printRegs() override;
+
     void setRegFlat(const RegId &reg, RegVal val) override;
     void setRegFlat(const RegId &reg, const void *val) override;
 

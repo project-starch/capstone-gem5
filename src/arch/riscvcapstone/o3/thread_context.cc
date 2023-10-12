@@ -156,6 +156,24 @@ ThreadContext::getRegFlat(const RegId &reg) const
     return cpu->getArchReg(reg, thread->threadId());
 }
 
+ConstTaggedRegVal
+ThreadContext::getTaggedRegFlat(const RegId &reg) const
+{
+    return cpu->getTaggedArchReg(reg, thread->threadId());
+}
+
+void
+ThreadContext::setTaggedRegFlat(int i, ConstTaggedRegVal v)
+{
+    cpu->setTaggedArchReg(RegId(IntRegClass, i), v, thread->threadId());
+    conditionalSquash();
+}
+
+void
+ThreadContext::printRegs() {
+    cpu->printRegs();
+}
+
 void *
 ThreadContext::getWritableRegFlat(const RegId &reg)
 {

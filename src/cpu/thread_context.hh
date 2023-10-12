@@ -323,6 +323,21 @@ class ThreadContext : public PCEventScope
     virtual void getRegFlat(const RegId &reg, void *val) const = 0;
     virtual void *getWritableRegFlat(const RegId &reg) = 0;
 
+#ifdef TARGET_RISCVCapstone
+    virtual ConstTaggedRegVal getTaggedRegFlat(const RegId &reg) const {
+        ConstTaggedRegVal v;
+        return v;
+    };
+
+    virtual void setTaggedRegFlat(int i, ConstTaggedRegVal v) {
+        return;
+    }
+
+    virtual void printRegs() {
+        return;
+    }
+#endif
+
     virtual void setRegFlat(const RegId &reg, RegVal val);
     virtual void setRegFlat(const RegId &reg, const void *val) = 0;
 
