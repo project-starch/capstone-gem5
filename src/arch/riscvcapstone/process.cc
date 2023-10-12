@@ -85,6 +85,14 @@ RiscvProcess64::RiscvProcess64(const ProcessParams &params,
     memState = std::make_shared<MemState>(this, brk_point, stack_base,
             max_stack_size, next_thread_stack_base, mmap_end);
 
+    // const Addr stack_base = 0x7FFFFFFFFFFFFFFFL;
+    // const Addr max_stack_size = 8 * 1024 * 1024;
+    // const Addr next_thread_stack_base = stack_base - max_stack_size;
+    // const Addr brk_point = roundUp(image.maxAddr(), PageBytes);
+    // const Addr mmap_end = 0x4000000000000000L;
+    // memState = std::make_shared<MemState>(this, brk_point, stack_base,
+    //         max_stack_size, next_thread_stack_base, mmap_end);
+
     // objFile->printSections();
 
     std::pair<uint64_t, uint64_t> cap_relocs, cap_table;

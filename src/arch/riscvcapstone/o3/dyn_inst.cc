@@ -423,7 +423,11 @@ DynInst::initiateMemRead(Addr addr, unsigned size, Request::Flags flags,
                                const std::vector<bool> &byte_enable)
 {
     assert(byte_enable.size() == size);
-
+    memReads[memReadN] = MemReadRecord {
+        .addr = addr
+    };
+    memReadCompleted[memReadN] = false;
+    ++ memReadN;
     return cpu->pushRequest(
         dynamic_cast<DynInstPtr::PtrType>(this),
         /* ld */ true, nullptr, size, addr, flags, nullptr, nullptr,

@@ -1654,16 +1654,23 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                     0x9: capprint ({{
                         //const RegVal& reg_val = Rs1_trv.getRegVal();
-                        gem5::RiscvcapstoneISA::o3::Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-                        DPRINTFN("x%u capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
-                                RS1,
-                                Rs1_trv.getTag(),
-                                rs1_cap.start(), rs1_cap.end(),
-                                rs1_cap.cursor(),
-                                static_cast<unsigned int>(rs1_cap.perm()),
-                                static_cast<unsigned int>(rs1_cap.type()),
-                                rs1_cap.nodeId());
+                        //if(Rs1_trv.getTag()) {
+                            gem5::RiscvcapstoneISA::o3::Cap rs1_cap = Rs1_trv.getRegVal().capVal();
+                            DPRINTFN("x%u capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
+                                    RS1,
+                                    Rs1_trv.getTag(),
+                                    rs1_cap.start(), rs1_cap.end(),
+                                    rs1_cap.cursor(),
+                                    static_cast<unsigned int>(rs1_cap.perm()),
+                                    static_cast<unsigned int>(rs1_cap.type()),
+                                    rs1_cap.nodeId());
+                        //} else {
+                        //    DPRINTFN("%c", Rs1_trv.getRegVal().intVal());
+                        //}
                     }}, IsSerializing, IsNonSpeculative, IsSerializeAfter);
+                    0x13: justprint ({{
+                        std::cout << Rs1_ud << ' ';
+                    }});
                     0x12: printregs ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         DynInst *dyn_inst = dynamic_cast<DynInst *>(xc);
@@ -1672,8 +1679,9 @@ decode QUADRANT default Unknown::unknown() {
                     }}, IsSerializing, IsNonSpeculative, IsSerializeAfter);
                     0x1e: getrand ({{
                         srand(time(NULL));
-                        Rd = (rand() % (Rs2 - Rs1) + Rs1) & 0xFFFFFFFFFFFFFFF0;
-                    }});
+                        //std::cout << Rs2_ud << ' ';
+                        Rd_ud = rand() % Rs2_ud;
+                    }}, IsSerializing, IsNonSpeculative, IsSerializeAfter);
                 }
                 format TagAccessStore {
                     0xa: tagset ({{
