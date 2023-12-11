@@ -424,7 +424,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         //todo: there probably be a cleaner way of doing this
 
-                        uint64_t res; bool unexpect = false;
+                        uint64_t res; bool except = false;
                         Cap cap_val = Rs1_trv.getRegVal().capVal();
                         CapType t = cap_val.type();
 
@@ -432,35 +432,35 @@ decode QUADRANT default Unknown::unknown() {
                             case 0: break; //validity field - query then result?
                             case 1: res = static_cast<uint64_t>(cap_val.type()); break;
                             case 2: if(t == CapType::SEALED) {
-                                        unexpect = true;
+                                        except = true;
                                         break;
                                     }
                                     res = cap_val.cursor(); break;
                             case 3: res = cap_val.start(); break;
                             case 4: if(t == CapType::SEALED || t == CapType::SEALEDRET || t == CapType::EXIT) {
-                                        unexpect = true;
+                                        except = true;
                                         break;
                                     }
                                     res = cap_val.end(); break;
                             case 5: if(t == CapType::SEALED || t == CapType::SEALEDRET || t == CapType::EXIT) {
-                                        unexpect = true;
+                                        except = true;
                                         break;
                                     }
                                     res = static_cast<uint64_t>(cap_val.perm()); break;
                             case 6: if(!(t == CapType::SEALED || t == CapType::SEALEDRET)) {
-                                        unexpect = true;
+                                        except = true;
                                         break;
                                     }
                                     res = static_cast<uint64_t>(cap_val.async()); break;
                             case 7: if(t != CapType::SEALEDRET) {
-                                        unexpect = true;
+                                        except = true;
                                         break;
                                     }
                                     res = static_cast<uint64_t>(cap_val.reg()); break;
                             default: res = 0;
                         }
 
-                        if(unexpect)
+                        if(except)
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
 
                         //Rd_trv or Rd_ud doesn't matter. Commit will handle Rc update
@@ -487,17 +487,23 @@ decode QUADRANT default Unknown::unknown() {
                         rs1_cap.setCursor(cursor + Rs2_trv.getRegVal().intVal());
                         Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
 
-                        Rd_trv = Rs1_trv;
+                        ConstTaggedRegVal temp;
+                        temp.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                        temp.setTag(true);
 
-                        //movc semantics
-                        //rs1 still retains the original cap
-                        if(rs1_cap.type() != CapType::NONLIN)
-                            Rs1_trv.setTag(false);
-                        else {
-                            uint64_t node_id = rs1_cap.nodeId();
-                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                        if(RS1 != RD) {
+                            //movc semantics
+                            //rs1 still retains the original cap
+                            if(rs1_cap.type() != CapType::NONLIN)
+                                Rs1_trv.setTag(false);
+                            else {
+                                uint64_t node_id = rs1_cap.nodeId();
+                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                            }
+                            Rs1_trv = Rs1_trv;
                         }
-                        Rs1_trv = Rs1_trv;
+
+                        Rd_trv = temp;
                     }});
                     0x5: scc ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
@@ -531,8 +537,6 @@ decode QUADRANT default Unknown::unknown() {
                                 dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                             }
                             Rs1_trv = Rs1_trv;
-                        } else {
-                            Rs1_trv = temp;
                         }
 
                         Rd_trv = temp;
@@ -556,13 +560,19 @@ decode QUADRANT default Unknown::unknown() {
 
                         uint64_t start = rd_cap.start();
                         uint64_t end = rd_cap.end();
+                        uint64_t cursor = rd_cap.cursor();
 
                         if(!(rs1_v >= start && rs2_v <= end && rs1_v < rs2_v)) {
                             return std::make_shared<IllegalInstFault>("Illegal operand value (29)", machInst);
                         }
 
-                        //maybe don't update the cursor if it's already within bounds?
                         rd_cap.setBound(rs1_v, rs2_v);
+
+                        if(cursor <= rs1_v)
+                            rd_cap.setCursor(rs1_v);
+                        else if(cursor >= rs2_v)
+                            rd_cap.setCursor(rs2_v);
+
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                         Rd_trv = Rd_trv;
                     }});
@@ -603,7 +613,6 @@ decode QUADRANT default Unknown::unknown() {
 
                         rs1_cap.setType(CapType::LIN);
 
-                        //why not set desired value straight away with Rs2?
                         rs1_cap.setCursor(rs1_cap.start() + Rs2_trv.getRegVal().intVal());
                         Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rd_trv = Rs1_trv;
@@ -624,7 +633,7 @@ decode QUADRANT default Unknown::unknown() {
                         if(rs1_cap.type() != CapType::LIN) {
                             return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
                         }
-                        
+
                         if(!(rs1_cap.hasReadPerm() && rs1_cap.hasWritePerm())) {
                             return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
                         }
@@ -662,14 +671,13 @@ decode QUADRANT default Unknown::unknown() {
 
                             Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
-                            if(Rs1_trv.getTag()) {
-                                if(rs1_cap.type() == CapType::NONLIN) {
-                                    uint64_t node_id = rs1_cap.nodeId();
-                                    dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
-                                } else {
-                                    Rs1_trv.setTag(false);
-                                }
+                            if(rs1_cap.type() == CapType::NONLIN) {
+                                uint64_t node_id = rs1_cap.nodeId();
+                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                            } else {
+                                Rs1_trv.setTag(false);
                             }
+
                             Rs1_trv = Rs1_trv;
                         }
                     }});
@@ -690,36 +698,42 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        uint64_t start = rs1_cap.start();
-                        uint64_t end = rs1_cap.end();
-                        uint64_t split_addr = Rs2_trv.getRegVal().intVal();
+                        if(RS1 != RD) {
+                            uint64_t start = rs1_cap.start();
+                            uint64_t end = rs1_cap.end();
+                            uint64_t split_addr = Rs2_trv.getRegVal().intVal();
 
-                        if(!(split_addr > start && split_addr < end)) {
-                            return std::make_shared<IllegalInstFault>("Illegal operand value (29)", machInst);
+                            if(!(split_addr > start && split_addr < end)) {
+                                return std::make_shared<IllegalInstFault>("Illegal operand value (29)", machInst);
+                            }
+
+                            //do I need a query here?
+                            NodeID node_id = rs1_cap.nodeId();
+                            Fault fault = dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
+                            if(fault != NoFault)
+                                return fault;
+
+                            auto& node_controller = dyn_inst->getNodeController();
+                            NodeID to_allocate = node_controller.tryAllocate();
+
+                            fault = dyn_inst->initiateNodeCommand(new NodeAllocate(node_id, to_allocate, false));
+                            if(fault != NoFault)
+                                return fault;
+
+                            Cap rd_cap = rs1_cap;
+
+                            ConstTaggedRegVal temp;
+                            temp.setTag(true);
+
+                            rd_cap.setBound(split_addr, end);
+                            rd_cap.setNodeId(to_allocate);
+                            temp.getRegVal().rawCapVal() = (uint128_t)rd_cap;
+                            Rd_trv = temp;
+
+                            rs1_cap.setBound(start, split_addr);
+                            Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                            Rs1_trv = Rs1_trv;
                         }
-
-                        //do I need a query here?
-                        NodeID node_id = rs1_cap.nodeId();
-                        Fault fault = dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-                        if(fault != NoFault)
-                            return fault;
-
-                        auto& node_controller = dyn_inst->getNodeController();
-                        NodeID to_allocate = node_controller.tryAllocate();
-
-                        fault = dyn_inst->initiateNodeCommand(new NodeAllocate(node_id, to_allocate, false));
-                        if(fault != NoFault)
-                            return fault;
-
-                        Rd_trv = Rs1_trv;
-                        Cap rd_cap = Rd_trv.getRegVal().capVal();
-                        rd_cap.setBound(split_addr, end);
-                        rd_cap.setNodeId(to_allocate);
-                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
-
-                        rs1_cap.setBound(start, split_addr);
-                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                        Rs1_trv = Rs1_trv;
                     }});
                     0xb: drop ({{
                         if(!Rs1_trv.getTag()) {
@@ -856,15 +870,17 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rs1_trv;
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
 
-                        //movc semantics
-                        //rs1 still retains the original cap
-                        if(rs1_cap.type() != CapType::NONLIN)
-                            Rs1_trv.setTag(false);
-                        else {
-                            uint64_t node_id = rs1_cap.nodeId();
-                            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                        if(RS1 != RD) {
+                            //movc semantics
+                            //rs1 still retains the original cap
+                            if(rs1_cap.type() != CapType::NONLIN)
+                                Rs1_trv.setTag(false);
+                            else {
+                                uint64_t node_id = rs1_cap.nodeId();
+                                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                            }
+                            Rs1_trv = Rs1_trv;
                         }
-                        Rs1_trv = Rs1_trv;
                     }});
                 }
                 format Calls {
@@ -1368,8 +1384,6 @@ decode QUADRANT default Unknown::unknown() {
                             dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                         }
                         Rs1_trv = Rs1_trv;
-                    } else {
-                        Rs1_trv = temp;
                     }
 
                     Rd_trv = temp;
@@ -1444,8 +1458,10 @@ decode QUADRANT default Unknown::unknown() {
                         Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
                         pc_cap.setCursor(NPC);
 
-                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)pc_cap;
-                        Rd_trv.setTag(true);
+
+                        ConstTaggedRegVal temp;
+                        temp.getRegVal().rawCapVal() = (uint128_t)pc_cap;
+                        temp.setTag(true);
 
                         dyn_inst->cpu->getIEWObject().setPCCap(rs1_cap,
                                                             dyn_inst->threadNumber);
@@ -1463,7 +1479,7 @@ decode QUADRANT default Unknown::unknown() {
                         }
 
                         Rs1_trv = Rs1_trv;
-                        Rd_trv = Rd_trv;
+                        Rd_trv = temp;
                 }}, IsUncondControl);
                 0x6: cbnz ({{
                     using namespace gem5::RiscvcapstoneISA::o3;
