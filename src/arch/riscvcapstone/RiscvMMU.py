@@ -49,13 +49,10 @@ class RiscvMMU(BaseMMU):
 
     itb = RiscvTLB(entry_type="instruction")
     dtb = RiscvTLB(entry_type="data")
-    pma_checker = Param.PMAChecker(PMAChecker(), "PMA Checker")
-    pmp = Param.PMP(PMP(), "Physical Memory Protection Unit")
 
     @classmethod
     def walkerPorts(cls):
-        return ["mmu.itb.walker.port", "mmu.dtb.walker.port"]
+        return []
 
     def connectWalkerPorts(self, iport, dport):
-        self.itb.walker.port = iport
-        self.dtb.walker.port = dport
+        pass

@@ -18,7 +18,8 @@ class NCQ;
 struct NCQEntry;
 
 /**
- * base class for all commands to node controller
+ * Base class for all commands to node controller. The commands
+ * help us manage/query the revocation tree.
  * */
 struct NodeCommand {
     typedef enum {
@@ -105,6 +106,12 @@ struct LockedNodeCommand : NodeCommand {
         PacketPtr createReleasePacket();
 };
 
+/** 
+ * The NodeQuery command helps to check the validity of a node.
+ * The result of the query is checked in the commit stage. This
+ * means that the command has to execute before the instruction
+ * is committed.
+*/
 struct NodeQuery : NodeCommand {
     NodeID nodeId;
     bool validityError = false;
@@ -126,6 +133,9 @@ struct NodeQuery : NodeCommand {
     ~NodeQuery() {}
 };
 
+/** 
+ * Debug command to dump info for a node.
+*/
 struct NodeQueryDbg : NodeCommand {
     NodeID nodeId;
     bool validityError = false;
@@ -147,7 +157,11 @@ struct NodeQueryDbg : NodeCommand {
     ~NodeQueryDbg() {}
 };
 
-
+/** 
+ * The NodeRevoke command is called with a revocation capability.
+ * It invalidates all the nodes (in effect, the associated capabilities)
+ * in the subtree of the given node ID.
+*/
 struct NodeRevoke : NodeCommand {
     NodeID nodeId;
     NodeRevoke() : state(NCRevoke_LOAD_ROOT) {}
@@ -179,6 +193,12 @@ struct NodeRevoke : NodeCommand {
         Node savedNode, rootNode;
 };
 
+/** 
+ * The NodeRcUpdate command helps to keep the reference
+ * count values updated for a given node ID. If the RC values
+ * reaches 0 for a node ID, it removes that node from the revocation tree,
+ * and adds it to the free list (to be able to be allocated later).
+*/
 struct NodeRcUpdate : NodeCommand {
     NodeID nodeId;
     int delta;
@@ -201,11 +221,18 @@ struct NodeRcUpdate : NodeCommand {
         enum {
             NCRcUpdate_LOAD,
             NCRcUpdate_STORE,
+            NCRcUpdate_LOAD_PREV,
+            NCRcUpdate_STORE_PREV,
+            NCRcUpdate_LOAD_NEXT,
+            NCRcUpdate_STORE_NEXT
         } state;
-        
+        NodeID prevNodeId, nextNodeId;
         Node savedNode;
 };
 
+/**
+ * Used to allocate a new node ID and add it to the revocation tree.
+*/
 struct NodeAllocate : NodeCommand {
     NodeID data;
 
@@ -247,6 +274,11 @@ struct NodeAllocate : NodeCommand {
         Node savedNode;
 };
 
+/**
+ * The NodeDrop command notifies the implementation that we're
+ * not interested in the provided capability anymore. The controller
+ * removes this node from the revocation tree.
+ */
 struct NodeDrop : NodeCommand {
     NodeID nodeId;
 

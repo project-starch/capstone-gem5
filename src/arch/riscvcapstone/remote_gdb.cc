@@ -166,22 +166,6 @@ RemoteGDB::acc(Addr va, size_t len)
     if (FullSystem)
     {
         panic("full system unsupported.");
-        /*MMU *mmu = static_cast<MMU *>(context()->getMMUPtr());
-        unsigned logBytes;
-        Addr paddr = va;
-
-        PrivilegeMode pmode = mmu->getMemPriv(context(), BaseMMU::Read);
-        SATP satp = context()->readMiscReg(MISCREG_SATP);
-        if (pmode != PrivilegeMode::PRV_M &&
-            satp.mode != AddrXlateMode::BARE) {
-            Walker *walker = mmu->getDataWalker();
-            Fault fault = walker->startFunctional(
-                context(), paddr, logBytes, BaseMMU::Read);
-            if (fault != NoFault)
-                return false;
-        }
-        return true;
-        */
     }
 
     return context()->getProcessPtr()->pTable->lookup(va) != nullptr;

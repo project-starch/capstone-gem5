@@ -19,9 +19,11 @@ namespace o3 {
 class CPU;
 class IEW;
 
-    // TODO: also needs to be one per thread
+// TODO: also needs to be one per thread
 class NCQ {
     public:
+
+        // Node cache port for the NCQ
         class NcachePort : public RequestPort {
             private:
                 NCQ* ncq;
@@ -65,14 +67,22 @@ class NCQ {
 
     public:
         NCQ(CPU* cpu, IEW* iew, int queue_size, int thread_num);
+
+        /** Insert instruction in the NCQ. The order of insts in the queue
+         * follows the program order.
+        */
         void insertInstruction(const DynInstPtr& inst);
         void tick();
 
         bool isFull(ThreadID thread_id);
 
+        /** Add a command to the NCQ's corresponding entry for inst. */
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
 
+        /** Mark all commands before the given seq_num as being able to be committed. */
         void commitBefore(InstSeqNum seq_num, ThreadID thread_id);
+
+        /** This is where the node commands are actually executed. */
         void writebackCommands();
         void writebackCommands(ThreadID thread_id);
         
@@ -94,6 +104,8 @@ class NCQ {
         bool handleCacheResp(PacketPtr pkt);
 
         QueryResult passedQuery(const DynInstPtr& inst) const;
+
+        /** Remove NCQEntries with completed commands from the NCQ. */
         void cleanupCommands();
 
         void squash(const InstSeqNum& squashed_num, ThreadID thread_id);

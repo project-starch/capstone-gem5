@@ -14,6 +14,7 @@ namespace gem5 {
 namespace RiscvcapstoneISA {
 namespace o3 {
 
+// Physical memory location where the first node (node ID 0) is to be stored.
 const Addr NODE_MEM_BASE_ADDR = 0x7d0000000ULL;
 
 inline Addr node_addr(NodeID node_id) {
@@ -60,6 +61,10 @@ NodeCommand::createLoadNode(const NodeID& node_id) {
     return create_load_node(inst->requestorId(), node_id);
 }
 
+/**
+ * Following are the internal state machines for each of the
+ * node commands.
+ */
 PacketPtr
 NodeAllocate::transition() {
     DPRINTF(NodeCmd, "Node allocate transition for instruction %u (state = %u)\n",
@@ -119,6 +124,9 @@ NodeAllocate::handleResp(PacketPtr pkt) {
     switch(state) {
         case NCAllocate_LOAD_PARENT:
             savedNode = pkt->getRaw<Node>();
+
+            assert(savedNode.isValid());
+
             parentDepth = savedNode.depth;
             nextNodeId = savedNode.next;
             savedNode.next = toAllocate;
@@ -136,7 +144,7 @@ NodeAllocate::handleResp(PacketPtr pkt) {
             savedNode.depth = parentDepth + (asChild ? 1 : 0);
             savedNode.next = nextNodeId;
             savedNode.state = Node::VALID;
-            savedNode.counter = 1; // TODO: perhaps 1
+            savedNode.counter = 1;
             
             state = NCAllocate_STORE;
             status = TO_RESUME;
@@ -273,6 +281,8 @@ NodeRevoke::handleResp(PacketPtr pkt) {
     switch(state) {
         case NCRevoke_LOAD_ROOT:
             rootNode = pkt->getRaw<Node>();
+            assert(rootNode.isValid());
+
             rootDepth = rootNode.depth;
             curNodeId = rootNode.next;
 
@@ -333,19 +343,54 @@ NodeRcUpdate::handleResp(PacketPtr pkt) {
         case NCRcUpdate_LOAD:
             savedNode = pkt->getRaw<Node>();
             savedNode.counter += delta;
-            //do I need to make the counter check against 1 here?
-            if(savedNode.counter == 0 && savedNode.state == 0) {
-                // add node to free list
-                // savedNode.state = Node::INVALID;
-                inst->getNodeController().freeNode(savedNode, nodeId);
-            }
+            prevNodeId = savedNode.prev;
+            nextNodeId = savedNode.next;
 
-            // note that we do not need to do anything 
-            // with prev and next because they are invalid notes
             state = NCRcUpdate_STORE;
             status = TO_RESUME;
+
+            if(savedNode.counter == 0) {
+                // add node to free list
+                if (savedNode.state == Node::INVALID) {
+                    if(prevNodeId == NODE_ID_INVALID &&
+                        nextNodeId == NODE_ID_INVALID) {
+                        inst->getNodeController().setRoot(NODE_ID_INVALID);
+                        status = COMPLETED;
+                    } if (prevNodeId == NODE_ID_INVALID)
+                        state = NCRcUpdate_LOAD_NEXT;
+                    else
+                        state = NCRcUpdate_LOAD_PREV;
+                    inst->getNodeController().freeNode(savedNode, nodeId);
+                }
+            }
+
             break;
         case NCRcUpdate_STORE:
+            status = COMPLETED;
+            break;
+        case NCRcUpdate_LOAD_PREV:
+            savedNode = pkt->getRaw<Node>();
+            savedNode.next = nextNodeId;
+
+            state = NCRcUpdate_STORE_PREV;
+            status = TO_RESUME;
+            break;
+        case NCRcUpdate_STORE_PREV:
+            if (nextNodeId == NODE_ID_INVALID)
+                status = COMPLETED;
+            else {
+                state = NCRcUpdate_LOAD_NEXT;
+                status = TO_RESUME;
+            }
+            break;
+        case NCRcUpdate_LOAD_NEXT:
+            savedNode = pkt->getRaw<Node>();
+            savedNode.prev = prevNodeId;
+
+            state = NCRcUpdate_STORE_NEXT;
+            status = TO_RESUME;
+            break;
+        case NCRcUpdate_STORE_NEXT:
             status = COMPLETED;
             break;
         default:
@@ -356,7 +401,7 @@ NodeRcUpdate::handleResp(PacketPtr pkt) {
 
 
 // when rc reaches 0
-// if the node if invalid: add the node to the free list
+// if the node if invalid: add the node to the free list, and remove it from the rev tree
 // if the node is valid: no need to do anything
 PacketPtr
 NodeRcUpdate::transition() {
@@ -367,6 +412,18 @@ NodeRcUpdate::transition() {
             break;
         case NCRcUpdate_STORE:
             pkt = createStoreNode(nodeId, savedNode);
+            break;
+        case NCRcUpdate_LOAD_PREV:
+            pkt = createLoadNode(prevNodeId);
+            break;
+        case NCRcUpdate_STORE_PREV:
+            pkt = createStoreNode(prevNodeId, savedNode);
+            break;
+        case NCRcUpdate_LOAD_NEXT:
+            pkt = createLoadNode(nextNodeId);
+            break;
+        case NCRcUpdate_STORE_NEXT:
+            pkt = createStoreNode(nextNodeId, savedNode);
             break;
         default:
             panic("unrecognised state in RcUpdate!");
@@ -530,7 +587,7 @@ NodeDrop::handleResp(PacketPtr pkt) {
     switch(state) {
         case NCDrop_LOAD:
             savedNode = pkt->getRaw<Node>();
-            assert(savedNode.isValid()); // TODO: actually need to handle this case
+            assert(savedNode.isValid());
             prevNodeId = savedNode.prev;
             nextNodeId = savedNode.next;
             savedNode.invalidate();
@@ -545,7 +602,7 @@ NodeDrop::handleResp(PacketPtr pkt) {
                 inst->getNodeController().setRoot(NODE_ID_INVALID);
                 status = COMPLETED;
             } else if(prevNodeId == NODE_ID_INVALID) {
-                inst->getNodeController().setRoot(nodeId); //shouldn't this be nextNodeId?
+                inst->getNodeController().setRoot(nextNodeId);
                 state = NCDrop_LOAD_RIGHT;
                 status = TO_RESUME;
             } else {

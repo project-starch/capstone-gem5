@@ -114,8 +114,6 @@ CPU::CPU(const CapstoneBaseO3CPUParams &params)
       globalSeqNum(1),
       system(params.system),
       lastRunningCycle(curCycle()),
-      secure_base(params.secure_base),
-      secure_end(params.secure_end),
       cpuStats(this)
 {
     fatal_if(FullSystem && params.numThreads > 1,
@@ -520,12 +518,12 @@ CPU::printRegs()
         DPRINTFN("%s has value ",
                 IntRegNames[i]);
         DPRINTFN("Capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
-                                tmp.getTag(),
-                                c.start(), c.end(),
-                                c.cursor(),
-                                static_cast<unsigned int>(c.perm()),
-                                static_cast<unsigned int>(c.type()),
-                                c.nodeId());
+                    tmp.getTag(),
+                    c.start(), c.end(),
+                    c.cursor(),
+                    static_cast<unsigned int>(c.perm()),
+                    static_cast<unsigned int>(c.type()),
+                    c.nodeId());
     }
 }
 
@@ -563,16 +561,15 @@ CPU::startup()
         Cap *cap = new Cap;
         cap->setPerm(CapPerm::RWX);
         cap->setType(CapType::LIN);
-        cap->setBound(secure_base, secure_end);
+        cap->setBound(0x0, 0xFFFFFFFF);
         cap->setNodeId(0);
+        // allocate the node for the init capability
         iew.ncQueue.allocateInit(tid);
 
         ConstTaggedRegVal ctrv;
         ctrv.setTag(true);
         ctrv.getRegVal().rawCapVal() = (uint128_t)*cap;
         isa[tid]->setTaggedMiscReg(1, ctrv); //capmiscreg_cinit
-
-        cwrld[tid] = 0;
     }
 }
 

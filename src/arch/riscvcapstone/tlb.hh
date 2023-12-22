@@ -86,10 +86,6 @@ class TLB : public BaseTLB
     } stats;
 
   public:
-    PMAChecker *pma;
-    PMP *pmp;
-
-  public:
     typedef RiscvTLBParams Params;
     TLB(const Params &p);
 

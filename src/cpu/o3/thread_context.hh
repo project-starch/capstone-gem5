@@ -203,14 +203,6 @@ class ThreadContext : public gem5::ThreadContext
         return cpu->readMiscReg(misc_reg, thread->threadId());
     }
 
-    #ifdef TARGET_RISCVCapstone
-    bool
-    cwrld()
-    {
-        return 0;
-    }
-    #endif
-
     /** Sets a misc. register. */
     void setMiscRegNoEffect(RegIndex misc_reg, RegVal val) override;
 

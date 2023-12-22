@@ -54,7 +54,7 @@ struct NCQEntry {
         commands.clear();
     }
 
-    // all commands have been finished
+    /** Whether all commands have been finished. */
     bool completed() const {
         return completedCommands == commands.size();
     }
@@ -62,8 +62,7 @@ struct NCQEntry {
 
 /**
  * Node command queue unit for a single thread
- *
- * */
+ */
 class NCQUnit {
     private:
         struct PacketRecord {
@@ -91,17 +90,20 @@ class NCQUnit {
         //NCQUnit(const NCQUnit&) = delete;
         Fault pushCommand(const DynInstPtr& inst, NodeCommandPtr cmd);
         void insertInstruction(const DynInstPtr& inst);
-        // commit all instructions before specified seq number
         void commitBefore(InstSeqNum seq_num);
         void writebackCommands();
+
+        /** Bookkeeping. Tracks completed commands in the NCQ. */
         void completeCommand(NodeCommandPtr cmd_it);
         void tick();
         bool isFull();
 
+        /** Debug helper to print out the NCQ. */
         void dumpNcQueue();
     
         bool handleCacheResp(PacketPtr pkt);
         QueryResult passedQuery(const DynInstPtr& inst) const;
+
         void cleanupCommands();
 
         void squash(const InstSeqNum &squashed_num);
@@ -110,7 +112,7 @@ class NCQUnit {
             return NoFault;
         }
 
-        // allocate the node for cinit, assumed 0
+        // allocate the node for the init capability, assumed 0
         void allocateInit();
 };
 

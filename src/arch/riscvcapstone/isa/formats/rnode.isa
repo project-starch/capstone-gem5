@@ -138,57 +138,41 @@ def template RNodeMemExecute {{
         CPU *o3cpu = dynamic_cast<o3::CPU *>(dyn_inst->getCpuPtr());
         assert(o3cpu);
 
-        bool cwrld = o3cpu->cwrld[dyn_inst->threadNumber];
-        uint64_t emode = o3cpu->readMiscReg(MISCREG_EMODE, dyn_inst->threadNumber);
-        if(cwrld || (!cwrld && emode)) {
-            if(!Rs1.getTag()) {
-                return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-            }
+        if(!Rs1.getTag()) {
+            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
+        }
 
-            Cap rs1_cap = Rs1.getRegVal().capVal();
+        Cap rs1_cap = Rs1.getRegVal().capVal();
 
-            if(rs1_cap.type() == CapType::UNINIT ||
-                rs1_cap.type() == CapType::SEALED ||
-                rs1_cap.type() == CapType::REV ||
-                (rs1_cap.type() == CapType::SEALEDRET && rs1_cap.async() != CapAsync::SYNC)) {
-                return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-            }
+        if(rs1_cap.type() == CapType::UNINIT ||
+            rs1_cap.type() == CapType::SEALED ||
+            rs1_cap.type() == CapType::REV ||
+            (rs1_cap.type() == CapType::SEALEDRET && rs1_cap.async() != CapAsync::SYNC)) {
+            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
+        }
 
-            if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                !rs1_cap.hasReadPerm()) {
-                return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
-            }
-        } else { //integer encoding mode
-            if(Rs1.getTag()) {
-                return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-            }
+        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
+            !rs1_cap.hasReadPerm()) {
+            return std::make_shared<IllegalInstFault>("Insufficient capability permissions (27)", machInst);
         }
 
         Addr EA;
 
-        if(cwrld || (!cwrld && emode)) {
-            Cap rs1_cap = Rs1.getRegVal().capVal();
-            EA = rs1_cap.cursor() + imm;
+        EA = rs1_cap.cursor() + imm;
 
-            if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(Mem))) {
-                return std::make_shared<IllegalInstFault>(
-                "Capability out of bound (28)", machInst);
-            }
-
-            //DPRINTFN("MemReads count = %d, tag query count = %d\n",
-            //dyn_inst->memReadN, dyn_inst->tagQueryN);
-
-            NodeID node_id = rs1_cap.nodeId();
-            if(dyn_inst->nodeQueryN == 0)
-                dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-        } else {
-            EA = Rs1.getRegVal().intVal() + imm;
-
-            if(dyn_inst->addrInSecRegion(EA, sizeof(Mem))) {
-                return std::make_shared<IllegalInstFault>(
-                "Load access fault (5)", machInst);
-            }
+        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(Mem))) {
+            return std::make_shared<IllegalInstFault>(
+            "Capability out of bound (28)", machInst);
         }
+
+        //DPRINTFN("MemReads count = %d, tag query count = %d\n",
+        //dyn_inst->memReadN, dyn_inst->tagQueryN);
+
+        NodeID node_id = rs1_cap.nodeId();
+
+        // if this is a rescheduled load, it shouldn't issue a node command again
+        if(dyn_inst->nodeQueryN == 0)
+            dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
 
         if ((EA & (sizeof(Mem) - 1)) != 0) {
             return std::make_shared<IllegalInstFault>(
@@ -215,13 +199,6 @@ def template RNodeMemCompleteAcc {{
 
         %(op_decl)s;
         %(op_rd)s;
-
-        if(Rd.getTag()) {
-            Cap rd_cap = Rd.getRegVal().capVal();
-            NodeID node_id = rd_cap.nodeId();
-            dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
-        }
-
         %(memacc_code)s;
         %(op_wb)s;
         return NoFault;
@@ -276,62 +253,44 @@ def template RNodeStoreExecute {{
         CPU *o3cpu = dynamic_cast<o3::CPU *>(dyn_inst->getCpuPtr());
         assert(o3cpu);
 
-        bool cwrld = o3cpu->cwrld[dyn_inst->threadNumber];
-        uint64_t emode = o3cpu->readMiscReg(MISCREG_EMODE, dyn_inst->threadNumber);
-        if(cwrld || (!cwrld && emode)) {
-            if(!Rs1.getTag()) {
-                return std::make_shared<IllegalInstFault>(
-                    "Unexpected operand type (24)", machInst);
-            }
+        if(!Rs1.getTag()) {
+            DPRINTFN("no cap!!!!!!\n");
+            return std::make_shared<IllegalInstFault>(
+                "Unexpected operand type (24)", machInst);
+        }
 
-            Cap rs1_cap = Rs1.getRegVal().capVal();
+        Cap rs1_cap = Rs1.getRegVal().capVal();
 
-            if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV ||
-                (rs1_cap.type() == CapType::SEALEDRET && rs1_cap.async() != CapAsync::SYNC)) {
-                return std::make_shared<IllegalInstFault>(
-                        "Unexpected capability type (26)", machInst);
-            }
+        if(rs1_cap.type() == CapType::SEALED || rs1_cap.type() == CapType::REV ||
+            (rs1_cap.type() == CapType::SEALEDRET && rs1_cap.async() != CapAsync::SYNC)) {
+            return std::make_shared<IllegalInstFault>(
+                    "Unexpected capability type (26)", machInst);
+        }
 
-            if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
-                !rs1_cap.hasWritePerm()) {
-                return std::make_shared<IllegalInstFault>(
-                    "Insufficient capability permissions (27)", machInst);
-            }
-        } else { //integer encoding mode
-            if(Rs1.getTag()) {
-                return std::make_shared<IllegalInstFault>(
-                    "Unexpected operand type (24)", machInst);
-            }
+        if((rs1_cap.type() == CapType::LIN || rs1_cap.type() == CapType::NONLIN) &&
+            !rs1_cap.hasWritePerm()) {
+            return std::make_shared<IllegalInstFault>(
+                "Insufficient capability permissions (27)", machInst);
         }
 
         %(check_code)s;
 
         Addr EA;
         int64_t offset = sext<12>(IMM5 | (IMM7 << 5));
-        if(cwrld || (!cwrld && emode)) {
-            Cap rs1_cap = Rs1.getRegVal().capVal();
-            EA = rs1_cap.cursor() + offset;
+        EA = rs1_cap.cursor() + offset;
 
-            if(rs1_cap.type() == CapType::UNINIT && offset) {
-                return std::make_shared<IllegalInstFault>(
-                        "Illegal operand value (29)", machInst);
-            }
-
-            if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(Mem))) {
-                return std::make_shared<IllegalInstFault>(
-                        "Capability out of bound (28)", machInst);
-            }
-
-            NodeID node_id = rs1_cap.nodeId();
-            dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-        } else {
-            EA = Rs1.getRegVal().intVal() + offset;
-
-            if(dyn_inst->addrInSecRegion(EA, sizeof(Mem))) {
-                return std::make_shared<IllegalInstFault>(
-                        "Store/AMO access fault (7)", machInst);
-            }
+        if(rs1_cap.type() == CapType::UNINIT && offset) {
+            return std::make_shared<IllegalInstFault>(
+                    "Illegal operand value (29)", machInst);
         }
+
+        if(!capInBoundForMemAcc(rs1_cap, EA, sizeof(Mem))) {
+            return std::make_shared<IllegalInstFault>(
+                    "Capability out of bound (28)", machInst);
+        }
+
+        NodeID node_id = rs1_cap.nodeId();
+        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
                         
         if(EA & (sizeof(Mem) - 1))
             return std::make_shared<IllegalInstFault>(
@@ -372,14 +331,12 @@ def template RNodeStoreMemCompleteAcc {{
             dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
         }
 
-        if(Rs1.getTag()) {
-            Cap rs1_cap = Rs1.getRegVal().capVal();
+        Cap rs1_cap = Rs1.getRegVal().capVal();
 
-            if(rs1_cap.type() == CapType::UNINIT)
-                rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem));
+        if(rs1_cap.type() == CapType::UNINIT)
+            rs1_cap.setCursor(rs1_cap.cursor() + sizeof(Mem));
 
-            Rs1.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-        }
+        Rs1.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
 
         %(comp_code)s;
 
@@ -405,4 +362,34 @@ def template RNodeStoreMemDeclare {{
         Fault completeAcc(PacketPtr, ExecContext *, Trace::InstRecord *) const override;
         using %(base_class)s::generateDisassembly;
     };
+}};
+
+def format SealOp(ea_code, memacc_code, *opt_flags) {{
+    iop = InstObjParams(name, Name, 'RegNodeOp',
+                        {'ea_code': ea_code,
+                        'memacc_code': memacc_code}, opt_flags)
+    header_output = RNodeMemDeclare.subst(iop)
+    decoder_output = RNodeMemConstructor.subst(iop)
+    decode_block = BasicDecode.subst(iop)
+    exec_output = (SealExecute.subst(iop)
+                   + RNodeMemCompleteAcc.subst(iop))
+}};
+
+def template SealExecute {{
+    Fault
+    %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+
+        using namespace gem5::RiscvcapstoneISA::o3;
+
+        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+        assert(dyn_inst);
+
+        %(op_decl)s;
+        %(op_rd)s;
+        %(ea_code)s;
+
+        return NoFault;
+    }
 }};

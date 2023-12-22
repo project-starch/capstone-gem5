@@ -124,21 +124,7 @@ decode QUADRANT default Unknown::unknown() {
                                 "immediate = 0", machInst);
                     }
                 }
-                using namespace gem5::RiscvcapstoneISA::o3;
-
-                DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                assert(dyn_inst);
-
-                if(Rc1_trv.getTag()) {
-                    Rc1_trv.setTag(false);
-                    NodeID node_id = Rc1_trv.getRegVal().capVal().nodeId();
-                    dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
-                }
-
-                int64_t tmp = Rc1_trv.getRegVal().intVal();
-                tmp = tmp + imm;
-                Rc1_trv.getRegVal().intVal() = tmp;
-                Rc1_trv = Rc1_trv;
+                Rc1_sd = Rc1_sd + imm;
             }});
             0x1: c_addiw({{
                 imm = CIMM5;
@@ -160,20 +146,7 @@ decode QUADRANT default Unknown::unknown() {
                     return std::make_shared<IllegalInstFault>(
                             "source reg x0", machInst);
                 }
-
-                using namespace gem5::RiscvcapstoneISA::o3;
-
-                DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                assert(dyn_inst);
-
-                if(Rc1_trv.getTag()) {
-                    Rc1_trv.setTag(false);
-                    NodeID node_id = Rc1_trv.getRegVal().capVal().nodeId();
-                    dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
-                }
-
-                Rc1_trv.getRegVal().intVal() = imm;
-                Rc1_trv = Rc1_trv;
+                Rc1_sd = imm;
             }});
             0x3: decode RC1 {
                 0x2: c_addi16sp({{
@@ -203,19 +176,7 @@ decode QUADRANT default Unknown::unknown() {
                         return std::make_shared<IllegalInstFault>(
                                 "immediate = 0", machInst);
                     }
-                    using namespace gem5::RiscvcapstoneISA::o3;
-
-                    DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                    assert(dyn_inst);
-
-                    if(Rc1_trv.getTag()) {
-                        Rc1_trv.setTag(false);
-                        NodeID node_id = Rc1_trv.getRegVal().capVal().nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
-                    }
-
-                    Rc1_trv.getRegVal().intVal() = imm;
-                    Rc1_trv = Rc1_trv;
+                    Rc1_sd = imm;
                 }});
             }
         }
@@ -415,21 +376,18 @@ decode QUADRANT default Unknown::unknown() {
         0x16: decode FUNCT3 {
             0x1: decode FUNCT7 {
                 format ROp {
-                    //format CIOp
                     0x4: lcc ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         if(!Rs1_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
 
-                        //todo: there probably be a cleaner way of doing this
-
                         uint64_t res; bool except = false;
                         Cap cap_val = Rs1_trv.getRegVal().capVal();
                         CapType t = cap_val.type();
 
                         switch(CIIMM5) {
-                            case 0: break; //validity field - query then result?
+                            case 0: break; //validity field - query then result
                             case 1: res = static_cast<uint64_t>(cap_val.type()); break;
                             case 2: if(t == CapType::SEALED) {
                                         except = true;
@@ -471,7 +429,6 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst *dyn_inst = dynamic_cast<DynInst *>(xc);
                         assert(dyn_inst);
 
-                        //todo: set Rs1 to cnull
                         if(!(Rs1_trv.getTag() && !Rs2_trv.getTag())) {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
@@ -485,32 +442,32 @@ decode QUADRANT default Unknown::unknown() {
                         uint64_t cursor = rs1_cap.cursor();
 
                         rs1_cap.setCursor(cursor + Rs2_trv.getRegVal().intVal());
-                        Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                        
+                        ConstTaggedRegVal temp_regval;
+                        temp_regval.setTag(true);
+                        temp_regval.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
 
-                        ConstTaggedRegVal temp;
-                        temp.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                        temp.setTag(true);
+                        Rd_trv = temp_regval;
 
                         if(RS1 != RD) {
                             //movc semantics
-                            //rs1 still retains the original cap
-                            if(rs1_cap.type() != CapType::NONLIN)
+                            if(rs1_cap.type() != CapType::NONLIN) {
                                 Rs1_trv.setTag(false);
-                            else {
+                                memset(&Rs1_trv, 0, sizeof(Rs1_trv));
+                            } else {
                                 uint64_t node_id = rs1_cap.nodeId();
                                 dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                             }
                             Rs1_trv = Rs1_trv;
+                        } else {
+                            Rs1_trv = temp_regval;
                         }
-
-                        Rd_trv = temp;
                     }});
                     0x5: scc ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         DynInst *dyn_inst = dynamic_cast<DynInst *>(xc);
                         assert(dyn_inst);
 
-                        //todo: set Rs1 to cnull
                         if(!(Rs1_trv.getTag() && !Rs2_trv.getTag())) {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
@@ -529,14 +486,16 @@ decode QUADRANT default Unknown::unknown() {
 
                         if(RS1 != RD) {
                             //movc semantics
-                            //rs1 still retains the original cap
-                            if(rs1_cap.type() != CapType::NONLIN)
+                            if(rs1_cap.type() != CapType::NONLIN) {
                                 Rs1_trv.setTag(false);
-                            else {
+                                memset(&Rs1_trv, 0, sizeof(Rs1_trv));
+                            } else {
                                 uint64_t node_id = rs1_cap.nodeId();
                                 dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                             }
                             Rs1_trv = Rs1_trv;
+                        } else {
+                            Rs1_trv = temp;
                         }
 
                         Rd_trv = temp;
@@ -577,7 +536,6 @@ decode QUADRANT default Unknown::unknown() {
                         Rd_trv = Rd_trv;
                     }});
                     0x3: delin ({{
-                        //todo: update captype also in node
                         using namespace gem5::RiscvcapstoneISA::o3;
 
                         if(!Rd_trv.getTag()) {
@@ -619,10 +577,13 @@ decode QUADRANT default Unknown::unknown() {
 
                         if(RS1 != RD) {
                             Rs1_trv.setTag(false);
+                            memset(&Rs1_trv, 0, sizeof(Rs1_trv));
                         }
                         Rs1_trv = Rs1_trv;
                     }});
-                    0x7: seal ({{
+                }
+                format SealOp {
+                    0x7: seal ({{ //execute
                         using namespace gem5::RiscvcapstoneISA::o3;
 
                         if(!Rs1_trv.getTag()) {
@@ -643,13 +604,28 @@ decode QUADRANT default Unknown::unknown() {
                             return std::make_shared<IllegalInstFault>("Illegal operand value (29)", machInst);
                         }
 
+                        Addr EA = rs1_cap.start() + sizeof(RegVal);
+
+                        Fault fault = dyn_inst->initiateGetTag(EA);
+                        if(fault != NoFault)
+                            return fault;
+                    }}, {{ //comp_code
+                        bool tag_res = dyn_inst->getTagQueryRes(0);
+                        if(!tag_res) {
+                            return std::make_shared<IllegalInstFault>(
+                                    "Illegal operand value (29)", machInst);
+                        }
+
+                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
                         rs1_cap.setType(CapType::SEALED);
                         rs1_cap.setAsync(CapAsync::SYNC);
                         Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         Rd_trv = Rs1_trv;
 
-                        if(RS1 != RD)
+                        if(RS1 != RD) {
                             Rs1_trv.setTag(false);
+                            memset(&Rs1_trv, 0, sizeof(Rs1_trv));
+                        }
                         Rs1_trv = Rs1_trv;
                     }});
                 }
@@ -658,8 +634,6 @@ decode QUADRANT default Unknown::unknown() {
                         if(!Rs1_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
-
-                        //todo: write cnull to Rs1
 
                         using namespace gem5::RiscvcapstoneISA::o3;
 
@@ -676,6 +650,7 @@ decode QUADRANT default Unknown::unknown() {
                                 dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                             } else {
                                 Rs1_trv.setTag(false);
+                                memset(&Rs1_trv, 0, sizeof(Rs1_trv));
                             }
 
                             Rs1_trv = Rs1_trv;
@@ -707,16 +682,13 @@ decode QUADRANT default Unknown::unknown() {
                                 return std::make_shared<IllegalInstFault>("Illegal operand value (29)", machInst);
                             }
 
-                            //do I need a query here?
                             NodeID node_id = rs1_cap.nodeId();
-                            Fault fault = dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-                            if(fault != NoFault)
-                                return fault;
 
                             auto& node_controller = dyn_inst->getNodeController();
                             NodeID to_allocate = node_controller.tryAllocate();
 
-                            fault = dyn_inst->initiateNodeCommand(new NodeAllocate(node_id, to_allocate, false));
+                            // node controller checks for the validity of the parent node
+                            Fault fault = dyn_inst->initiateNodeCommand(new NodeAllocate(node_id, to_allocate, false));
                             if(fault != NoFault)
                                 return fault;
 
@@ -725,12 +697,12 @@ decode QUADRANT default Unknown::unknown() {
                             ConstTaggedRegVal temp;
                             temp.setTag(true);
 
-                            rd_cap.setBound(split_addr, end);
+                            rd_cap.setAddresses(split_addr, end, split_addr);
                             rd_cap.setNodeId(to_allocate);
                             temp.getRegVal().rawCapVal() = (uint128_t)rd_cap;
                             Rd_trv = temp;
 
-                            rs1_cap.setBound(start, split_addr);
+                            rs1_cap.setAddresses(start, split_addr, start);
                             Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                             Rs1_trv = Rs1_trv;
                         }
@@ -742,16 +714,15 @@ decode QUADRANT default Unknown::unknown() {
 
                         Rs1_trv.setTag(false);
 
-                        if(1) { //if Rs1.valid == 1
-                            //todo: Rs1.valid = 0
-                            using namespace gem5::RiscvcapstoneISA::o3;
+                        // whether the node ID is already valid or not
+                        // is checked by the node controller
+                        using namespace gem5::RiscvcapstoneISA::o3;
 
-                            DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-                            assert(dyn_inst);
+                        DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
+                        assert(dyn_inst);
 
-                            uint64_t node_id = Rs1_trv.getRegVal().capVal().nodeId();
-                            dyn_inst->initiateNodeCommand(new NodeDrop(node_id));
-                        }
+                        uint64_t node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                        dyn_inst->initiateNodeCommand(new NodeDrop(node_id));
 
                         Rs1_trv = Rs1_trv;
                     }});
@@ -771,16 +742,11 @@ decode QUADRANT default Unknown::unknown() {
 
                         NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
 
-                        //do I need this query? if execution has been correct, this node should be
-                        //valid right?
-                        Fault fault = dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-                        if(fault != NoFault)
-                            return fault;
-
                         auto& node_controller = dyn_inst->getNodeController();
                         NodeID to_allocate = node_controller.tryAllocate();
 
-                        fault = dyn_inst->initiateNodeCommand(new NodeAllocate(node_id, to_allocate));
+                        // node controller checks whether node_id is valid
+                        Fault fault = dyn_inst->initiateNodeCommand(new NodeAllocate(node_id, to_allocate));
                         if(fault != NoFault)
                             return fault;
 
@@ -835,9 +801,8 @@ decode QUADRANT default Unknown::unknown() {
                         Rs1_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
                         
                         Rs1_trv = Rs1_trv;
-                    }});
+                    }}, IsSerializeBefore, IsNonSpeculative, IsSerializeAfter);
                 }
-                //format CIOp
                 format ROp {
                     0x2: tighten ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
@@ -867,28 +832,29 @@ decode QUADRANT default Unknown::unknown() {
                         }
                         rs1_cap.setPerm(temp);
 
-                        Rd_trv = Rs1_trv;
-                        Rd_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                        ConstTaggedRegVal temp_regval;
+                        temp_regval.setTag(true);
+                        temp_regval.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
 
                         if(RS1 != RD) {
                             //movc semantics
-                            //rs1 still retains the original cap
-                            if(rs1_cap.type() != CapType::NONLIN)
+                            if(rs1_cap.type() != CapType::NONLIN) {
                                 Rs1_trv.setTag(false);
-                            else {
+                                memset(&Rs1_trv, 0, sizeof(Rs1_trv));
+                            } else {
                                 uint64_t node_id = rs1_cap.nodeId();
                                 dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                             }
                             Rs1_trv = Rs1_trv;
+                        } else {
+                            Rs1_trv = temp_regval;
                         }
+
+                        Rd_trv = temp_regval;
                     }});
                 }
                 format Calls {
-                    0x20: call ({{ //execute
-                        if(!dyn_inst->isSecureWorld()) {
-                            return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
-                        }
-
+                    0x40: call ({{ //execute
                         if(!Rs1_trv.getTag())
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
 
@@ -914,12 +880,10 @@ decode QUADRANT default Unknown::unknown() {
                         Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
                         pc_cap.setCursor(npc); // prepare the PC cap to save
 
-                        //todo: clear Rs1
                         ra_trv = Rs1_trv;
                         Cap rs1_cap = Rs1_trv.getRegVal().capVal();
 
                         uint128_t pc_mem_load, ceh_mem_load, csp_mem_load;
-                        //need to fix rescheduled call? like a rescheduled load
 
                         memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
                         memcpy(&ceh_mem_load, dyn_inst->getMemReadRes(1), sizeof(ceh_mem_load));
@@ -958,15 +922,13 @@ decode QUADRANT default Unknown::unknown() {
                         rs1_cap.setReg(RD);
                         rs1_cap.setAsync(CapAsync::SYNC);
                         ra_trv.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+
+                        Rs1_trv.setTag(false);
+                        Rs1_trv = Rs1_trv;
                     }});
                 }
                 format Return {
-                    0x21: returni ({{ //execute
-                        if(!dyn_inst->isSecureWorld()) {
-                            return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
-                        }
-
-                        //rs1 != 0 check??
+                    0x41: returni ({{ //execute
                         if(!Rs1_trv.getTag() || Rs2_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
@@ -1040,12 +1002,10 @@ decode QUADRANT default Unknown::unknown() {
                             pc_cap.setCursor(Rs2_trv.getRegVal().intVal()); // prepare the PC cap to save
 
                             uint128_t pc_mem_load, ceh_mem_load, csp_mem_load;
-                            //need to fix rescheduled call? like a rescheduled load
 
                             memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
                             memcpy(&ceh_mem_load, dyn_inst->getMemReadRes(1), sizeof(ceh_mem_load));
                             memcpy(&csp_mem_load, dyn_inst->getMemReadRes(2), sizeof(csp_mem_load));
-                            //also assert tag results maybe?
 
                             Addr EA = rs1_cap.start();
 
@@ -1091,10 +1051,8 @@ decode QUADRANT default Unknown::unknown() {
                             pc_cap.setCursor(Rs2_trv.getRegVal().intVal()); // prepare the PC cap to save
 
                             uint128_t pc_mem_load;
-                            //need to fix rescheduled call? like a rescheduled load
 
                             memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
-                            //also assert tag results maybe?
 
                             Addr cur_addr = rs1_cap.start() + 2 * sizeof(RegVal);
 
@@ -1149,115 +1107,65 @@ decode QUADRANT default Unknown::unknown() {
                                 ConstTaggedRegVal tagged_val(v, tag);
                                 dyn_inst->setTaggedRegOperand(this, reg_idx, tagged_val);
                             }
-                        }
+                        } else { //upon interrupt
+                            assert(dyn_inst->memReadN == 33);
 
-                        Rs1_trv.setTag(false);
-                        Rs1_trv = Rs1_trv;
-                    }});
-                }
-                format CapEnter {
-                    0x42: capenter ({{
-                        if(dyn_inst->isSecureWorld()) {
-                            return std::make_shared<IllegalInstFault>("Illegal instruction (0)", machInst);
-                        }
-
-                        if(!(Rs1_trv.getTag())) {
-                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-                        }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() != CapType::SEALED) {
-                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-                        }
-
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-
-                        if(rs1_cap.async() == CapAsync::SYNC) {
-                            Addr cur_addr = rs1_cap.start();
-
-                            RegVal dummy;
-                            for(int i = 0; i < 3; i++, cur_addr += sizeof(RegVal)) {
-                                initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
-                                dyn_inst->initiateGetTag(cur_addr);
-                            }
-                        } else { //upon exception or interrupt
-                            Addr cur_addr = rs1_cap.start();
-
-                            RegVal dummy;
-                            for(int i = 0; i < 33; i++, cur_addr += sizeof(RegVal)) {
-                                initiateMemRead(xc, traceData, cur_addr, dummy, Request::Flags());
-                                dyn_inst->initiateGetTag(cur_addr);
-                            }
-                        }
-                    }}, {{
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-                        CPU *cpu = dynamic_cast<CPU *>(dyn_inst->cpu);
-
-                        if(rs1_cap.async() == CapAsync::SYNC) {
+                            RiscvcapstoneISAInst::PCState pc_state;
+                            set(pc_state, xc->pcState());
+                            uint64_t npc = pc_state.npc();
                             Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                            uint64_t pc = pc_cap.cursor();
-
-                            cpu->normal_pc[dyn_inst->threadNumber] = PC;
-                            cpu->normal_sp[dyn_inst->threadNumber] = sp_trv;
-
-                            uint128_t pc_mem_load, ceh_mem_load, csp_mem_load;
-                            //need to fix rescheduled call? like a rescheduled load
-                            //it's serializing, why would it be rescheduled
-
-                            memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
-                            memcpy(&ceh_mem_load, dyn_inst->getMemReadRes(1), sizeof(ceh_mem_load));
-                            memcpy(&csp_mem_load, dyn_inst->getMemReadRes(2), sizeof(csp_mem_load));
-                            //also assert tag results maybe?
-
-                            Cap pc_cap_new(pc_mem_load);
-                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
-
-                            NPC = pc_cap_new.cursor();
-
-                            ConstTaggedRegVal ceh;
-                            ceh.setTag(true);
-                            ceh.getRegVal().rawCapVal() = ceh_mem_load;
-                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
-
-                            sp_trv.getRegVal().rawCapVal() = csp_mem_load;
-                            sp_trv.setTag(true);
-                            sp_trv = sp_trv;
-
-                            ConstTaggedRegVal temp_cra;
-                            temp_cra.setTag(true);
-                            rs1_cap.setType(CapType::EXIT);
-                            rs1_cap.setCursor(rs1_cap.start());
-                            temp_cra.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                            ra_trv = temp_cra;
-
-                            cpu->switch_reg[dyn_inst->threadNumber] = RS1;
-                            cpu->exit_reg[dyn_inst->threadNumber] = RD;
-                        } else {
-                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                            uint64_t pc = pc_cap.cursor();
-
-                            cpu->normal_pc[dyn_inst->threadNumber] = PC;
-                            cpu->normal_sp[dyn_inst->threadNumber] = sp_trv;
+                            pc_cap.setCursor(Rs2_trv.getRegVal().intVal()); // prepare the PC cap to save
 
                             uint128_t pc_mem_load, ceh_mem_load;
-                            //need to fix rescheduled call? like a rescheduled load
-                            //it's serializing, why would it be rescheduled
 
                             memcpy(&pc_mem_load, dyn_inst->getMemReadRes(0), sizeof(pc_mem_load));
                             memcpy(&ceh_mem_load, dyn_inst->getMemReadRes(1), sizeof(ceh_mem_load));
-                            //also assert tag results maybe?
+
+                            Addr cur_addr = rs1_cap.start();
+
+                            ConstTaggedRegVal ceh = dyn_inst->readTaggedMiscReg(CAPMISCREG_CEH);
+                            Cap ceh_cap = ceh.getRegVal().capVal();
+
+                            ConstTaggedRegVal cih = dyn_inst->readTaggedMiscReg(CAPMISCREG_CIH);
+
+                            Fault fault = writeMemTimingLE(xc, traceData, (uint128_t)pc_cap, cur_addr, Request::Flags(), nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+                            fault = writeMemTimingLE(xc, traceData, (uint128_t)ceh_cap, cur_addr + sizeof(RegVal), Request::Flags(), nullptr);
+                                if (fault != NoFault)
+                                    return fault;
+
+                            rs1_cap.setType(CapType::SEALED);
+                            rs1_cap.setAsync(CapAsync::SYNC);
+
+                            cih.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
+                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CIH, cih);
+
+                            ceh.getRegVal().rawCapVal() = ceh_mem_load;
+                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
 
                             Cap pc_cap_new(pc_mem_load);
                             dyn_inst->cpu->getIEWObject().setPCCap(pc_cap_new, dyn_inst->threadNumber);
 
-                            NPC = pc_cap_new.cursor();
+                            //write context
+                            for(int i = 0; i < NumIntArchRegs; i ++, cur_addr += sizeof(RegVal)) {
+                                ConstTaggedRegVal v;
+                                v = dyn_inst->getTaggedRegOperand(this, i);
 
-                            ConstTaggedRegVal ceh;
-                            ceh.setTag(true);
-                            ceh.getRegVal().rawCapVal() = ceh_mem_load;
-                            dyn_inst->setTaggedMiscReg(CAPMISCREG_CEH, ceh);
+                                // store value
+                                // DPRINTFN("Write context x%d %llx\n", i, v.getRegVal().intVal());
+                                fault = writeMemTimingLE(xc, traceData, v.getRegVal(), cur_addr, 
+                                Request::Flags(), nullptr);
+                                if(fault != NoFault) {
+                                    return fault;
+                                }
+                                // store tag
+                                //DPRINTFN("Set tag %d %d\n", i, v.getTag());
+                                fault = dyn_inst->initiateSetTag(cur_addr, v.getTag());
+                                if(fault != NoFault) {
+                                    return fault;
+                                }
+                            }
 
                             for(int reg_idx = 0; reg_idx < NumIntArchRegs; reg_idx ++) {
                                 RegVal& v = *(RegVal*)(dyn_inst->getMemReadRes(reg_idx + 2));
@@ -1269,82 +1177,10 @@ decode QUADRANT default Unknown::unknown() {
                                 ConstTaggedRegVal tagged_val(v, tag);
                                 dyn_inst->setTaggedRegOperand(this, reg_idx, tagged_val);
                             }
-
-                            rs1_cap.setType(CapType::UNINIT);
-                            rs1_cap.setCursor(rs1_cap.start());
-
-                            ConstTaggedRegVal temp_switch_cap;
-                            temp_switch_cap.setTag(true);
-                            temp_switch_cap.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                            dyn_inst->setTaggedMiscReg(CAPMISCREG_SWITCH_CAP, temp_switch_cap);
-
-                            cpu->switch_reg[dyn_inst->threadNumber] = RS1;
-                            cpu->exit_reg[dyn_inst->threadNumber] = RD;
                         }
 
-                        cpu->cwrld[dyn_inst->threadNumber] = 1;
-                    }});
-                }
-                format CapExit {
-                    0x43: capexit ({{
-                        //i don't need comp code do i?
-                        CPU *cpu = dynamic_cast<CPU *>(dyn_inst->cpu);
-
-                        if(!dyn_inst->isSecureWorld()) {
-                            return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
-                        }
-
-                        if(!Rs1_trv.getTag() || Rs2_trv.getTag()) {
-                            return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
-                        }
-
-                        Cap rs1_cap = Rs1_trv.getRegVal().capVal();
-
-                        if(rs1_cap.type() != CapType::EXIT) {
-                            return std::make_shared<IllegalInstFault>("Unexpected capability type (26)", machInst);
-                        }
-
-                        NodeID node_id = rs1_cap.nodeId();
-                        dyn_inst->initiateNodeCommand(new NodeQuery(node_id));
-
-                        Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                        pc_cap.setCursor(Rs2_trv.getRegVal().intVal()); // prepare the PC cap to save
-
-                        ConstTaggedRegVal ceh = dyn_inst->readTaggedMiscReg(CAPMISCREG_CEH);
-                        Cap ceh_cap = ceh.getRegVal().capVal();
-
-                        Addr EA = rs1_cap.start();
-
-                        //todo: load the cap from the mem location and update refcount
-                        //also, update refcount for pc, ceh and csp
-                        Fault fault = writeMemTimingLE(xc, traceData, (uint128_t)pc_cap, EA, Request::Flags(), nullptr);
-                            if (fault != NoFault)
-                                return fault;
-                        fault = writeMemTimingLE(xc, traceData, (uint128_t)ceh_cap, EA + sizeof(RegVal), Request::Flags(), nullptr);
-                            if (fault != NoFault)
-                                return fault;
-                        fault = writeMemTimingLE(xc, traceData, sp_trv.getRegVal().rawCapVal(), EA + 2*sizeof(RegVal), Request::Flags(), nullptr);
-                            if (fault != NoFault)
-                                return fault;
-
-                        sp_trv = cpu->normal_sp[dyn_inst->threadNumber];
-                        NPC = cpu->normal_pc[dyn_inst->threadNumber] + 4;
-
-                        rs1_cap.setType(CapType::SEALED);
-                        rs1_cap.setAsync(CapAsync::SYNC);
-                        unsigned reg_idx = cpu->switch_reg[dyn_inst->threadNumber];
-                        ConstTaggedRegVal tagged_val;
-                        tagged_val.setTag(true);
-                        tagged_val.getRegVal().rawCapVal() = (uint128_t)rs1_cap;
-                        dyn_inst->setTaggedRegOperand(this, reg_idx, tagged_val);
-
-                        //use a different variable here or this is okay?
-                        tagged_val.setTag(false);
-                        tagged_val.getRegVal().intVal() = 0;
-                        reg_idx = cpu->exit_reg[dyn_inst->threadNumber];
-                        dyn_inst->setTaggedRegOperand(this, reg_idx, tagged_val);
-
-                        cpu->cwrld[dyn_inst->threadNumber] = 0;
+                        Rs1_trv.setTag(false);
+                        Rs1_trv = Rs1_trv;
                     }});
                 }
             }
@@ -1354,7 +1190,6 @@ decode QUADRANT default Unknown::unknown() {
                     DynInst *dyn_inst = dynamic_cast<DynInst *>(xc);
                     assert(dyn_inst);
 
-                    //todo: set Rs1 to cnull
                     if(!(Rs1_trv.getTag())) {
                         return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                     }
@@ -1376,14 +1211,16 @@ decode QUADRANT default Unknown::unknown() {
 
                     if(RS1 != RD) {
                         //movc semantics
-                        //rs1 still retains the original cap
-                        if(rs1_cap.type() != CapType::NONLIN)
+                        if(rs1_cap.type() != CapType::NONLIN) {
                             Rs1_trv.setTag(false);
-                        else {
+                            memset(&Rs1_trv, 0, sizeof(Rs1_trv));
+                        } else {
                             uint64_t node_id = rs1_cap.nodeId();
                             dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                         }
                         Rs1_trv = Rs1_trv;
+                    } else {
+                        Rs1_trv = temp;
                     }
 
                     Rd_trv = temp;
@@ -1391,6 +1228,7 @@ decode QUADRANT default Unknown::unknown() {
             }
             format RNodeMemOp {
                 0x3: ldc ({{ //ea_code
+                        // rescheduled load shouldn't issue a tag load again
                         if(dyn_inst->tagQueryN == 0) {
                             Fault fault = dyn_inst->initiateGetTag(EA);
                             if(fault != NoFault)
@@ -1444,10 +1282,6 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                         assert(dyn_inst);
 
-                        if(!dyn_inst->isSecureWorld()) {
-                            return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
-                        }
-
                         if(!Rs1_trv.getTag()) {
                             return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                         }
@@ -1463,22 +1297,23 @@ decode QUADRANT default Unknown::unknown() {
                         temp.getRegVal().rawCapVal() = (uint128_t)pc_cap;
                         temp.setTag(true);
 
-                        dyn_inst->cpu->getIEWObject().setPCCap(rs1_cap,
-                                                            dyn_inst->threadNumber);
+                        dyn_inst->cpu->getIEWObject().setPCCap(rs1_cap, dyn_inst->threadNumber);
 
                         NPC = rs1_cap.cursor() + imm;
 
-                        //write cnull to rs1
                         if(RS1 != RD) {
                             if(rs1_cap.type() != CapType::NONLIN) {
                                 Rs1_trv.setTag(false);
+                                memset(&Rs1_trv, 0, sizeof(Rs1_trv));
                             } else {
                                 NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
                                 dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                             }
+                            Rs1_trv = Rs1_trv;
+                        } else {
+                            Rs1_trv = temp;
                         }
 
-                        Rs1_trv = Rs1_trv;
                         Rd_trv = temp;
                 }}, IsUncondControl);
                 0x6: cbnz ({{
@@ -1487,15 +1322,10 @@ decode QUADRANT default Unknown::unknown() {
                     DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
                     assert(dyn_inst);
 
-                    if(!dyn_inst->isSecureWorld()) {
-                            return std::make_shared<IllegalInstFault>("Illegal instruction (2)", machInst);
-                    }
-
                     if(!(Rd_trv.getTag() && !Rs1_trv.getTag())) {
                         return std::make_shared<IllegalInstFault>("Unexpected operand type (24)", machInst);
                     }
 
-                    //should I set PC or NPC hmmm
                     if(Rs1_trv.getRegVal().intVal() != 0) {
                         Cap rd_cap = Rd_trv.getRegVal().capVal();
                         int64_t imm = sext<12>(IMM12);
@@ -1505,9 +1335,9 @@ decode QUADRANT default Unknown::unknown() {
 
                         NPC = rd_cap.cursor();
 
-                        //write cnull to rd
                         if(rd_cap.type() != CapType::NONLIN) {
                             Rd_trv.setTag(false);
+                            memset(&Rd_trv, 0, sizeof(Rd_trv));
                         } else {
                             NodeID node_id = rd_cap.nodeId();
                             dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
@@ -1531,11 +1361,10 @@ decode QUADRANT default Unknown::unknown() {
                         if (fault != NoFault)
                             return fault;
                     }}, {{ //comp_code
-                        //todo: optimization: update loaded cap refcount only if nodeid != Rs2.nodeid
-
-                        if(Rs2_trv.getRegVal().capVal().type() != CapType::NONLIN)
+                        if(Rs2_trv.getRegVal().capVal().type() != CapType::NONLIN) {
                             Rs2_trv.setTag(false);
-                        else {
+                            memset(&Rs2_trv, 0, sizeof(Rs2_trv));
+                        } else {
                             NodeID node_id = Rs2_trv.getRegVal().capVal().nodeId();
                             dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
                         }
@@ -1576,6 +1405,21 @@ decode QUADRANT default Unknown::unknown() {
                                 Rd_trv = reg_val;
                                 reg_val.setTag(false);
                                 dyn_inst->setTaggedMiscReg(FUNCT12, reg_val);
+                            }
+                            break;
+                        }
+                        case CCSR_CIH:
+                        {
+                            ConstTaggedRegVal reg_val = dyn_inst->readTaggedMiscReg(FUNCT12);
+                            if(!reg_val.getTag()) {
+                                reg_val = Rs1_trv;
+                                if(Rs1_trv.getRegVal().capVal().type() != CapType::NONLIN)
+                                    Rs1_trv.setTag(false);
+                                else {
+                                    NodeID node_id = Rs1_trv.getRegVal().capVal().nodeId();
+                                    dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, 1));
+                                }
+                                Rs1_trv = Rs1_trv;
                             }
                             break;
                         }
@@ -1623,54 +1467,46 @@ decode QUADRANT default Unknown::unknown() {
                 format ROp {
                     0x4: capcreate ({{
                         Rd_trv.setTag(true);
-                        Rd_trv = Rd_trv; // just to make the dumb parser happy
+                        Rd_trv = Rd_trv;
                     }});
                     0x5: captype ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         assert(Rd_trv.getTag());
-                        //using CapType = gem5::RiscvcapstoneISA::o3::CapType;
                         CapType temp = static_cast<CapType>(Rs1);
                         assert(temp >= CapType::LIN && temp <= CapType::EXIT);
-                        //Rd_trv.getRegVal().val.cap.setType(temp);
                         Cap rd_cap = Rd_trv.getRegVal().capVal();
                         rd_cap.setType(temp);
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
-                        Rd_trv = Rd_trv; // just to make the dumb parser happy
+                        Rd_trv = Rd_trv;
                     }});
                     0x6: capnode ({{
                         assert(Rd_trv.getTag());
                         using namespace gem5::RiscvcapstoneISA::o3;
-                        //Rd_trv.getRegVal().val.cap.setNodeId(static_cast<NodeID>(Rs1));
                         Cap rd_cap = Rd_trv.getRegVal().capVal();
                         rd_cap.setNodeId(Rs1);
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
-                        Rd_trv = Rd_trv; // just to make the dumb parser happy
+                        Rd_trv = Rd_trv;
                     }});
                     0x7: capperm ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         assert(Rd_trv.getTag());
-                        //using CapPerm = gem5::RiscvcapstoneISA::o3::CapPerm;
                         CapPerm temp = static_cast<CapPerm>(Rs1);
                         assert(temp >= CapPerm::NA && temp <= CapPerm::RWX);
-                        //Rd_trv.getRegVal().val.cap.setPerm(temp);
                         Cap rd_cap = Rd_trv.getRegVal().capVal();
                         rd_cap.setPerm(temp);
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
-                        Rd_trv = Rd_trv; // just to make the dumb parser happy
+                        Rd_trv = Rd_trv;
                     }});
                     0x8: capbound ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
                         assert(Rd_trv.getTag());
                         //DPRINTFN("Set capability bound to (%llx, %llx)\n", Rs1, Rs2);
-                        //Rd_trv.getRegVal().val.cap.setAddresses(Rs1, Rs2, Rs1);
                         Cap rd_cap = Rd_trv.getRegVal().capVal();
                         rd_cap.setAddresses(Rs1, Rs2, Rs1);
                         Rd_trv.getRegVal().rawCapVal() = (uint128_t)rd_cap;
-                        Rd_trv = Rd_trv; // just to make the dumb parser happy
+                        Rd_trv = Rd_trv;
                     }});
                     0x9: capprint ({{
-                        //const RegVal& reg_val = Rs1_trv.getRegVal();
-                        //if(Rs1_trv.getTag()) {
                             gem5::RiscvcapstoneISA::o3::Cap rs1_cap = Rs1_trv.getRegVal().capVal();
                             DPRINTFN("x%u capability (tag = %u) = (%llx, %llx), %llx, perm = %u, type = %u, node = %llu\n",
                                     RS1,
@@ -1680,10 +1516,7 @@ decode QUADRANT default Unknown::unknown() {
                                     static_cast<unsigned int>(rs1_cap.perm()),
                                     static_cast<unsigned int>(rs1_cap.type()),
                                     rs1_cap.nodeId());
-                        //} else {
-                        //    DPRINTFN("%c", Rs1_trv.getRegVal().intVal());
-                        //}
-                    }}, IsSerializing, IsNonSpeculative, IsSerializeAfter);
+                    }}, IsSerializeBefore, IsNonSpeculative, IsSerializeAfter);
                     0x13: justprint ({{
                         std::cout << Rs1_ud << ' ';
                     }});
@@ -1692,12 +1525,12 @@ decode QUADRANT default Unknown::unknown() {
                         DynInst *dyn_inst = dynamic_cast<DynInst *>(xc);
                         assert(dyn_inst);
                         dyn_inst->printRegs();
-                    }}, IsSerializing, IsNonSpeculative, IsSerializeAfter);
+                    }}, IsSerializeBefore, IsNonSpeculative, IsSerializeAfter);
                     0x1e: getrand ({{
                         srand(time(NULL));
                         //std::cout << Rs2_ud << ' ';
                         Rd_ud = rand() % Rs2_ud;
-                    }}, IsSerializing, IsNonSpeculative, IsSerializeAfter);
+                    }}, IsSerializeBefore, IsNonSpeculative, IsSerializeAfter);
                 }
                 format TagAccessStore {
                     0xa: tagset ({{
@@ -1717,16 +1550,6 @@ decode QUADRANT default Unknown::unknown() {
                                     dyn_inst->getTagQueryRes(0));
                     }});
                 }
-                format ROp {
-                    0xc: cssetworld ({{
-                        Rs1_ud;
-                        //0xe: csseteh
-                        //0xf: csonnormaleh
-                    }});
-                    0xd: csonpartition ({{
-                        Rs1_ud;
-                    }});
-                }
                 format RNodeOp {
                     0x11: printnode ({{
                         using namespace gem5::RiscvcapstoneISA::o3;
@@ -1736,7 +1559,7 @@ decode QUADRANT default Unknown::unknown() {
 
                         NodeID node_id = Rs1_ud;
                         dyn_inst->initiateNodeCommand(new NodeQueryDbg(node_id));
-                    }}, IsSerializing, IsNonSpeculative);
+                    }}, IsSerializeBefore, IsSerializeAfter, IsNonSpeculative);
                 }
             }
             //End Capstone Test Ops
@@ -1921,13 +1744,7 @@ decode QUADRANT default Unknown::unknown() {
 
             format IOp {
                 0x0: addi({{
-                    if(Rs1_trv.getTag()) {
-                        return std::make_shared<IllegalInstFault>(
-                            "addi: Can't perform this op on a capability!", machInst);
-                    }
-                    Rd_trv.getRegVal().intVal() = Rs1_trv.getRegVal().intVal() + imm;
-
-                    Rd_trv = Rd_trv;
+                    Rd_sd = Rs1_sd + imm;
                 }});
                 0x2: slti({{
                     Rd = (Rs1_sd < imm) ? 1 : 0;
@@ -1989,13 +1806,7 @@ decode QUADRANT default Unknown::unknown() {
         0x06: decode FUNCT3 {
             format IOp {
                 0x0: addiw({{
-                    if(Rs1_trv.getTag()) {
-                        return std::make_shared<IllegalInstFault>(
-                            "addiw: Can't perform this op on a capability!", machInst);
-                    }
-                    Rs1_trv.getRegVal().intVal() = (int32_t)(Rs1_trv.getRegVal().intVal() + imm);
-
-                    Rs1_trv = Rs1_trv;
+                    Rd_sw = (int32_t)(Rs1_sw + imm);
                 }}, int32_t);
                 0x1: decode FS3 {
                     0x0: slliw({{
@@ -2498,20 +2309,7 @@ decode QUADRANT default Unknown::unknown() {
         }
 
         0x0d: UOp::lui({{
-            using namespace gem5::RiscvcapstoneISA::o3;
-
-            DynInst* dyn_inst = dynamic_cast<DynInst*>(xc);
-            assert(dyn_inst);
-
-            if(Rd_trv.getTag()) {
-                Rd_trv.setTag(false);
-                NodeID node_id = Rd_trv.getRegVal().capVal().nodeId();
-                dyn_inst->initiateNodeCommand(new NodeRcUpdate(node_id, -1));
-            }
-
-            Rd_trv.getRegVal().intVal() = (uint64_t)(sext<20>(imm) << 12);
-
-            Rd_trv = Rd_trv;
+            Rd = (uint64_t)(sext<20>(imm) << 12);
         }});
 
         0x0e: decode FUNCT3 {
@@ -3234,11 +3032,9 @@ decode QUADRANT default Unknown::unknown() {
             format BOp {
                 0x0: beq({{
                     if (Rs1 == Rs2) {
-                        if(dyn_inst->isSecureWorld()) {
-                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                            pc_cap.setCursor(PC + imm);
-                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
-                        }
+                        Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                        pc_cap.setCursor(PC + imm);
+                        dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3246,11 +3042,9 @@ decode QUADRANT default Unknown::unknown() {
                 }}, IsDirectControl, IsCondControl);
                 0x1: bne({{
                     if (Rs1 != Rs2) {
-                        if(dyn_inst->isSecureWorld()) {
-                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                            pc_cap.setCursor(PC + imm);
-                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
-                        }
+                        Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                        pc_cap.setCursor(PC + imm);
+                        dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3258,11 +3052,9 @@ decode QUADRANT default Unknown::unknown() {
                 }}, IsDirectControl, IsCondControl);
                 0x4: blt({{
                     if (Rs1_sd < Rs2_sd) {
-                        if(dyn_inst->isSecureWorld()) {
-                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                            pc_cap.setCursor(PC + imm);
-                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
-                        }
+                        Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                        pc_cap.setCursor(PC + imm);
+                        dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3270,11 +3062,9 @@ decode QUADRANT default Unknown::unknown() {
                 }}, IsDirectControl, IsCondControl);
                 0x5: bge({{
                     if (Rs1_sd >= Rs2_sd) {
-                        if(dyn_inst->isSecureWorld()) {
-                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                            pc_cap.setCursor(PC + imm);
-                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
-                        }
+                        Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                        pc_cap.setCursor(PC + imm);
+                        dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3282,11 +3072,9 @@ decode QUADRANT default Unknown::unknown() {
                 }}, IsDirectControl, IsCondControl);
                 0x6: bltu({{
                     if (Rs1 < Rs2) {
-                        if(dyn_inst->isSecureWorld()) {
-                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                            pc_cap.setCursor(PC + imm);
-                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
-                        }
+                        Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                        pc_cap.setCursor(PC + imm);
+                        dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3294,11 +3082,9 @@ decode QUADRANT default Unknown::unknown() {
                 }}, IsDirectControl, IsCondControl);
                 0x7: bgeu({{
                     if (Rs1 >= Rs2) {
-                        if(dyn_inst->isSecureWorld()) {
-                            Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
-                            pc_cap.setCursor(PC + imm);
-                            dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
-                        }
+                        Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
+                        pc_cap.setCursor(PC + imm);
+                        dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
                         NPC = PC + imm;
                     } else {
                         NPC = NPC;
@@ -3317,22 +3103,15 @@ decode QUADRANT default Unknown::unknown() {
                 Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
                 ConstTaggedRegVal temp_regval;
 
-                if(dyn_inst->isSecureWorld()) {
-                    pc_cap.setCursor(NPC);
-                    temp_regval.setTag(true);
-                    temp_regval.getRegVal().rawCapVal() = (uint128_t)pc_cap;
-                } else {
-                    temp_regval.setTag(false);
-                    temp_regval.getRegVal().intVal() = NPC;
-                }
+                pc_cap.setCursor(NPC);
+                temp_regval.setTag(true);
+                temp_regval.getRegVal().rawCapVal() = (uint128_t)pc_cap;
 
                 NPC = (imm + Rs1) & (~0x1);
                 Rd_trv = temp_regval;
 
-                if(dyn_inst->isSecureWorld()) {
-                    pc_cap.setCursor(NPC);
-                    dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
-                }
+                pc_cap.setCursor(NPC);
+                dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
             }}, IsIndirectControl, IsUncondControl);
         }
 
@@ -3340,22 +3119,15 @@ decode QUADRANT default Unknown::unknown() {
                 Cap pc_cap = dyn_inst->cpu->getIEWObject().getPCCap(dyn_inst->threadNumber);
                 ConstTaggedRegVal temp_regval;
 
-                if(dyn_inst->isSecureWorld()) {
-                    pc_cap.setCursor(NPC);
-                    temp_regval.setTag(true);
-                    temp_regval.getRegVal().rawCapVal() = (uint128_t)pc_cap;
-                } else {
-                    temp_regval.setTag(false);
-                    temp_regval.getRegVal().intVal() = NPC;
-                }
+                pc_cap.setCursor(NPC);
+                temp_regval.setTag(true);
+                temp_regval.getRegVal().rawCapVal() = (uint128_t)pc_cap;
 
                 NPC = PC + imm;
                 Rd_trv = temp_regval;
 
-                if(dyn_inst->isSecureWorld()) {
-                    pc_cap.setCursor(NPC);
-                    dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
-                }
+                pc_cap.setCursor(NPC);
+                dyn_inst->cpu->getIEWObject().setPCCap(pc_cap, dyn_inst->threadNumber);
         }}, IsDirectControl, IsUncondControl);
 
         0x1c: decode FUNCT3 {

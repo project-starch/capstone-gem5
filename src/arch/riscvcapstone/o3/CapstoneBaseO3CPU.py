@@ -179,7 +179,3 @@ class CapstoneBaseO3CPU(BaseCPU):
     ncqSize = Param.Unsigned(32, "Size of the node command queue")
 
     tcache_port = RequestPort('tag cache port')
-
-    secure_base = Param.Unsigned(0, "Secure Memory Base Address")
-    secure_end = Param.Unsigned(0, "Secure Memory End Address")
-

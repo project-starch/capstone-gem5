@@ -96,7 +96,7 @@ class L2Cache(Cache):
     tgts_per_mshr = 12
     # prefetcher = TaggedPrefetcher(degree=1, prefetch_on_access=True)
 
-system = System()
+system = System(mmap_using_noreserve=True)
 
 system.clk_domain = SrcClockDomain()
 system.clk_domain.clock = '1GHz'

@@ -1271,7 +1271,7 @@ IEW::executeInsts()
 
         ThreadID thread_id = inst->threadNumber;
         CapPerm pc_perm = pcCaps[thread_id].perm();
-        if(0 && cpu->cwrld[thread_id]) {
+        if(0) {
             if(!capInBound(pcCaps[thread_id], inst->pcState().instAddr()) ||
                 (pc_perm != CapPerm::RX && pc_perm != CapPerm::RWX)) {
                 DPRINTF(IEW, "Cap %llx %llx %llx (perm = %d)\n", pcCaps[thread_id].start(), pcCaps[thread_id].end(),
@@ -1282,7 +1282,6 @@ IEW::executeInsts()
                 fault = inst->getFault();
             }
         }
-
 
         // TODO: examine operand registers and update the reference counts
 

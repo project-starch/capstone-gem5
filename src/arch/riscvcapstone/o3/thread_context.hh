@@ -203,12 +203,6 @@ class ThreadContext : public gem5::ThreadContext
         return cpu->readMiscReg(misc_reg, thread->threadId());
     }
 
-    bool
-    cwrld()
-    {
-        return cpu->cwrld[thread->threadId()];
-    }
-
     /** Sets a misc. register. */
     void setMiscRegNoEffect(RegIndex misc_reg, RegVal val) override;
 

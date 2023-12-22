@@ -290,13 +290,6 @@ class CheckerThreadContext : public ThreadContext
         return actualTC->readMiscReg(misc_reg);
     }
 
-    #ifdef TARGET_RISCVCapstone
-    bool cwrld() override
-    {
-        return 0;
-    }
-    #endif
-
     void
     setMiscRegNoEffect(RegIndex misc_reg, RegVal val) override
     {

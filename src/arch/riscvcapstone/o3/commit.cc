@@ -1213,48 +1213,46 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     }
 
     DPRINTF(Commit, "Issuing node commands for inst PC %s [sn:%u]\n", head_inst->pcState(), head_inst->seqNum);
-    // for (unsigned i = 0; i < nodeFromRename->size; i++) {
-    //     DPRINTF(Commit, "NodeID: %u\n", nodeFromRename->cmds[i].first);
-    //     if(nodeFromRename->insts[i]->seqNum == head_inst->seqNum) {
-    //         NodeID node_id = nodeFromRename->cmds[i].first;
-    //         int delta = nodeFromRename->cmds[i].second;
 
-    //         DPRINTF(Commit, "Doing RcUpdate for NodeID: %u, delta: %d\n", node_id, delta);
-
-    //         head_inst->initiateNodeCommand(new NodeRcUpdate(node_id, delta));
-    //     }
-    // }
-    //very, very hacked together
-    //seriously, there has to be a better way to do this.
-    //how would split change RC? need to check the spec
+    /**
+     * Handle the case where a destination register being written to
+     * previously contained a capability. Move RcUpdate to commit from execute
+     * This helps to avoid issuing an RcUpdate in execute,
+     * Which in turn helps us avoid unnecessary register dependency
+     * as we don't need to wait for previous insts writing to Rd to commit
+     * if we're not going to read from Rd
+     */
     std::string mnemonic = head_inst->staticInst->getName();
     if(head_inst->fault == NoFault && head_inst->staticInst->opClass() != No_OpClass && mnemonic != "capperm" &&
         mnemonic != "captype" && mnemonic != "capnode" &&
         mnemonic != "capbound" && mnemonic != "stc" &&
-        mnemonic != "std" && mnemonic != "stb" &&
-        mnemonic != "sth" && mnemonic != "stw" &&
+        mnemonic != "sd" && mnemonic != "sb" &&
+        mnemonic != "sh" && mnemonic != "sw" &&
         mnemonic != "capcreate" && mnemonic != "capprint" &&
-        mnemonic != "scc" && mnemonic != "delin" &&
-        mnemonic != "init" && mnemonic != "tighten" &&
-        mnemonic != "shrink" &&
+        mnemonic != "revoke" && mnemonic != "delin" &&
+        mnemonic != "drop" && mnemonic != "shrink" &&
+        mnemonic != "call" && mnemonic != "returni" &&
         head_inst->numDestRegs() > 0) {
 
-        // if(iewStage->ncQueue.isFull(tid)) {
-        //     DPRINTF(Commit, "[tid:%i] NCQ has become full.\n", tid);
-        //     return false;
-        // }
-
-        CPU* cpu = dynamic_cast<o3::CPU *>(head_inst->getCpuPtr());
-        PhysRegIdPtr prev_reg = head_inst->prevDestIdx(0); //FIXME: this may be 0, may not be 0
-        if(!(prev_reg->classValue() == InvalidRegClass || prev_reg->classValue() == MiscRegClass)) {
-            TaggedRegVal tagged_reg = cpu->getWritableTaggedReg(prev_reg);
-            if(tagged_reg.getTag()) {
-                tagged_reg.setTag(false);
-                NodeID node_id = tagged_reg.getRegVal().capVal().nodeId();
-                NodeCommandPtr cmd;
-                cpu->pushNodeCommand(head_inst, new NodeRcUpdate(head_inst, node_id, -1));
-                cpu->setTaggedReg(prev_reg, tagged_reg);
-                DPRINTF(Commit, "Issued RcUpdate for nodeId = %u\n", node_id);
+        // these instructions can have RS1 == RD, and in that case,
+        // there should be no RcUpdate
+        if ((mnemonic == "cincoffset" || mnemonic == "cincoffsetimm" || mnemonic == "scc" ||
+            mnemonic == "init" || mnemonic == "seal" || mnemonic == "tighten" || mnemonic == "movc") &&
+            head_inst->destRegIdx(0) == head_inst->destRegIdx(1));
+        else {
+            DPRINTF(Commit, "[sn:%d] %s rcupdate\n", head_inst->seqNum, mnemonic);
+            CPU* cpu = dynamic_cast<o3::CPU *>(head_inst->getCpuPtr());
+            PhysRegIdPtr prev_reg = head_inst->prevDestIdx(0);
+            if(!(prev_reg->classValue() == InvalidRegClass || prev_reg->classValue() == MiscRegClass)) {
+                TaggedRegVal tagged_reg = cpu->getWritableTaggedReg(prev_reg);
+                if(tagged_reg.getTag()) {
+                    tagged_reg.setTag(false);
+                    NodeID node_id = tagged_reg.getRegVal().capVal().nodeId();
+                    NodeCommandPtr cmd;
+                    cpu->pushNodeCommand(head_inst, new NodeRcUpdate(head_inst, node_id, -1));
+                    cpu->setTaggedReg(prev_reg, tagged_reg);
+                    DPRINTF(Commit, "Issued RcUpdate for nodeId = %u\n", node_id);
+                }
             }
         }
     }

@@ -248,12 +248,6 @@ DynInst::~DynInst()
         }
     }
 
-    // for(int i = 0; i < MAX_QUERY_N; i++) {
-    //     if(xyz[i] != nullptr) {
-    //         delete xyz[i];
-    //     }
-    // }
-
     delete traceData;
     fault = NoFault;
 
@@ -398,6 +392,7 @@ DynInst::completeMemAcc(PacketPtr pkt)
         }
     }
 
+    // determine which memory access is complete
     if(pkt && pkt->isRead()) {
         int i;
         for (i = 0; i < memReadN && !pkt->matchAddr(memReads[i].addr, false);
@@ -519,9 +514,8 @@ DynInst::completeMemRead(int idx, PacketPtr pkt) {
      * Need to create a new local Packet object as LSQUnit may delete
      * the original to free up space, before completeAcc can be called.
     */
-    // lastPacket = pkt;
-    xyz[idx] = new Packet(pkt, false, true);
-    lastPacket = xyz[idx];
+    readRes[idx] = new Packet(pkt, false, true);
+    lastPacket = readRes[idx];
     
     // handle the packet here and move data to a separate buffer
     assert(pkt->getSize() <= MAX_REQUEST_SIZE);
@@ -557,7 +551,7 @@ DynInst::checkQueryCompleted() {
     if(isQueryCompleted()) {
         if(fault == NoFault) {
             auto* rv_inst = dynamic_cast<RiscvStaticInst*>(staticInst.get());
-            rv_inst->completeAcc(lastPacket, this, traceData); // FIXME: pass the packet somehow
+            rv_inst->completeAcc(lastPacket, this, traceData);
             setExecuted();
             cpu->getIEWObject().checkMisprediction(dynamic_cast<DynInstPtr::PtrType>(this));
         }

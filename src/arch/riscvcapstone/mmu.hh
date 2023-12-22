@@ -57,10 +57,8 @@ namespace RiscvcapstoneISA {
 class MMU : public BaseMMU
 {
   public:
-    PMAChecker *pma;
-
     MMU(const RiscvMMUParams &p)
-      : BaseMMU(p), pma(p.pma_checker)
+      : BaseMMU(p)
     {}
 
     TranslationGenPtr
@@ -74,14 +72,9 @@ class MMU : public BaseMMU
     PrivilegeMode
     getMemPriv(ThreadContext *tc, BaseMMU::Mode mode)
     {
-        return static_cast<TLB*>(dtb)->getMemPriv(tc, mode);
+        return PrivilegeMode::PRV_U;
     }
 
-    Walker *
-    getDataWalker()
-    {
-        return static_cast<TLB*>(dtb)->getWalker();
-    }
 
     Fault translateAtomic(const RequestPtr& req, ThreadContext* tc, Mode mode) override {
         DPRINTF(CapstoneMem, "translate (atomic) %llx\n", req->getVaddr());
@@ -91,23 +84,15 @@ class MMU : public BaseMMU
 
     void translateTiming(const RequestPtr& req, ThreadContext* tc,
             Translation* translation, Mode mode) override {
-        if(1) {
-            DPRINTF(CapstoneMem, "translate %llx\n", req->getVaddr());
-            req->setPaddr(req->getVaddr()); // simply pass through
-            translation->finish(NoFault, req, tc, mode);
-        } else {
-            return getTlb(mode)->translateTiming(req, tc, translation, mode);
-        }
+        DPRINTF(CapstoneMem, "translate %llx\n", req->getVaddr());
+        req->setPaddr(req->getVaddr()); // simply pass through
+        translation->finish(NoFault, req, tc, mode);
     }
 
     Fault translateFunctional(const RequestPtr& req, ThreadContext* tc, Mode mode) override {
-        if(1) {
-            req->setPaddr(req->getVaddr()); // simply pass through
+        req->setPaddr(req->getVaddr()); // simply pass through
 
-            return NoFault;
-        } else {
-            return getTlb(mode)->translateFunctional(req, tc, mode);
-        }
+        return NoFault;
     }
 
     void flushAll() override {} 
@@ -117,19 +102,8 @@ class MMU : public BaseMMU
     }
 
     void
-    takeOverFrom(BaseMMU *old_mmu) override
-    {
-      MMU *ommu = dynamic_cast<MMU*>(old_mmu);
-      BaseMMU::takeOverFrom(ommu);
-      pma->takeOverFrom(ommu->pma);
+    takeOverFrom(BaseMMU *old_mmu) override {}
 
-    }
-
-    PMP *
-    getPMP()
-    {
-        return static_cast<TLB*>(dtb)->pmp;
-    }
 };
 
 } // namespace RiscvcapstoneISA

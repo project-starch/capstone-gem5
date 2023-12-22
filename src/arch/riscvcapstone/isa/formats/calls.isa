@@ -76,6 +76,7 @@ def template CallsConstructor {{
         flags[IsIndirectControl] = true;
         flags[IsUncondControl] = true;
         flags[IsNonSpeculative] = true;
+        flags[IsSerializeBefore] = true;
         flags[IsSerializeAfter] = true;
         hasNodeOp = true;
     }
@@ -178,6 +179,7 @@ def template ReturnConstructor {{
         flags[IsIndirectControl] = true;
         flags[IsUncondControl] = true;
         flags[IsNonSpeculative] = true;
+        flags[IsSerializeBefore] = true;
         flags[IsSerializeAfter] = true;
         hasNodeOp = true;
     }

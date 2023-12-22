@@ -853,9 +853,6 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
             if(isLoad) {
                 if (!inst->loadEffAddrValid()) {
                     inst->setLoadEffAddrs(request->getVaddr(), size);
-                    //memReadRecord set needs to happen here
-                    //*after* the addr translation
-                    // inst->updateMemReadRecord(request->getPaddr());
                 }
                 // otherwise, assume that the instruction has set the addresses in advance
             } else {

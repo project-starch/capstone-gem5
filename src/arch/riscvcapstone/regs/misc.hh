@@ -209,9 +209,9 @@ enum CapMiscRegIndex
 {
     //Capability CSRs
     CAPMISCREG_CEH = 0,
+    CAPMISCREG_CIH,
     CAPMISCREG_CINIT,
     CAPMISCREG_EPC,
-    CAPMISCREG_SWITCH_CAP,
 
     NUM_CAPMISCREGS
 };
@@ -391,9 +391,9 @@ enum CSRIndex
 //Capability CSRs
 enum CCSRIndex {
     CCSR_CEH = 0x000, //exception handler capability
+    CCSR_CIH = 0x001, //interrupt handler capability
     CCSR_CINIT = 0x002, //initial capability covering entire address space
     CCSR_EPC = 0x003, //Exception PC
-    CCSR_SWITCH_CAP = 0x004 //capability to store contexts on async world switch
 };
 struct CSRMetadata
 {
@@ -409,9 +409,9 @@ struct CCSRMetadata
 
 const std::map<int, CCSRMetadata> CCSRData = {
     {CCSR_CEH, {"ceh", CAPMISCREG_CEH}},
+    {CCSR_CIH, {"cih", CAPMISCREG_CIH}},
     {CCSR_CINIT, {"cinit", CAPMISCREG_CINIT}},
     {CCSR_EPC, {"epc", CAPMISCREG_EPC}},
-    {CCSR_SWITCH_CAP, {"switch_cap", CAPMISCREG_SWITCH_CAP}}
 };
 
 const std::map<int, CSRMetadata> CSRData = {

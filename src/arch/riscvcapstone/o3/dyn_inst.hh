@@ -119,6 +119,7 @@ class DynInst : public ExecContext, public RefCounted
 
     ~DynInst();
 
+    /** Helper to print all arch regs*/
     void printRegs() {
         RiscvcapstoneISA::o3::CPU *o3cpu = dynamic_cast<RiscvcapstoneISA::o3::CPU *>(cpu);
         assert(o3cpu != nullptr);
@@ -160,7 +161,10 @@ class DynInst : public ExecContext, public RefCounted
         bool res_tag;
     };
     
-    // note that here we only include the queries but not the updates
+    /** note that here we only include the queries but not the updates 
+     *  as only the queries are executed before the instruction is committed,
+     *  and we need to know the query result before inst commit.
+     */ 
     NodeCommandPtr nodeQueries[MAX_QUERY_N];
     bool nodeQueryCompleted[MAX_QUERY_N];
     int nodeQueryN = 0, completedNodeQueryN = 0;
@@ -169,39 +173,42 @@ class DynInst : public ExecContext, public RefCounted
     bool tagQueryCompleted[MAX_QUERY_N];
     int tagQueryN = 0, completedTagQueryN = 0;
 
+    /** keep track of memory accesses
+     * as an inst may issue multiple mem accesses
+    */
     struct MemReadRecord {
         Addr addr;
         uint8_t data[MAX_REQUEST_SIZE];
     };
     
     MemReadRecord memReads[MAX_QUERY_N];
-    PacketPtr xyz[MAX_QUERY_N];
+    PacketPtr readRes[MAX_QUERY_N];
     bool memReadCompleted[MAX_QUERY_N];
     int memReadN = 0, completedMemReadN = 0;
     
     int memWriteN = 0;
     
+    // Holds the result of the last mem read. Is passed to completeAcc
     PacketPtr lastPacket = nullptr;
-    
-    
-    // NodeCommandPtr nodeCommands[MAX_QUERY_N];
-    // bool nodeCommandCompleted[MAX_QUERY_N];
-    // int nodeCommandN = 0, completedNodeCommandN = 0;
 
+    /** Get idx(th) tag query result. */
     bool getTagQueryRes(int idx) const {
         assert(idx < tagQueryN);
         assert(tagQueryCompleted[idx]);
         return tagQueries[idx].res_tag;
     }
 
+    /** Whether all memory reads issued by an inst. are complete. */
     bool isMemReadComplete() const {
         return memReadN == completedMemReadN;
     }
 
+    /** Total number of memory reads issued */
     int getMemReadN() const {
         return memReadN;
     }
 
+    /** Get idx(th) mem read result. */
     const uint8_t* getMemReadRes(int idx) const {
         assert(idx < memReadN);
         assert(memReadCompleted[idx]);
@@ -218,7 +225,7 @@ class DynInst : public ExecContext, public RefCounted
         ResultReady,             /// Instruction has its result
         CanIssue,                /// Instruction can issue and execute
         Issued,                  /// Instruction has issued
-        Executed,                /// Instruction has executed
+        Executed,                /// Instruction has completed execution
         CanCommit,               /// Instruction can commit
         AtCommit,                /// Instruction has reached commit
         Committed,               /// Instruction has committed
@@ -237,7 +244,7 @@ class DynInst : public ExecContext, public RefCounted
         SerializeAfter,          /// Needs to serialize instructions behind it
         SerializeHandled,        /// Serialization has been handled
         NodeExecuted,
-        ExecuteCalled,
+        ExecuteCalled,           /// Instruction execution has started
         NumStatus
     };
 
@@ -462,6 +469,7 @@ class DynInst : public ExecContext, public RefCounted
     ssize_t ncqIdx = -1;
     typename NCQUnit::NCQIterator ncqIt;
 
+    /** Tag queue index. */
     ssize_t tqIdx = -1;
     typename BaseTagController::TQIterator tqIt;
 
@@ -522,6 +530,7 @@ class DynInst : public ExecContext, public RefCounted
     Fault initiateMemAMO(Addr addr, unsigned size, Request::Flags flags,
                          AtomicOpFunctorPtr amo_op) override;
 
+    /** Initiate one of the node commands. */
     Fault initiateNodeCommand(NodeCommandPtr cmd);
 
     Fault initiateGetTag(Addr addr);
@@ -878,7 +887,9 @@ class DynInst : public ExecContext, public RefCounted
     /** Returns whether or not this instruction is completed. */
     bool isCompleted() const { return status[Completed]; }
 
-
+    /** Check whether all tag queries and mem reads are completed.
+     * Node Commands are handled separately.
+    */
     bool isQueryCompleted() const {
         return completedTagQueryN == tagQueryN &&
             completedMemReadN == memReadN &&
@@ -1302,15 +1313,6 @@ class DynInst : public ExecContext, public RefCounted
     // storage (which is pretty hard to imagine they would have reason
     // to do).
 
-    void
-    updateMemReadRecord(Addr paddr) {
-        memReads[memReadN] = MemReadRecord {
-            .addr = paddr
-        };
-        memReadCompleted[memReadN] = false;
-        ++ memReadN;
-    }
-
     RegVal
     getRegOperand(const StaticInst *si, int idx) override
     {
@@ -1355,7 +1357,6 @@ class DynInst : public ExecContext, public RefCounted
         if (reg->is(InvalidRegClass))
             return;
         cpu->setReg(reg, val);
-        //TODO setResult
     }
 
     void
@@ -1365,7 +1366,6 @@ class DynInst : public ExecContext, public RefCounted
         if (reg->is(InvalidRegClass))
             return;
         cpu->setTaggedReg(reg, tagged_val);
-        //setResult(val);
     }
 
 
@@ -1411,15 +1411,10 @@ class DynInst : public ExecContext, public RefCounted
 
     void completeMemRead(int idx, PacketPtr pkt);
 
+    /** Tracks whether the associated memreads and tag queries
+     * are completed, and if so, calls completeAcc on the inst
+    */
     void checkQueryCompleted();
-
-    bool addrInSecRegion(Addr addr, uint64_t size) {
-        return (addr >= cpu->secure_base - size && addr < cpu->secure_end);
-    }
-
-    bool isSecureWorld() {
-        return cpu->cwrld[threadNumber];
-    }
 };
 
 } // namespace RiscvcapstoneISA::o3

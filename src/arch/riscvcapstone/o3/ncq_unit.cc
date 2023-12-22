@@ -113,7 +113,7 @@ NCQUnit::cleanupCommands(){
 
 void
 NCQUnit::writebackCommands(){
-    // not doing lots of reordering right now
+    // not doing reordering right now
     for(NCQIterator it = ncQueue.begin();
             it != ncQueue.end() && ncq->canSend(); ++ it) {
         //if(!it->inst->isNodeInitiated() || it->completed())
@@ -121,7 +121,6 @@ NCQUnit::writebackCommands(){
             // not doing anything for instructions not yet executed
             continue;
         std::vector<NodeCommandPtr>& commands = it->commands;
-        /** @todo maybe insert a seqNum only with commit commands */
         DPRINTF(NCQ, "Instruction %u with %u commands (completed = %u)\n", it->inst->seqNum, commands.size(), 
                 it->completedCommands);
         for(NodeCommandIterator nc_it = commands.begin();
@@ -152,8 +151,11 @@ NCQUnit::writebackCommands(){
 
             DPRINTF(NCQ, "Checking command dependencies\n");
 
-            // check for dependencies
-            // the naive way. Bruteforce
+            /** check for dependencies the naive way. Bruteforce.
+             * Right now there's no reordering so dep_ready is
+             * always going to be false, unless our command is the first
+             * in the list
+             */
             bool dep_ready = true;
             for(NCQIterator it_o = ncQueue.begin();
                     dep_ready && it_o != ncQueue.end();
@@ -212,8 +214,6 @@ NCQUnit::completeCommand(NodeCommandPtr node_command){
         ++ inst->ncqIt->completedCommands;
         if(inst->ncqIt->completed() &&
                 inst->hasNodeWB()) {
-                    //might need to add a check that if a command is from commit
-                    //don't send the inst to commit as it's alr committed
             DPRINTF(NCQ, "Instruction %u can now be committed\n",
                     inst->seqNum);
             inst->setNodeExecuted();
@@ -228,6 +228,7 @@ NCQUnit::handleCacheResp(PacketPtr pkt) {
     PacketRecord& packet_record = it->second;
     NodeCommandPtr node_cmd = packet_record.cmd;
     //check if it was a command issued by cpu and not an inst
+    //for the init cap
     if(!packet_record.inst && node_cmd == nullptr) {
         packetIssuers.erase(it);
         delete pkt;
