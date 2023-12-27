@@ -1,4 +1,4 @@
-## CAPStone gem5 simulator
+# CAPStone gem5 simulator
 
 This repo contains an out of order CPU model for CAPStone, built on top
 of gem5's O3 CPU model. This design is intended to be used for performance evaluations.
