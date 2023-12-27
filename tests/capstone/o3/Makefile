@@ -24,7 +24,7 @@ GCC=riscv64-unknown-linux-gnu-gcc
 all: $(TARGETS)
 
 $(TARGETS):%:$(STATIC_LIB).o %.o
-	$(GCC) -o $@ -nostdlib -static $^
+	$(GCC) -o $@ -nostdlib -static -mno-relax $^
 
 $(TARGET_NAMES):%:$(SRC_DIR)/%
 
