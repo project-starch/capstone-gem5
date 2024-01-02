@@ -16,8 +16,8 @@ installed and added to `PATH`.
 Simply run the following from the project root directory:
 
 ```
-   chmod +x run.sh
-   ./run.sh <NUM_THREADS>
+chmod +x run.sh
+./run.sh <NUM_THREADS>
 ```
 
 `NUM_THREADS` is the number of threads you'd like to build gem5 with.
@@ -31,7 +31,7 @@ If you make any changes to the source, you can simply rebuild and check it by ru
 To run a single testcase, from `tests/capstone/o3` directory:
 
 ```
-   make run-<testcase>
+make run-<testcase>
 ```
 
 ## Contributions
